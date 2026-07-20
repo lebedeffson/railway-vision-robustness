@@ -312,7 +312,11 @@ def main() -> None:
                         attacked_detection = detection_for_image(
                             model, batch, adversarial, args.confidence
                         )
-                        attack_values = consistency_row(
+                        clean_attack_values = consistency_row(
+                            clean[0], result, mask, epsilon_px,
+                            result.clean_gradient[0], "clean_gradient_",
+                        )
+                        path_attack_values = consistency_row(
                             clean[0], result, mask, epsilon_px,
                             result.path_gradient[0], "path_gradient_",
                         )
@@ -381,15 +385,24 @@ def main() -> None:
                                     "lambda_box": loss_weights["box"],
                                     "lambda_cls": loss_weights["cls"],
                                     "lambda_dfl": loss_weights["dfl"],
-                                    "c_sp_global": attack_values["path_gradient_c_sp_global"],
-                                    "c_sp_object": attack_values["path_gradient_c_sp_object"],
-                                    "c_sp_background": attack_values["path_gradient_c_sp_background"],
-                                    "c_dir": attack_values["path_gradient_c_dir_global"],
-                                    "c_atk_global": attack_values[
+                                    "c_sp_global": path_attack_values["path_gradient_c_sp_global"],
+                                    "c_sp_object": path_attack_values["path_gradient_c_sp_object"],
+                                    "c_sp_background": path_attack_values["path_gradient_c_sp_background"],
+                                    "c_dir": path_attack_values["path_gradient_c_dir_global"],
+                                    "c_dir_object": path_attack_values[
+                                        "path_gradient_c_dir_object"
+                                    ],
+                                    "c_dir_background": path_attack_values[
+                                        "path_gradient_c_dir_background"
+                                    ],
+                                    "c_atk_global": path_attack_values[
                                         "path_gradient_c_atk_product_global"
                                     ],
-                                    "c_atk_object": attack_values[
+                                    "c_atk_object": path_attack_values[
                                         "path_gradient_c_atk_product_object"
+                                    ],
+                                    "c_atk_background": path_attack_values[
+                                        "path_gradient_c_atk_product_background"
                                     ],
                                     "latency_ms": math.nan,
                                     "damage": clean_detection["f1"] - attacked_detection["f1"],
@@ -398,6 +411,8 @@ def main() -> None:
                                 row.update(feature_values(
                                     attacked_metric, defended_metric, preservation_metric
                                 ))
+                                row.update(clean_attack_values)
+                                row.update(path_attack_values)
                                 image_rows.append(row)
                 expected = expected_rows_per_image(args)
                 if len(image_rows) != expected:

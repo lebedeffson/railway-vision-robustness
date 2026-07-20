@@ -20,10 +20,14 @@ def main() -> None:
         "sequence_id", "image_path", "split", "attack", "adaptive", "epsilon",
         "epsilon_px", "steps", "restart", "seed", "selected_best",
     ]
-    attack_columns = common + [column for column in data if column.startswith("c_sp_")]
+    attack_columns = common + [
+        column for column in data
+        if column.startswith(("c_sp_", "clean_gradient_", "path_gradient_"))
+    ]
     attack_columns += [
         column for column in (
-            "c_dir", "c_atk_global", "c_atk_object", "attack_loss",
+            "c_dir", "c_dir_object", "c_dir_background", "c_atk_global",
+            "c_atk_object", "c_atk_background", "attack_loss",
             "lambda_box", "lambda_cls", "lambda_dfl",
         ) if column in data
     ]

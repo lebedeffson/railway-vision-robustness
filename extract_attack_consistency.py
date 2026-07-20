@@ -365,8 +365,13 @@ def main() -> None:
                 base["c_sp_object"] = base["path_gradient_c_sp_object"]
                 base["c_sp_background"] = base["path_gradient_c_sp_background"]
                 base["c_dir"] = base["path_gradient_c_dir_global"]
+                base["c_dir_object"] = base["path_gradient_c_dir_object"]
+                base["c_dir_background"] = base["path_gradient_c_dir_background"]
                 base["c_atk_global"] = base["path_gradient_c_atk_product_global"]
                 base["c_atk_object"] = base["path_gradient_c_atk_product_object"]
+                base["c_atk_background"] = base[
+                    "path_gradient_c_atk_product_background"
+                ]
                 rows.append(base)
 
     output.parent.mkdir(parents=True, exist_ok=True)
