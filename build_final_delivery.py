@@ -19,7 +19,7 @@ ROOT_FILES = [
 ]
 
 
-ROOT_GLOBS = ["*.py", "tests/*.py"]
+ROOT_GLOBS = ["*.py", "tests/*.py", "systemd/*.service", ".codex/notes/*.md"]
 
 
 OPTIONAL_FILES = [
