@@ -53,7 +53,7 @@ DATA = PROJECT_DIR / "data/yolo_osdar23/data.yaml"
 MANIFEST = PROJECT_DIR / "data/yolo_osdar23/manifest.csv"
 STATS = PROJECT_DIR / "outputs/diagnostics/feature_consistency/feature_normalization_val.pt"
 OUTPUT = PROJECT_DIR / "outputs/final_practice/unified_diagnostics_raw.csv"
-DEFENSES = ["none", "tnorm", "bilateral", "gaussian", "jpeg", "median"]
+DEFENSES = ["none", "tnorm", "bilateral", "gaussian"]
 
 
 def parse_floats(value: str) -> list[float]:

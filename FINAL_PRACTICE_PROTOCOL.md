@@ -56,6 +56,9 @@ from the exact same adversarial examples, avoiding cross-script seed mismatch.
 The PGD pilot budgets are `0.1,0.25,0.5,1.0 / 255`, PGD-20, random start,
 three restarts/seeds (`42,123,999`), with the maximum-loss restart selected per
 image. Add `2,4 / 255` and PGD-40 only if the `1/255` pilot is above the floor.
+The attacked final matrix uses the mandatory `none`, Product T-norm,
+bilateral and Gaussian branches. JPEG and median remain in clean-utility
+evidence only; no white-box robustness claim is made for either one.
 
 ## Claim gates
 
