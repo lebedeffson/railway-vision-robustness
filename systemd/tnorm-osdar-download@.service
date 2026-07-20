@@ -13,6 +13,10 @@ CPUWeight=50
 IOWeight=75
 CPUQuota=150%
 MemoryHigh=2560M
+MemoryMax=3G
+OOMPolicy=stop
+OOMScoreAdjust=300
+TasksMax=64
 
 [Install]
 WantedBy=default.target

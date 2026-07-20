@@ -34,6 +34,9 @@ Fast mode uses two non-overlapping download shards, each with four 24 MiB/s
 workers, a 1.5-core CPU quota and a 2.5 GiB soft memory limit. Training keeps
 batch size 1 for VRAM safety but uses two dataloader workers, a two-core CPU
 quota and no inter-epoch cooldown.
+Each download shard has a 3 GiB hard memory ceiling; the training controller has
+an 11 GiB hard ceiling and an elevated OOM score so the research job is stopped
+before the desktop session under system-wide memory pressure.
 Stage training resumes from `last.pt`. Final-matrix work checkpoints after every
 fully completed image, and `run_training_pipeline.py` records a marker after
 each stage so reboots do not repeat completed practice blocks.

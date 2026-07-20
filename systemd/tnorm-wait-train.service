@@ -12,7 +12,11 @@ Nice=10
 CPUWeight=50
 IOWeight=50
 CPUQuota=200%
-MemoryHigh=12G
+MemoryHigh=10G
+MemoryMax=11G
+OOMPolicy=stop
+OOMScoreAdjust=300
+TasksMax=256
 Environment=OMP_NUM_THREADS=4
 Environment=MKL_NUM_THREADS=4
 Environment=OPENBLAS_NUM_THREADS=4
