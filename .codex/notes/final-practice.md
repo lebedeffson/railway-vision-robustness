@@ -30,8 +30,8 @@ the final stage-2 `best.pt`.
 On the local RTX 4060 Laptop GPU (8 GiB), training is fixed at batch size 1 and
 1280 px. Batch size 2 is unsafe for the fully unfrozen YOLO11m stage.
 
-Fast mode uses two non-overlapping download shards, each with three 16 MiB/s
-workers, a one-core CPU quota and a 2.5 GiB soft memory limit. Training keeps
+Fast mode uses two non-overlapping download shards, each with four 24 MiB/s
+workers, a 1.5-core CPU quota and a 2.5 GiB soft memory limit. Training keeps
 batch size 1 for VRAM safety but uses two dataloader workers, a two-core CPU
 quota and no inter-epoch cooldown.
 Stage training resumes from `last.pt`. Final-matrix work checkpoints after every

@@ -5,13 +5,13 @@ After=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=/home/lebedeffson/Code/андрей/TNormFilter_handoff
-ExecStart=/usr/bin/systemd-inhibit --what=sleep:idle --who=tnorm-practice --why=OSDaR23-download --mode=block /usr/bin/python download_osdar23_direct.py --workers 3 --rate-limit 16M --shard-count 2 --shard-index %i
+ExecStart=/usr/bin/systemd-inhibit --what=sleep:idle --who=tnorm-practice --why=OSDaR23-download --mode=block /usr/bin/python download_osdar23_direct.py --workers 4 --rate-limit 24M --shard-count 2 --shard-index %i
 Restart=on-failure
 RestartSec=180
 Nice=10
 CPUWeight=50
-IOWeight=50
-CPUQuota=100%
+IOWeight=75
+CPUQuota=150%
 MemoryHigh=2560M
 
 [Install]
