@@ -1,5 +1,10 @@
 # TNormFilter handoff
 
+> The numerical results below are the immutable v1 baseline only. They used
+> image-level grouping and are not final article evidence. The corrected
+> sequence-level protocol is in `FINAL_PRACTICE_PROTOCOL.md`; baseline source is
+> tagged `diagnostics_v1_current`.
+
 ## Окружение
 
 Python-проект для анализа устойчивости YOLO11m на OSDaR23.

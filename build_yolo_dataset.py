@@ -964,6 +964,10 @@ def build_dataset(
                 {
                     "split": split_name,
                     "group": group_name,
+                    # Statistical unit used by all downstream CV/bootstrap.
+                    # Parts such as ``3_fire_site_3.1`` and ``.2`` deliberately
+                    # share one sequence_id so adjacent frames cannot leak.
+                    "sequence_id": group_name,
                     "sequence": sequence_name,
                     "frame_id": str(frame_id),
                     "source_image": str(source_image),
@@ -1027,6 +1031,7 @@ def write_manifest(
             fieldnames=[
                 "split",
                 "group",
+                "sequence_id",
                 "sequence",
                 "frame_id",
                 "source_image",

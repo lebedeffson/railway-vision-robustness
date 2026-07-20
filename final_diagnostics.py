@@ -12,7 +12,7 @@ from sklearn.metrics import mean_absolute_error, r2_score
 
 
 SEED = 42
-BOOTSTRAP_ITERATIONS = 1000
+BOOTSTRAP_ITERATIONS = 2000
 
 ANALYSIS_TEST = "outputs/diagnostics/analysis"
 ANALYSIS_VAL = "outputs/diagnostics/analysis_val"
@@ -160,7 +160,7 @@ def bootstrap_model_comparison(
     )
 
     required = {
-        "image_path",
+        "sequence_id",
         target_column,
         "prediction_C",
         "prediction_D",
@@ -176,7 +176,7 @@ def bootstrap_model_comparison(
 
     data = data[
         [
-            "image_path",
+            "sequence_id",
             target_column,
             "prediction_C",
             "prediction_D",
@@ -190,7 +190,7 @@ def bootstrap_model_comparison(
     prediction_c = data["prediction_C"].to_numpy(float)
     prediction_d = data["prediction_D"].to_numpy(float)
 
-    groups = grouped_indices(data["image_path"])
+    groups = grouped_indices(data["sequence_id"])
     observed = model_gains(
         target,
         prediction_c,
@@ -246,7 +246,8 @@ def bootstrap_model_comparison(
                 low > 0 or high < 0
             ),
             "iterations": iterations,
-            "images": data["image_path"].nunique(),
+            "sequences": data["sequence_id"].nunique(),
+            "grouping_unit": "sequence_id",
             "rows": len(data),
         })
 
@@ -310,7 +311,7 @@ def bootstrap_correlation_comparison(
         target_column = "f1_recovery"
 
     required = {
-        "image_path",
+        "sequence_id",
         target_column,
         reference_metric,
         candidate_metric,
@@ -326,7 +327,7 @@ def bootstrap_correlation_comparison(
 
     data = data[
         [
-            "image_path",
+            "sequence_id",
             target_column,
             reference_metric,
             candidate_metric,
@@ -346,7 +347,7 @@ def bootstrap_correlation_comparison(
         candidate,
     )
 
-    groups = grouped_indices(data["image_path"])
+    groups = grouped_indices(data["sequence_id"])
     rng = np.random.default_rng(seed)
 
     absolute_gains = []
@@ -422,7 +423,8 @@ def bootstrap_correlation_comparison(
             abs_low > 0 or abs_high < 0
         ),
         "iterations": iterations,
-        "images": data["image_path"].nunique(),
+        "sequences": data["sequence_id"].nunique(),
+        "grouping_unit": "sequence_id",
         "rows": len(data),
     }
 

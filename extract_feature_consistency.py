@@ -401,6 +401,20 @@ def cosine(left: Tensor, right: Tensor) -> float:
     return float(torch.dot(left, right) / (left_norm * right_norm + EPS))
 
 
+def activation_entropy(values: Tensor, bins: int = 64) -> float:
+    """Normalized histogram entropy on the validation-normalized activations."""
+    flat = values.detach().float().flatten()
+    if flat.numel() == 0:
+        return 0.0
+    histogram = torch.histc(flat, bins=bins, min=0.0, max=1.0)
+    probabilities = histogram / histogram.sum().clamp_min(EPS)
+    probabilities = probabilities[probabilities > 0]
+    if probabilities.numel() <= 1:
+        return 0.0
+    entropy = -(probabilities * probabilities.log()).sum()
+    return float(entropy / math.log(bins))
+
+
 def metrics(
     clean: Tensor,
     other: Tensor,
@@ -428,6 +442,9 @@ def metrics(
                 "mae": 0.0,
                 "relative_l2": 0.0,
                 "mean_shift": 0.0,
+                "entropy_clean": activation_entropy(clean_image),
+                "entropy_other": activation_entropy(other_image),
+                "entropy_change": 0.0,
             })
             continue
 
@@ -461,6 +478,12 @@ def metrics(
             "mae": float(difference.abs().mean()),
             "relative_l2": float(difference.norm() / (left.norm() + EPS)),
             "mean_shift": float((left.mean() - right.mean()).abs()),
+            "entropy_clean": activation_entropy(clean_image),
+            "entropy_other": activation_entropy(other_image),
+            "entropy_change": abs(
+                activation_entropy(clean_image)
+                - activation_entropy(other_image)
+            ),
         })
 
     return rows
@@ -473,6 +496,25 @@ def recovery(before: float, after: float) -> float:
 
 def distance_recovery(before: float, after: float) -> float:
     return math.nan if before <= EPS else (before - after) / (before + EPS)
+
+
+def clipped_recovery(before: float, after: float) -> float:
+    value = recovery(before, after)
+    return math.nan if math.isnan(value) else min(1.0, max(0.0, value))
+
+
+def defense_consistency(operator: str, preservation: float, gain: float) -> float:
+    if math.isnan(preservation) or math.isnan(gain):
+        return math.nan
+    preservation = min(1.0, max(0.0, preservation))
+    gain = min(1.0, max(0.0, gain))
+    if operator == "product":
+        return preservation * gain
+    if operator == "godel":
+        return min(preservation, gain)
+    if operator == "lukas":
+        return max(0.0, preservation + gain - 1.0)
+    raise ValueError(operator)
 
 
 # =============================================================================
@@ -725,6 +767,9 @@ COLUMNS = [
     "mae_attack",
     "relative_l2_attack",
     "mean_shift_attack",
+    "entropy_clean",
+    "entropy_attack",
+    "entropy_change_attack",
 
     "active_defended",
     "cos_raw_defended",
@@ -736,6 +781,8 @@ COLUMNS = [
     "mae_defended",
     "relative_l2_defended",
     "mean_shift_defended",
+    "entropy_defended",
+    "entropy_change_defended",
 
     "damage_product_attack",
     "damage_godel_attack",
@@ -753,6 +800,12 @@ COLUMNS = [
     "recovery_mae",
     "recovery_relative_l2",
     "recovery_mean_shift",
+    "recovery_entropy",
+
+    "p_cosine", "a_cosine", "r_cosine", "g_cosine",
+    "p_product", "a_product", "r_product", "g_product", "c_def_product",
+    "p_godel", "a_godel", "r_godel", "g_godel", "c_def_godel",
+    "p_lukas", "a_lukas", "r_lukas", "g_lukas", "c_def_lukas",
 ]
 
 
@@ -761,6 +814,7 @@ def write_rows(
     clean_features: list[Tensor],
     attack_features: list[Tensor],
     defended_features: list[Tensor],
+    clean_filtered_features: list[Tensor],
     paths: list[str],
     split: str,
     attack_name: str,
@@ -782,9 +836,24 @@ def write_rows(
             stats[level],
         )
 
+        preservation_metrics = metrics(
+            clean_features[level_index],
+            clean_filtered_features[level_index],
+            stats[level],
+        )
+
         for image_index, path in enumerate(paths):
             attacked = attack_metrics[image_index]
             defended = defended_metrics[image_index]
+            preservation = preservation_metrics[image_index]
+            gains = {
+                name: (
+                    math.nan
+                    if clean_case
+                    else clipped_recovery(attacked[name], defended[name])
+                )
+                for name in ("cos_norm", "product", "godel", "lukas")
+            }
 
             writer.writerow({
                 "image": Path(path).name,
@@ -806,6 +875,9 @@ def write_rows(
                 "mae_attack": attacked["mae"],
                 "relative_l2_attack": attacked["relative_l2"],
                 "mean_shift_attack": attacked["mean_shift"],
+                "entropy_clean": attacked["entropy_clean"],
+                "entropy_attack": attacked["entropy_other"],
+                "entropy_change_attack": attacked["entropy_change"],
 
                 "active_defended": defended["active"],
                 "cos_raw_defended": defended["cos_raw"],
@@ -817,6 +889,8 @@ def write_rows(
                 "mae_defended": defended["mae"],
                 "relative_l2_defended": defended["relative_l2"],
                 "mean_shift_defended": defended["mean_shift"],
+                "entropy_defended": defended["entropy_other"],
+                "entropy_change_defended": defended["entropy_change"],
 
                 "damage_product_attack": 1 - attacked["product"],
                 "damage_godel_attack": 1 - attacked["godel"],
@@ -877,6 +951,40 @@ def write_rows(
                         defended["mean_shift"],
                     )
                 ),
+                "recovery_entropy": (
+                    math.nan
+                    if clean_case
+                    else distance_recovery(
+                        attacked["entropy_change"],
+                        defended["entropy_change"],
+                    )
+                ),
+
+                "p_cosine": preservation["cos_norm"],
+                "a_cosine": attacked["cos_norm"],
+                "r_cosine": defended["cos_norm"],
+                "g_cosine": gains["cos_norm"],
+                "p_product": preservation["product"],
+                "a_product": attacked["product"],
+                "r_product": defended["product"],
+                "g_product": gains["product"],
+                "c_def_product": defense_consistency(
+                    "product", preservation["product"], gains["product"]
+                ),
+                "p_godel": preservation["godel"],
+                "a_godel": attacked["godel"],
+                "r_godel": defended["godel"],
+                "g_godel": gains["godel"],
+                "c_def_godel": defense_consistency(
+                    "godel", preservation["godel"], gains["godel"]
+                ),
+                "p_lukas": preservation["lukas"],
+                "a_lukas": attacked["lukas"],
+                "r_lukas": defended["lukas"],
+                "g_lukas": gains["lukas"],
+                "c_def_lukas": defense_consistency(
+                    "lukas", preservation["lukas"], gains["lukas"]
+                ),
             })
 
 
@@ -911,21 +1019,25 @@ def run(
             paths = batch["im_file"]
             clean_features = hook.extract(model, clean)
 
+            clean_defended_by_defense: dict[str, list[Tensor]] = {
+                "none": clean_features,
+            }
+            for defense_name in defenses:
+                if defense_name != "none":
+                    clean_defended_by_defense[defense_name] = hook.extract(
+                        model, defend(clean, defense_name)
+                    )
+
             if not skip_clean:
                 for defense_name in defenses:
-                    defended = defend(clean, defense_name)
-
-                    defended_features = (
-                        clean_features
-                        if defense_name == "none"
-                        else hook.extract(model, defended)
-                    )
+                    defended_features = clean_defended_by_defense[defense_name]
 
                     write_rows(
                         writer,
                         clean_features,
                         clean_features,
                         defended_features,
+                        clean_defended_by_defense[defense_name],
                         paths,
                         split,
                         "clean",
@@ -967,6 +1079,7 @@ def run(
                             clean_features,
                             adversarial_features,
                             defended_features,
+                            clean_defended_by_defense[defense_name],
                             paths,
                             split,
                             attack_name,

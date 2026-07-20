@@ -36,7 +36,9 @@ STAGE2_NAME = "yolo11m_baseline_stage2"
 # ============================================================
 
 IMAGE_SIZE = 1280
-BATCH_SIZE = 2
+# RTX 4060 Laptop has 8 GiB; batch=2 at 1280 px can exceed VRAM in the
+# unfrozen stage. Keep the effective protocol explicit and reproducible.
+BATCH_SIZE = 1
 DEVICE = 0
 WORKERS = 4
 SEED = 2026

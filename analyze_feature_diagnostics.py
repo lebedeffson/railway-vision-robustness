@@ -17,12 +17,15 @@ from sklearn.model_selection import GroupKFold, cross_val_predict
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
+from audit_final_practice import canonical_path, load_manifest
+
 
 FEATURE_CSV = "outputs/diagnostics/feature_consistency/feature_consistency_test.csv"
 DETECTION_CSV = "outputs/diagnostics/image_detection/image_detection_test.csv"
 OUTPUT = "outputs/diagnostics/analysis"
-BOOTSTRAP_ITERATIONS = 500
+BOOTSTRAP_ITERATIONS = 2000
 SEED = 42
+MANIFEST_CSV = "data/yolo_osdar23/manifest.csv"
 
 MERGE_KEYS = [
     "image_path",
@@ -53,19 +56,19 @@ def bootstrap_spearman(
     seed: int,
 ) -> tuple[float, float, float]:
     data = data[
-        [metric, target, "image_path"]
+        [metric, target, "sequence_id"]
     ].replace(
         [np.inf, -np.inf],
         np.nan,
     ).dropna()
 
-    groups = data["image_path"].unique()
+    groups = data["sequence_id"].unique()
 
     if len(groups) < 2:
         return float("nan"), float("nan"), float("nan")
 
     indices = {
-        group: data.index[data["image_path"] == group].to_numpy()
+        group: data.index[data["sequence_id"] == group].to_numpy()
         for group in groups
     }
 
@@ -103,6 +106,7 @@ def bootstrap_spearman(
 def load_data(
     feature_csv: Path,
     detection_csv: Path,
+    manifest_csv: Path,
 ) -> pd.DataFrame:
     features = pd.read_csv(feature_csv)
     detections = pd.read_csv(detection_csv)
@@ -116,6 +120,7 @@ def load_data(
         "mae_attack",
         "relative_l2_attack",
         "mean_shift_attack",
+        "entropy_change_attack",
         "product_attack",
         "godel_attack",
         "lukas_attack",
@@ -125,6 +130,7 @@ def load_data(
         "recovery_mae",
         "recovery_relative_l2",
         "recovery_mean_shift",
+        "recovery_entropy",
         "recovery_product",
         "recovery_godel",
         "recovery_lukas",
@@ -220,6 +226,37 @@ def load_data(
         - merged["f1_attack"]
     )
 
+    if "sequence_id" not in merged.columns:
+        manifest_rows = load_manifest(manifest_csv)
+        exact = {
+            canonical_path(row["image_path"]): row["sequence_id"]
+            for row in manifest_rows
+        }
+        basename_values: dict[str, set[str]] = {}
+        for row in manifest_rows:
+            basename_values.setdefault(
+                Path(row["image_path"]).name, set()
+            ).add(row["sequence_id"])
+        basename = {
+            name: next(iter(values))
+            for name, values in basename_values.items()
+            if len(values) == 1
+        }
+        merged["sequence_id"] = merged["image_path"].map(
+            lambda value: exact.get(
+                canonical_path(str(value)),
+                basename.get(Path(str(value)).name),
+            )
+        )
+
+    if merged["sequence_id"].isna().any():
+        examples = merged.loc[
+            merged["sequence_id"].isna(), "image_path"
+        ].astype(str).drop_duplicates().head(5).tolist()
+        raise RuntimeError(
+            "Cannot map every row to sequence_id; examples: " + repr(examples)
+        )
+
     return merged
 
 
@@ -262,6 +299,7 @@ def correlation_table(
                 "ci_high": high,
                 "rows": len(scope_data),
                 "images": scope_data["image_path"].nunique(),
+                "sequences": scope_data["sequence_id"].nunique(),
             })
 
     return pd.DataFrame(rows)
@@ -346,15 +384,15 @@ def evaluate_models(
     )
 
     data = data.dropna(
-        subset=[target, "image_path"]
+        subset=[target, "sequence_id"]
     )
 
-    groups = data["image_path"]
+    groups = data["sequence_id"]
     group_count = groups.nunique()
 
     if group_count < 2:
         raise RuntimeError(
-            f"Not enough image groups for {task}"
+            f"Not enough sequence groups for {task}"
         )
 
     folds = min(5, group_count)
@@ -365,6 +403,7 @@ def evaluate_models(
     predictions = data[
         [
             "image_path",
+            "sequence_id",
             "attack",
             "epsilon_px",
             "defense",
@@ -424,7 +463,9 @@ def evaluate_models(
                 data[target],
             ),
             "rows": len(data),
-            "images": group_count,
+            "images": data["image_path"].nunique(),
+            "sequences": group_count,
+            "grouping_unit": "sequence_id",
             "folds": folds,
         })
 
@@ -758,6 +799,12 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--manifest",
+        default=MANIFEST_CSV,
+        help="Dataset manifest containing the independent sequence_id/group",
+    )
+
+    parser.add_argument(
         "--bootstrap",
         type=int,
         default=BOOTSTRAP_ITERATIONS,
@@ -791,6 +838,7 @@ def main() -> None:
     merged = load_data(
         feature_csv,
         detection_csv,
+        Path(args.manifest),
     )
 
     merged.to_csv(
@@ -815,6 +863,7 @@ def main() -> None:
         "mae_attack",
         "relative_l2_attack",
         "mean_shift_attack",
+        "entropy_change_attack",
         "product_attack",
         "godel_attack",
         "lukas_attack",
@@ -826,6 +875,7 @@ def main() -> None:
         "recovery_mae",
         "recovery_relative_l2",
         "recovery_mean_shift",
+        "recovery_entropy",
         "recovery_product",
         "recovery_godel",
         "recovery_lukas",
@@ -878,6 +928,7 @@ def main() -> None:
             "mae_attack",
             "relative_l2_attack",
             "mean_shift_attack",
+            "entropy_change_attack",
         ],
 
         "D": [
@@ -889,6 +940,7 @@ def main() -> None:
             "mae_attack",
             "relative_l2_attack",
             "mean_shift_attack",
+            "entropy_change_attack",
             "product_attack",
             "godel_attack",
             "lukas_attack",
@@ -921,6 +973,7 @@ def main() -> None:
             "recovery_mae",
             "recovery_relative_l2",
             "recovery_mean_shift",
+            "recovery_entropy",
         ],
 
         "D": [
@@ -933,6 +986,7 @@ def main() -> None:
             "recovery_mae",
             "recovery_relative_l2",
             "recovery_mean_shift",
+            "recovery_entropy",
             "recovery_product",
             "recovery_godel",
             "recovery_lukas",
@@ -1004,6 +1058,9 @@ def main() -> None:
         "damage_rows": len(damage),
         "recovery_rows": len(recovery),
         "images": merged["image_path"].nunique(),
+        "sequences": merged["sequence_id"].nunique(),
+        "grouping_unit": "sequence_id",
+        "manifest_csv": str(Path(args.manifest)),
     }
 
     (

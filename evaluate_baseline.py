@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import csv
 import json
+import shutil
 from pathlib import Path
 
 import numpy as np
 import torch
 from ultralytics import YOLO
+
+from extract_feature_consistency import split_images
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
@@ -39,6 +42,9 @@ IMAGE_SIZE = 1280
 BATCH_SIZE = 2
 DEVICE = 0
 WORKERS = 4
+CONFIDENCE_THRESHOLD = 0.25
+IOU_THRESHOLD = 0.70
+MAX_DETECTIONS = 300
 
 
 def check_environment() -> None:
@@ -105,6 +111,9 @@ def main() -> None:
 
         plots=True,
         save_json=False,
+        conf=CONFIDENCE_THRESHOLD,
+        iou=IOU_THRESHOLD,
+        max_det=MAX_DETECTIONS,
 
         project=str(OUTPUT_DIR),
         name=RUN_NAME,
@@ -122,6 +131,13 @@ def main() -> None:
     ap50 = np.asarray(metrics.box.ap50, dtype=float)
     ap50_95 = np.asarray(metrics.box.ap, dtype=float)
     f1 = np.asarray(metrics.box.f1, dtype=float)
+    test_image_count = len(split_images(DATA_YAML, "test"))
+    confusion = np.asarray(metrics.confusion_matrix.matrix, dtype=float)
+    false_negatives = (
+        confusion[-1, :len(class_names)]
+        if confusion.shape == (len(class_names) + 1, len(class_names) + 1)
+        else np.full(len(class_names), np.nan)
+    )
 
     rows = []
 
@@ -135,6 +151,7 @@ def main() -> None:
                 "f1": float(f1[class_id]),
                 "mAP50": float(ap50[class_id]),
                 "mAP50-95": float(ap50_95[class_id]),
+                "false_negatives": float(false_negatives[class_id]),
             }
         )
 
@@ -155,6 +172,7 @@ def main() -> None:
                 "f1",
                 "mAP50",
                 "mAP50-95",
+                "false_negatives",
             ],
         )
 
@@ -167,6 +185,9 @@ def main() -> None:
         "split": "test",
         "image_size": IMAGE_SIZE,
         "batch_size": BATCH_SIZE,
+        "confidence_threshold": CONFIDENCE_THRESHOLD,
+        "iou_threshold": IOU_THRESHOLD,
+        "max_detections": MAX_DETECTIONS,
         "overall": {
             "precision": to_float(
                 metrics.results_dict["metrics/precision(B)"]
@@ -182,6 +203,10 @@ def main() -> None:
             ),
             "fitness": to_float(
                 metrics.results_dict["fitness"]
+            ),
+            "false_negatives": float(np.nansum(false_negatives)),
+            "false_negatives_per_frame": (
+                float(np.nansum(false_negatives)) / test_image_count
             ),
         },
         "speed_ms_per_image": {
@@ -203,6 +228,34 @@ def main() -> None:
             ensure_ascii=False,
             indent=2,
         )
+
+    audit_dir = PROJECT_DIR / "outputs" / "final_practice" / "00_audit"
+    audit_dir.mkdir(parents=True, exist_ok=True)
+    audit_rows = [{
+        "scope": "overall",
+        "class_id": "",
+        "class_name": "all",
+        "precision": summary["overall"]["precision"],
+        "recall": summary["overall"]["recall"],
+        "f1": float(np.nanmean(f1)),
+        "mAP50": summary["overall"]["mAP50"],
+        "mAP50-95": summary["overall"]["mAP50-95"],
+        "false_negatives": summary["overall"]["false_negatives"],
+        "false_negatives_per_frame": summary["overall"]["false_negatives_per_frame"],
+    }]
+    audit_rows.extend({"scope": "class", **row} for row in rows)
+    with (audit_dir / "clean_model_metrics.csv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(audit_rows[0]))
+        writer.writeheader()
+        writer.writerows(audit_rows)
+
+    training_curve = (
+        PROJECT_DIR / "outputs" / "training" / "yolo11m_baseline_stage2" / "results.png"
+    )
+    if training_curve.is_file():
+        shutil.copy2(training_curve, audit_dir / "training_curves.png")
 
     print("\n" + "=" * 72)
     print("ОЦЕНКА TEST-ВЫБОРКИ ЗАВЕРШЕНА")
