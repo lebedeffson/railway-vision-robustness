@@ -221,7 +221,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--split", default="test")
     parser.add_argument("--device", default="0")
     parser.add_argument("--imgsz", type=int, default=1280)
-    parser.add_argument("--workers", type=int, default=0)
+    parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--confidence", type=float, default=DEFAULT_CONFIDENCE)
     parser.add_argument("--fgsm-eps", type=parse_floats, default=FGSM_EPS)
     parser.add_argument("--pgd-eps", type=parse_floats, default=PGD_EPS)

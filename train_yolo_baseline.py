@@ -42,9 +42,9 @@ IMAGE_SIZE = 1280
 # unfrozen stage. Keep the effective protocol explicit and reproducible.
 BATCH_SIZE = 1
 DEVICE = 0
-WORKERS = 1
+WORKERS = 2
 SEED = 2026
-EPOCH_COOLDOWN_SECONDS = int(os.environ.get("TNORM_EPOCH_COOLDOWN_SECONDS", "3"))
+EPOCH_COOLDOWN_SECONDS = int(os.environ.get("TNORM_EPOCH_COOLDOWN_SECONDS", "0"))
 
 
 def low_impact_epoch_cooldown(_trainer: object) -> None:

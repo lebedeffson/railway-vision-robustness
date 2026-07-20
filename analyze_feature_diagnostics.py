@@ -436,7 +436,7 @@ def evaluate_models(
             data[target],
             groups=groups,
             cv=cv,
-            n_jobs=1,
+            n_jobs=2,
         )
 
         predictions[

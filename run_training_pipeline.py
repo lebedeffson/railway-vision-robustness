@@ -98,7 +98,7 @@ def main() -> None:
     )
     run(
         "final_matrix_val", "run_final_matrix.py",
-        "--split", "val", "--workers", "0",
+        "--split", "val", "--workers", "1",
         "--output", "outputs/final_practice/unified_diagnostics_val_raw.csv",
         expected=("outputs/final_practice/unified_diagnostics_val_raw.csv",),
     )
@@ -114,7 +114,7 @@ def main() -> None:
     )
     run(
         "final_matrix_test", "run_final_matrix.py",
-        "--split", "test", "--workers", "0",
+        "--split", "test", "--workers", "1",
         "--output", "outputs/final_practice/unified_diagnostics_raw.csv",
         expected=("outputs/final_practice/unified_diagnostics_raw.csv",),
     )

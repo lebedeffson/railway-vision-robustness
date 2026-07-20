@@ -186,6 +186,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--keep-archives", action="store_true")
     parser.add_argument("--sequences", nargs="*", default=SEQUENCES)
+    parser.add_argument("--shard-count", type=int, default=1)
+    parser.add_argument("--shard-index", type=int, default=0)
     return parser.parse_args()
 
 
@@ -193,10 +195,14 @@ def main() -> None:
     args = parse_args()
     if args.workers < 1:
         raise SystemExit("--workers must be positive")
+    if args.shard_count < 1 or not 0 <= args.shard_index < args.shard_count:
+        raise SystemExit("Require shard_count >= 1 and 0 <= shard_index < shard_count")
+    sequences = args.sequences[args.shard_index::args.shard_count]
     prepare_directories()
     log(f"Raw output: {RAW_DIR}")
     log(
-        f"Sequences: {len(args.sequences)}, workers: {args.workers}, "
+        f"Sequences: {len(sequences)}, shard: {args.shard_index}/{args.shard_count}, "
+        f"workers: {args.workers}, "
         f"rate limit: {args.rate_limit}"
     )
     counts = {"completed": 0, "skipped": 0, "failed": 0}
@@ -210,7 +216,7 @@ def main() -> None:
                 args.keep_archives,
                 args.rate_limit,
             ): sequence
-            for sequence in args.sequences
+            for sequence in sequences
         }
         for future in as_completed(futures):
             sequence = futures[future]
