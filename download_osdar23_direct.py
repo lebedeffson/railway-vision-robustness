@@ -124,6 +124,9 @@ def download_sequence(
     rate_limit: str,
 ) -> str:
     if sequence_is_complete(sequence):
+        if not keep_archive:
+            archive_path(sequence).unlink(missing_ok=True)
+            partial_archive_path(sequence).unlink(missing_ok=True)
         log(f"SKIP {sequence}: already extracted")
         return "skipped"
 
