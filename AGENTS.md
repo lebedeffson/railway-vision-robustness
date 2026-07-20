@@ -8,6 +8,7 @@
 - Do not create a final delivery ZIP before stage-2 `weights/best.pt` exists.
 - The official download host may fail local DNS; use `download_osdar23_direct.py`
   with its pinned official-host IP and delete each full archive after selective extraction.
+  The host does not support Range, so incomplete `.part` files must restart from zero.
 
 ## Notes
 

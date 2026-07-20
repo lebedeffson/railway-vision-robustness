@@ -134,11 +134,14 @@ def download_sequence(sequence: str, ip_address: str, keep_archive: bool) -> str
 
     if not final_path.is_file():
         url = f"{DOWNLOAD_BASE_URL}/{sequence}.zip"
+        # The official server ignores Range and curl cannot resume safely.
+        # Remove only this sequence's incomplete file before a fresh transfer.
+        partial_path.unlink(missing_ok=True)
         log(f"GET  {sequence}")
         subprocess.run(
             [
                 "curl", "--fail", "--location", "--retry", "5",
-                "--retry-all-errors", "--continue-at", "-",
+                "--retry-all-errors",
                 "--resolve", f"download.data.fid-move.de:443:{ip_address}",
                 url, "--output", str(partial_path),
             ],
@@ -162,7 +165,7 @@ def download_sequence(sequence: str, ip_address: str, keep_archive: bool) -> str
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Direct resumable OSDaR23 downloader without browser/Anubis"
+        description="Direct OSDaR23 downloader without browser/Anubis"
     )
     parser.add_argument("--download-ip", default=DEFAULT_DOWNLOAD_IP)
     parser.add_argument("--workers", type=int, default=DEFAULT_WORKERS)

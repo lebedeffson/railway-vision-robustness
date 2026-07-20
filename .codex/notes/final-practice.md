@@ -8,7 +8,8 @@ OSDaR23 is downloaded from the official FID move endpoint used by the supplied
 script: `https://download.data.fid-move.de/dzsf/osdar23/<sequence>.zip`. The 43
 non-calibration archives total about 109.94 GiB compressed. Do not retain them:
 extract only `rgb_highres_center`, OpenLABEL JSON, README and license, then delete
-each archive. `download_osdar23_direct.py` supports resume and parallel workers.
+each archive. `download_osdar23_direct.py` supports parallel workers but not
+resume: the official server ignores Range, so interrupted `.part` files restart.
 The local resolver did not resolve the official host on 2026-07-21; public DNS
 resolved it to `194.95.114.28`, while HTTPS with the original host name and curl
 `--resolve` worked.
