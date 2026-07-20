@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import time
 from pathlib import Path
 
 import torch
@@ -40,11 +42,27 @@ IMAGE_SIZE = 1280
 # unfrozen stage. Keep the effective protocol explicit and reproducible.
 BATCH_SIZE = 1
 DEVICE = 0
-WORKERS = 4
+WORKERS = 1
 SEED = 2026
+EPOCH_COOLDOWN_SECONDS = int(os.environ.get("TNORM_EPOCH_COOLDOWN_SECONDS", "3"))
+
+
+def low_impact_epoch_cooldown(_trainer: object) -> None:
+    """Give the desktop a short idle window between training epochs."""
+    if EPOCH_COOLDOWN_SECONDS > 0:
+        time.sleep(EPOCH_COOLDOWN_SECONDS)
+
+
+def configure_low_impact_runtime() -> None:
+    torch.set_num_threads(min(2, os.cpu_count() or 1))
+    try:
+        torch.set_num_interop_threads(1)
+    except RuntimeError:
+        pass
 
 
 def check_environment() -> None:
+    configure_low_impact_runtime()
     if not DATA_YAML.is_file():
         raise FileNotFoundError(
             f"Не найден файл датасета:\n{DATA_YAML}"
@@ -79,24 +97,34 @@ def check_output_directories() -> None:
     stage1_directory = OUTPUT_DIR / STAGE1_NAME
     stage2_directory = OUTPUT_DIR / STAGE2_NAME
 
-    existing_directories = [
-        path
-        for path in (stage1_directory, stage2_directory)
-        if path.exists()
-    ]
+    for directory in (stage1_directory, stage2_directory):
+        if not directory.exists():
+            continue
+        weights = directory / "weights"
+        if not (weights / "best.pt").is_file() and not (weights / "last.pt").is_file():
+            raise FileExistsError(
+                "Найдена незавершённая папка без checkpoint:\n"
+                f"{directory}\n"
+                "Автоматическое удаление запрещено."
+            )
 
-    if existing_directories:
-        existing_text = "\n".join(
-            str(path)
-            for path in existing_directories
-        )
 
-        raise FileExistsError(
-            "Уже существуют папки этого запуска:\n"
-            f"{existing_text}\n\n"
-            "Удалите только эти папки либо измените "
-            "STAGE1_NAME и STAGE2_NAME."
-        )
+def completed_or_resumable_model(stage_name: str) -> tuple[Path | None, bool]:
+    stage_directory = OUTPUT_DIR / stage_name
+    weights = stage_directory / "weights"
+    best = weights / "best.pt"
+    last = weights / "last.pt"
+    marker = stage_directory / "TRAINING_COMPLETE"
+    if marker.is_file() and best.is_file():
+        return best, False
+    if last.is_file():
+        return last, True
+    return None, False
+
+
+def mark_stage_complete(stage_name: str, best_model_path: Path) -> None:
+    marker = OUTPUT_DIR / stage_name / "TRAINING_COMPLETE"
+    marker.write_text(f"best_model={best_model_path}\n", encoding="utf-8")
 
 
 def train_stage1() -> Path:
@@ -112,7 +140,22 @@ def train_stage1() -> Path:
     print("ЭТАП 1: ОБУЧЕНИЕ С ЗАМОРОЖЕННЫМ BACKBONE")
     print("=" * 72)
 
-    model = YOLO(PRETRAINED_MODEL)
+    checkpoint, should_resume = completed_or_resumable_model(STAGE1_NAME)
+    if checkpoint is not None and not should_resume:
+        print(f"Этап 1 уже завершён: {checkpoint}")
+        return checkpoint
+
+    model = YOLO(str(checkpoint) if should_resume else PRETRAINED_MODEL)
+    model.add_callback("on_train_epoch_end", low_impact_epoch_cooldown)
+
+    if should_resume:
+        print(f"Продолжаю этап 1 из checkpoint: {checkpoint}")
+        model.train(resume=True)
+        best_model_path = OUTPUT_DIR / STAGE1_NAME / "weights" / "best.pt"
+        if not best_model_path.is_file():
+            raise FileNotFoundError(f"После resume не найден {best_model_path}")
+        mark_stage_complete(STAGE1_NAME, best_model_path)
+        return best_model_path
 
     model.train(
         data=str(DATA_YAML),
@@ -197,6 +240,8 @@ def train_stage1() -> Path:
             f"{best_model_path}"
         )
 
+    mark_stage_complete(STAGE1_NAME, best_model_path)
+
     print("\nПервый этап завершён.")
     print(f"Лучшая модель этапа 1:\n{best_model_path}")
 
@@ -215,7 +260,22 @@ def train_stage2(stage1_best_model: Path) -> Path:
     print("ЭТАП 2: ПОЛНОЕ ДООБУЧЕНИЕ МОДЕЛИ")
     print("=" * 72)
 
-    model = YOLO(str(stage1_best_model))
+    checkpoint, should_resume = completed_or_resumable_model(STAGE2_NAME)
+    if checkpoint is not None and not should_resume:
+        print(f"Этап 2 уже завершён: {checkpoint}")
+        return checkpoint
+
+    model = YOLO(str(checkpoint) if should_resume else str(stage1_best_model))
+    model.add_callback("on_train_epoch_end", low_impact_epoch_cooldown)
+
+    if should_resume:
+        print(f"Продолжаю этап 2 из checkpoint: {checkpoint}")
+        model.train(resume=True)
+        best_model_path = OUTPUT_DIR / STAGE2_NAME / "weights" / "best.pt"
+        if not best_model_path.is_file():
+            raise FileNotFoundError(f"После resume не найден {best_model_path}")
+        mark_stage_complete(STAGE2_NAME, best_model_path)
+        return best_model_path
 
     model.train(
         data=str(DATA_YAML),
@@ -299,6 +359,8 @@ def train_stage2(stage1_best_model: Path) -> Path:
             "После второго этапа не найден файл:\n"
             f"{best_model_path}"
         )
+
+    mark_stage_complete(STAGE2_NAME, best_model_path)
 
     return best_model_path
 

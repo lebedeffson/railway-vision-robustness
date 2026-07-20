@@ -21,6 +21,11 @@ records the actual `box`, `cls` and `dfl` weights from the loaded model configur
 
 ## Required run order
 
+The persistent low-impact controller runs this order automatically through
+`wait_and_train.py` and `run_training_pipeline.py`. Completed stages and final
+matrix images are checkpointed, so a reboot resumes rather than discarding the
+whole run.
+
 ```bash
 python final_practice_preflight.py
 python audit_final_practice.py

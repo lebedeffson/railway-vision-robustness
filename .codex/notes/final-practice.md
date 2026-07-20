@@ -29,3 +29,11 @@ the final stage-2 `best.pt`.
 
 On the local RTX 4060 Laptop GPU (8 GiB), training is fixed at batch size 1 and
 1280 px. Batch size 2 is unsafe for the fully unfrozen YOLO11m stage.
+
+Long work is intentionally desktop-safe: the persistent download service uses
+at most three 12 MiB/s workers under a shared 50% CPU quota, low CPU/IO weights
+and selective extraction; training uses one dataloader worker, batch size 1 and
+a three-second inter-epoch cooldown.
+Stage training resumes from `last.pt`. Final-matrix work checkpoints after every
+fully completed image, and `run_training_pipeline.py` records a marker after
+each stage so reboots do not repeat completed practice blocks.

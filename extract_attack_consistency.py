@@ -193,9 +193,12 @@ def spatial_scores(
         operator: float(fuzzy_tnorm(left, right, operator).mean())
         for operator in ("product", "godel", "lukasiewicz")
     }
-    scores["spearman"] = float(spearmanr(
-        left.detach().cpu().numpy(), right.detach().cpu().numpy()
-    ).statistic)
+    if left.unique().numel() < 2 or right.unique().numel() < 2:
+        scores["spearman"] = math.nan
+    else:
+        scores["spearman"] = float(spearmanr(
+            left.detach().cpu().numpy(), right.detach().cpu().numpy()
+        ).statistic)
     k = max(1, math.ceil(0.1 * left.numel()))
     left_top = set(torch.topk(left, k).indices.detach().cpu().tolist())
     right_top = set(torch.topk(right, k).indices.detach().cpu().tolist())
@@ -211,7 +214,12 @@ def consistency_row(
     gradient: Tensor,
     prefix: str,
 ) -> dict[str, float]:
-    delta = result.adversarial - clean
+    adversarial = (
+        result.adversarial[0]
+        if result.adversarial.ndim == clean.ndim + 1
+        else result.adversarial
+    )
+    delta = adversarial - clean
     epsilon = epsilon_px / 255.0
     masks = {
         "global": torch.ones_like(object_mask),
@@ -269,7 +277,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="0")
     parser.add_argument("--imgsz", type=int, default=1280)
     parser.add_argument("--batch", type=int, default=1)
-    parser.add_argument("--workers", type=int, default=2)
+    parser.add_argument("--workers", type=int, default=0)
     parser.add_argument("--pgd-steps", type=int, default=20)
     parser.add_argument("--pgd-eps", type=parse_floats, default=PGD_EPS)
     parser.add_argument("--fgsm-eps", type=parse_floats, default=FGSM_EPS)

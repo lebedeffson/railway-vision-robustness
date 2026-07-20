@@ -41,7 +41,8 @@ SEQUENCES = [
 
 
 DEFAULT_DOWNLOAD_IP = "194.95.114.28"
-DEFAULT_WORKERS = 4
+DEFAULT_WORKERS = 3
+DEFAULT_RATE_LIMIT = "12M"
 MIN_FREE_GIB = 20
 PRINT_LOCK = threading.Lock()
 
@@ -116,7 +117,12 @@ def log(message: str) -> None:
         print(message, flush=True)
 
 
-def download_sequence(sequence: str, ip_address: str, keep_archive: bool) -> str:
+def download_sequence(
+    sequence: str,
+    ip_address: str,
+    keep_archive: bool,
+    rate_limit: str,
+) -> str:
     if sequence_is_complete(sequence):
         log(f"SKIP {sequence}: already extracted")
         return "skipped"
@@ -142,6 +148,7 @@ def download_sequence(sequence: str, ip_address: str, keep_archive: bool) -> str
             [
                 "curl", "--fail", "--location", "--retry", "5",
                 "--retry-all-errors",
+                "--limit-rate", rate_limit,
                 "--resolve", f"download.data.fid-move.de:443:{ip_address}",
                 url, "--output", str(partial_path),
             ],
@@ -169,6 +176,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--download-ip", default=DEFAULT_DOWNLOAD_IP)
     parser.add_argument("--workers", type=int, default=DEFAULT_WORKERS)
+    parser.add_argument(
+        "--rate-limit",
+        default=DEFAULT_RATE_LIMIT,
+        help="Per-worker curl transfer limit (default: 12M)",
+    )
     parser.add_argument("--keep-archives", action="store_true")
     parser.add_argument("--sequences", nargs="*", default=SEQUENCES)
     return parser.parse_args()
@@ -180,13 +192,20 @@ def main() -> None:
         raise SystemExit("--workers must be positive")
     prepare_directories()
     log(f"Raw output: {RAW_DIR}")
-    log(f"Sequences: {len(args.sequences)}, workers: {args.workers}")
+    log(
+        f"Sequences: {len(args.sequences)}, workers: {args.workers}, "
+        f"rate limit: {args.rate_limit}"
+    )
     counts = {"completed": 0, "skipped": 0, "failed": 0}
     failures: list[tuple[str, str]] = []
     with ThreadPoolExecutor(max_workers=args.workers) as executor:
         futures = {
             executor.submit(
-                download_sequence, sequence, args.download_ip, args.keep_archives
+                download_sequence,
+                sequence,
+                args.download_ip,
+                args.keep_archives,
+                args.rate_limit,
             ): sequence
             for sequence in args.sequences
         }

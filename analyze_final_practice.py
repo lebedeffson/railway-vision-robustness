@@ -165,7 +165,7 @@ def evaluate_task(data: pd.DataFrame, task: str) -> tuple[pd.DataFrame, pd.DataF
             target,
             groups=prepared["sequence_id"],
             cv=cv,
-            n_jobs=-1,
+            n_jobs=1,
         )
         predictions[f"prediction_{name}"] = predicted
         row = {

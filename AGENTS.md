@@ -9,6 +9,9 @@
 - The official download host may fail local DNS; use `download_osdar23_direct.py`
   with its pinned official-host IP and delete each full archive after selective extraction.
   The host does not support Range, so incomplete `.part` files must restart from zero.
+- Keep long local runs desktop-safe by default: at most three rate-limited download
+  workers under a shared CPU/memory cgroup, one Ultralytics dataloader worker,
+  low process/IO priority, and an inter-epoch cooldown.
 
 ## Notes
 

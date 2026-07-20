@@ -39,9 +39,9 @@ OUTPUT_DIR = (
 RUN_NAME = "clean_test_baseline"
 
 IMAGE_SIZE = 1280
-BATCH_SIZE = 2
+BATCH_SIZE = 1
 DEVICE = 0
-WORKERS = 4
+WORKERS = 0
 CONFIDENCE_THRESHOLD = 0.25
 IOU_THRESHOLD = 0.70
 MAX_DETECTIONS = 300
@@ -65,13 +65,6 @@ def check_environment() -> None:
 
     run_directory = OUTPUT_DIR / RUN_NAME
 
-    if run_directory.exists():
-        raise FileExistsError(
-            "Папка результатов уже существует:\n"
-            f"{run_directory}\n\n"
-            "Удалите только эту папку перед повторным запуском."
-        )
-
     print("=" * 72)
     print("ОЦЕНКА BASELINE НА ЧИСТОЙ TEST-ВЫБОРКЕ")
     print("=" * 72)
@@ -90,6 +83,11 @@ def to_float(value) -> float:
 
 
 def main() -> None:
+    completed_summary = OUTPUT_DIR / RUN_NAME / "clean_test_metrics.json"
+    if completed_summary.is_file():
+        print(f"Оценка уже завершена: {completed_summary}")
+        return
+
     check_environment()
 
     OUTPUT_DIR.mkdir(
@@ -117,7 +115,7 @@ def main() -> None:
 
         project=str(OUTPUT_DIR),
         name=RUN_NAME,
-        exist_ok=False,
+        exist_ok=True,
 
         verbose=True,
     )

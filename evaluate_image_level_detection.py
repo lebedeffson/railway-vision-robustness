@@ -501,8 +501,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", default=OUTPUT)
     parser.add_argument("--device", default="0")
     parser.add_argument("--imgsz", type=int, default=1280)
-    parser.add_argument("--batch", type=int, default=2)
-    parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument("--batch", type=int, default=1)
+    parser.add_argument("--workers", type=int, default=0)
 
     parser.add_argument(
         "--calibration-split",

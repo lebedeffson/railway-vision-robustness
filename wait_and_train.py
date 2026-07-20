@@ -12,7 +12,7 @@ from download_osdar23_direct import SEQUENCES, sequence_is_complete
 PROJECT_DIR = Path(__file__).resolve().parent
 VENV_PYTHON = PROJECT_DIR / ".venv/bin/python"
 STATE = PROJECT_DIR / "outputs/final_practice/wait_and_train_state.json"
-POLL_SECONDS = 30
+POLL_SECONDS = 300
 
 
 def update(status: str, **extra: object) -> None:
@@ -42,7 +42,9 @@ def environment_ready() -> bool:
 def main() -> None:
     while True:
         missing = [name for name in SEQUENCES if not sequence_is_complete(name)]
-        ready = environment_ready()
+        # Importing the ML stack is comparatively expensive. Check it only
+        # once the dataset itself is complete.
+        ready = environment_ready() if not missing else False
         if not missing and ready:
             break
         update(
