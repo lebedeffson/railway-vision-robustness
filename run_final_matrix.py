@@ -254,6 +254,7 @@ def main() -> None:
     if args.output.is_file() and config_path.is_file():
         print(f"Final matrix already complete: {args.output}")
         return
+    print(f"Selected checkpoint: {args.model.resolve()}", flush=True)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     partial_path = args.output.with_suffix(args.output.suffix + ".tmp")
     completed_images, fieldnames, total_rows = prepare_partial(
