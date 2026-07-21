@@ -11,6 +11,8 @@
   The host does not support Range, so incomplete `.part` files must restart from zero.
 - Treat a raw sequence as complete only when every high-resolution camera URI in
   its OpenLABEL JSON resolves to an existing file.
+- If the non-resumable host repeatedly drops a large archive, use
+  `stream_extract_osdar23.py`; it retains extracted RGB frames between attempts.
 - Fast mode uses two non-overlapping dataset shards with four workers each;
   training keeps batch size 1 but uses two dataloader workers and no cooldown.
 
