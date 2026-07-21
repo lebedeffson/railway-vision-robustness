@@ -53,7 +53,7 @@ DATA = PROJECT_DIR / "data/yolo_osdar23/data.yaml"
 MANIFEST = PROJECT_DIR / "data/yolo_osdar23/manifest.csv"
 STATS = PROJECT_DIR / "outputs/diagnostics/feature_consistency/feature_normalization_val.pt"
 OUTPUT = PROJECT_DIR / "outputs/final_practice/unified_diagnostics_raw.csv"
-DEFENSES = ["none", "tnorm", "bilateral", "gaussian"]
+DEFENSES = ["none", "tnorm", "bilateral", "gaussian", "median", "jpeg"]
 
 
 def parse_floats(value: str) -> list[float]:
@@ -158,11 +158,15 @@ def feature_values(
             "product", preservation["product"], gains["product"]
         ),
         "p_godel": preservation["godel"],
+        "a_godel": attacked["godel"],
+        "r_godel": defended["godel"],
         "g_godel": gains["godel"],
         "c_def_godel": defense_consistency(
             "godel", preservation["godel"], gains["godel"]
         ),
         "p_lukasiewicz": preservation["lukas"],
+        "a_lukasiewicz": attacked["lukas"],
+        "r_lukasiewicz": defended["lukas"],
         "g_lukasiewicz": gains["lukas"],
         "c_def_lukasiewicz": defense_consistency(
             "lukas", preservation["lukas"], gains["lukas"]
@@ -175,7 +179,8 @@ def conditions(args: argparse.Namespace) -> list[tuple[str, float, int, bool]]:
     for epsilon in args.pgd_eps:
         for steps in args.pgd_steps:
             rows.append(("pgd", epsilon, steps, False))
-            if args.adaptive_pgd:
+        if args.adaptive_pgd:
+            for steps in args.adaptive_pgd_steps:
                 rows.append(("pgd", epsilon, steps, True))
     return rows
 
@@ -226,6 +231,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fgsm-eps", type=parse_floats, default=FGSM_EPS)
     parser.add_argument("--pgd-eps", type=parse_floats, default=PGD_EPS)
     parser.add_argument("--pgd-steps", type=parse_ints, default=[20])
+    parser.add_argument(
+        "--adaptive-pgd-steps", type=parse_ints, default=[20, 40],
+        help="PGD step counts through the differentiable Product filter",
+    )
     parser.add_argument("--seeds", type=parse_ints, default=SEEDS)
     parser.add_argument("--defenses", type=parse_strings, default=DEFENSES)
     parser.add_argument("--adaptive-pgd", action=argparse.BooleanOptionalAction, default=True)
@@ -238,6 +247,7 @@ def main() -> None:
     args = parse_args()
     if args.quick:
         args.fgsm_eps, args.pgd_eps, args.pgd_steps, args.seeds = [0.5], [0.1], [2], [42]
+        args.adaptive_pgd_steps = [2]
         args.defenses, args.max_images = ["none", "tnorm"], 1
     config_path = args.output.with_suffix(".json")
     if args.output.is_file() and config_path.is_file():
@@ -360,6 +370,13 @@ def main() -> None:
                                     "epsilon": epsilon_px / 255.0,
                                     "epsilon_px": epsilon_px,
                                     "steps": steps,
+                                    "step_size": (
+                                        epsilon_px / 255.0
+                                        if attack_name == "fgsm"
+                                        else (epsilon_px / 255.0) / 4.0
+                                    ),
+                                    "random_start": attack_name == "pgd",
+                                    "restarts": len(seeds),
                                     "restart": restart,
                                     "seed": seed,
                                     "selected_best": restart == best_restart,
@@ -385,6 +402,7 @@ def main() -> None:
                                     "lambda_box": loss_weights["box"],
                                     "lambda_cls": loss_weights["cls"],
                                     "lambda_dfl": loss_weights["dfl"],
+                                    "attack_objective": "lambda_box*L_box+lambda_cls*L_cls+lambda_dfl*L_dfl",
                                     "c_sp_global": path_attack_values["path_gradient_c_sp_global"],
                                     "c_sp_object": path_attack_values["path_gradient_c_sp_object"],
                                     "c_sp_background": path_attack_values["path_gradient_c_sp_background"],
@@ -403,6 +421,12 @@ def main() -> None:
                                     ],
                                     "c_atk_background": path_attack_values[
                                         "path_gradient_c_atk_product_background"
+                                    ],
+                                    "c_atk_clean_gradient": clean_attack_values[
+                                        "clean_gradient_c_atk_product_global"
+                                    ],
+                                    "c_atk_path_gradient": path_attack_values[
+                                        "path_gradient_c_atk_product_global"
                                     ],
                                     "latency_ms": math.nan,
                                     "damage": clean_detection["f1"] - attacked_detection["f1"],
@@ -436,6 +460,7 @@ def main() -> None:
     config = {
         "model": str(args.model), "data": str(args.data), "manifest": str(args.manifest),
         "split": args.split, "conditions": conditions(args), "seeds": args.seeds,
+        "adaptive_pgd_steps": args.adaptive_pgd_steps,
         "defenses": args.defenses, "confidence": args.confidence,
         "statistical_unit": "sequence_id", "rows": total_rows,
     }

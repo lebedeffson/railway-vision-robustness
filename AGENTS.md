@@ -19,6 +19,10 @@
   training keeps batch size 1 but uses two dataloader workers and no cooldown.
 - The persistent training unit must not wrap `ExecStart` in `systemd-inhibit`;
   after reboot the user service may lack interactive authorization for inhibitors.
+- Treat `outputs/pipeline_status.json` as the canonical resumable stage contract;
+  reconcile it from checkpoint/output evidence with `pipeline_status.py sync`.
+- The final matrix keeps six clean/non-adaptive defenses, while white-box Product
+  evaluation uses adaptive PGD-20 and PGD-40 only; JPEG/median require BPDA.
 
 ## Notes
 

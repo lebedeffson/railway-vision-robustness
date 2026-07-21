@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+import yaml
 from ultralytics import YOLO
 
 from extract_feature_consistency import split_images
@@ -84,7 +85,8 @@ def to_float(value) -> float:
 
 def main() -> None:
     completed_summary = OUTPUT_DIR / RUN_NAME / "clean_test_metrics.json"
-    if completed_summary.is_file():
+    final_metrics = PROJECT_DIR / "outputs/final_practice/tables/clean_model_metrics.csv"
+    if completed_summary.is_file() and final_metrics.is_file():
         print(f"Оценка уже завершена: {completed_summary}")
         return
 
@@ -213,6 +215,12 @@ def main() -> None:
         },
         "classes": rows,
     }
+    overall_precision = summary["overall"]["precision"]
+    overall_recall = summary["overall"]["recall"]
+    summary["overall"]["f1"] = (
+        2.0 * overall_precision * overall_recall
+        / max(overall_precision + overall_recall, 1e-12)
+    )
 
     json_path = run_directory / "clean_test_metrics.json"
 
@@ -235,7 +243,7 @@ def main() -> None:
         "class_name": "all",
         "precision": summary["overall"]["precision"],
         "recall": summary["overall"]["recall"],
-        "f1": float(np.nanmean(f1)),
+        "f1": summary["overall"]["f1"],
         "mAP50": summary["overall"]["mAP50"],
         "mAP50-95": summary["overall"]["mAP50-95"],
         "false_negatives": summary["overall"]["false_negatives"],
@@ -249,11 +257,66 @@ def main() -> None:
         writer.writeheader()
         writer.writerows(audit_rows)
 
+    tables_dir = PROJECT_DIR / "outputs/final_practice/tables"
+    figures_dir = PROJECT_DIR / "outputs/final_practice/figures"
+    configs_dir = PROJECT_DIR / "outputs/final_practice/configs"
+    tables_dir.mkdir(parents=True, exist_ok=True)
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    configs_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(audit_dir / "clean_model_metrics.csv", tables_dir / "clean_model_metrics.csv")
+
     training_curve = (
         PROJECT_DIR / "outputs" / "training" / "yolo11m_baseline_stage2" / "results.png"
     )
     if training_curve.is_file():
         shutil.copy2(training_curve, audit_dir / "training_curves.png")
+        shutil.copy2(training_curve, figures_dir / "training_curves.png")
+
+    training_dir = PROJECT_DIR / "outputs/training/yolo11m_baseline_stage2"
+    args_path = training_dir / "args.yaml"
+    training_config = (
+        yaml.safe_load(args_path.read_text(encoding="utf-8")) or {}
+        if args_path.is_file()
+        else {}
+    )
+    training_config.update({
+        "evaluation": {
+            "checkpoint": str(MODEL_PATH),
+            "split": "test",
+            "imgsz": IMAGE_SIZE,
+            "batch": BATCH_SIZE,
+            "confidence": CONFIDENCE_THRESHOLD,
+            "iou": IOU_THRESHOLD,
+            "max_det": MAX_DETECTIONS,
+            "nms": "Ultralytics class-aware NMS",
+        },
+        "seeds": [42, 123, 999],
+    })
+    results_csv = training_dir / "results.csv"
+    if results_csv.is_file():
+        with results_csv.open("r", encoding="utf-8-sig", newline="") as handle:
+            history = list(csv.DictReader(handle))
+        if history:
+            fitness_key = next((key for key in history[0] if "fitness" in key.lower()), None)
+            map_key = next((key for key in history[0] if "map50-95" in key.lower()), None)
+            score_key = fitness_key or map_key
+            if score_key:
+                best_index = max(
+                    range(len(history)),
+                    key=lambda index: float(history[index].get(score_key) or "-inf"),
+                )
+                training_config["best_epoch"] = int(float(history[best_index].get("epoch", best_index))) + 1
+            training_config["epochs_completed"] = len(history)
+            training_config["stop_reason"] = "early_stopping_or_requested_limit; see training log and args"
+            training_config["final_losses"] = {
+                key.strip(): float(value)
+                for key, value in history[-1].items()
+                if "loss" in key.lower() and value not in (None, "")
+            }
+    (configs_dir / "training_config.yaml").write_text(
+        yaml.safe_dump(training_config, sort_keys=False, allow_unicode=True),
+        encoding="utf-8",
+    )
 
     print("\n" + "=" * 72)
     print("ОЦЕНКА TEST-ВЫБОРКИ ЗАВЕРШЕНА")

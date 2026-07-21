@@ -50,3 +50,16 @@ missing and one truncated OpenLABEL-referenced RGB frame before splitting. The
 resulting corpus has 1405 referenced images (1057 train, 198 val, 150 test) across all 43
 downloaded subsequences. One extra physical PNG in `15_construction_vehicle_15.1`
 is not referenced by OpenLABEL and is therefore not a dataset sample.
+
+The canonical final-stage ledger is `outputs/pipeline_status.json`. It has one
+record for each of the 13 acceptance stages and is updated atomically. The raw
+scene audit writes `outputs/final_practice/audit/{scene_manifest.csv,
+split_manifest.csv,split_audit.json}`; the accepted audit has 43/43 scenes
+checked, 42 PASS, `3_fire_site_3.1` PASS_WITH_EXCLUSIONS, 1405 readable frames,
+and zero sequence split intersections.
+
+The frozen final matrix uses FGSM at 0.5/1/2/4/8 pixel levels and PGD pilot at
+0.1/0.25/0.5/1, with seeds 42/123/999 and maximum-loss restart selection.
+Non-adaptive clean/attack analysis includes none, Product, bilateral, Gaussian,
+median and JPEG. Adaptive Product evaluation uses PGD-20 and PGD-40; JPEG and
+median remain outside the adaptive ranking because no BPDA is implemented.

@@ -27,11 +27,15 @@ def synchronize(device: torch.device) -> None:
         torch.cuda.synchronize(device)
 
 
-def benchmark(operation, device: torch.device, warmup: int, repetitions: int) -> list[float]:
+def benchmark(
+    operation, device: torch.device, warmup: int, repetitions: int
+) -> tuple[list[float], float]:
     with torch.no_grad():
         for _ in range(warmup):
             operation()
         synchronize(device)
+        if device.type == "cuda":
+            torch.cuda.reset_peak_memory_stats(device)
         values = []
         for _ in range(repetitions):
             synchronize(device)
@@ -39,10 +43,21 @@ def benchmark(operation, device: torch.device, warmup: int, repetitions: int) ->
             operation()
             synchronize(device)
             values.append((time.perf_counter_ns() - start) / 1_000_000.0)
-    return values
+    peak_memory_mb = (
+        torch.cuda.max_memory_allocated(device) / 1024**2
+        if device.type == "cuda"
+        else float("nan")
+    )
+    return values, peak_memory_mb
 
 
-def summary(name: str, values: list[float], batch: int, detector_mean: float) -> dict[str, object]:
+def summary(
+    name: str,
+    values: list[float],
+    batch: int,
+    detector_mean: float,
+    peak_memory_mb: float,
+) -> dict[str, object]:
     mean = statistics.fmean(values)
     return {
         "method": name,
@@ -53,6 +68,7 @@ def summary(name: str, values: list[float], batch: int, detector_mean: float) ->
         "p95_latency_ms": float(np.percentile(values, 95)),
         "fps": 1000.0 * batch / mean,
         "additional_latency_ms": mean - detector_mean,
+        "gpu_peak_memory_mb": peak_memory_mb,
     }
 
 
@@ -93,14 +109,20 @@ def main() -> None:
 
     operations["diagnostics+detector"] = diagnostic_operation
     raw: dict[str, list[float]] = {}
+    peak_memory: dict[str, float] = {}
     try:
         for name, operation in operations.items():
-            raw[name] = benchmark(operation, device, args.warmup, args.repetitions)
+            raw[name], peak_memory[name] = benchmark(
+                operation, device, args.warmup, args.repetitions
+            )
     finally:
         hook.close()
 
     detector_mean = statistics.fmean(raw["detector"])
-    rows = [summary(name, values, args.batch, detector_mean) for name, values in raw.items()]
+    rows = [
+        summary(name, values, args.batch, detector_mean, peak_memory[name])
+        for name, values in raw.items()
+    ]
     args.output.mkdir(parents=True, exist_ok=True)
     with (args.output / "latency.csv").open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0]))

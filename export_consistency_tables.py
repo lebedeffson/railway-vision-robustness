@@ -27,25 +27,32 @@ def main() -> None:
     attack_columns += [
         column for column in (
             "c_dir", "c_dir_object", "c_dir_background", "c_atk_global",
-            "c_atk_object", "c_atk_background", "attack_loss",
+            "c_atk_object", "c_atk_background", "c_atk_clean_gradient",
+            "c_atk_path_gradient", "attack_loss", "step_size", "random_start",
+            "restarts", "attack_objective",
             "lambda_box", "lambda_cls", "lambda_dfl",
         ) if column in data
     ]
     defense_columns = common + ["defense", "layer"] + [
         column for column in (
             "p_clean_preservation", "a_attacked_similarity", "r_restored_similarity",
-            "g_recovery", "c_def", "p_godel", "g_godel", "c_def_godel",
-            "p_lukasiewicz", "g_lukasiewicz", "c_def_lukasiewicz",
+            "g_recovery", "c_def", "p_godel", "a_godel", "r_godel",
+            "g_godel", "c_def_godel", "p_lukasiewicz", "a_lukasiewicz",
+            "r_lukasiewicz", "g_lukasiewicz", "c_def_lukasiewicz",
             "cosine_recovery", "mse_recovery", "mae_recovery",
             "relative_l2_recovery", "mean_shift_recovery", "entropy_recovery",
             "product_recovery", "godel_recovery", "lukasiewicz_recovery",
         ) if column in data
     ]
     args.output.mkdir(parents=True, exist_ok=True)
-    data[attack_columns].drop_duplicates().to_csv(
-        args.output / "attack_consistency_raw.csv", index=False
-    )
-    data[defense_columns].to_csv(args.output / "defense_consistency_raw.csv", index=False)
+    attack = data[attack_columns].drop_duplicates()
+    defense = data[defense_columns]
+    attack.to_csv(args.output / "attack_consistency_raw.csv", index=False)
+    defense.to_csv(args.output / "defense_consistency_raw.csv", index=False)
+    raw = args.output / "raw"
+    raw.mkdir(parents=True, exist_ok=True)
+    attack.to_csv(raw / "attack_consistency.csv", index=False)
+    defense.to_csv(raw / "defense_consistency.csv", index=False)
 
 
 if __name__ == "__main__":
