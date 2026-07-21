@@ -5,13 +5,17 @@ The immutable received-code baseline is the Git tag `diagnostics_v1_current`.
 
 ## Hard gates
 
-1. `python final_practice_preflight.py` must report `READY`.
-2. `python audit_final_practice.py` must report `PASS` before any new attack run.
-3. Every raw row must have `sequence_id`; the independent unit is the manifest
+1. The frozen raw-data policy contains 1424 OpenLABEL-referenced frames: 1406
+   usable frames and 18 pre-split exclusions from `3_fire_site_3.1`. The exact
+   exclusions are versioned in `config/raw_frame_exclusions.json` and audited
+   in `outputs/final_practice/00_audit/raw_frame_exclusions.*`.
+2. `python final_practice_preflight.py` must report `READY`.
+3. `python audit_final_practice.py` must report `PASS` before any new attack run.
+4. Every raw row must have `sequence_id`; the independent unit is the manifest
    `group`, which joins adjacent numbered OSDaR23 sequence parts.
-4. Test is opened only after attack parameters, filters, normalization, seeds and
+5. Test is opened only after attack parameters, filters, normalization, seeds and
    formulas are frozen on validation.
-5. Bootstrap and GroupKFold use `sequence_id`; bootstrap defaults to 2000 draws.
+6. Bootstrap and GroupKFold use `sequence_id`; bootstrap defaults to 2000 draws.
 
 ## Attack objective
 

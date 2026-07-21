@@ -6,7 +6,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from download_osdar23_direct import SEQUENCES, sequence_is_complete
+from download_osdar23_direct import SEQUENCES, sequence_is_usable
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
@@ -41,7 +41,7 @@ def environment_ready() -> bool:
 
 def main() -> None:
     while True:
-        missing = [name for name in SEQUENCES if not sequence_is_complete(name)]
+        missing = [name for name in SEQUENCES if not sequence_is_usable(name)]
         # Importing the ML stack is comparatively expensive. Check it only
         # once the dataset itself is complete.
         ready = environment_ready() if not missing else False

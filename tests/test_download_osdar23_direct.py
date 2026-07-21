@@ -5,8 +5,10 @@ from pathlib import Path
 
 from download_osdar23_direct import (
     expected_camera_paths,
+    load_frame_exclusions,
     missing_sequence_files,
     sequence_is_complete,
+    sequence_is_usable,
 )
 
 
@@ -55,6 +57,29 @@ class DownloadCompletenessTest(unittest.TestCase):
             raw_dir = Path(directory)
             sequence, _ = self.make_sequence(raw_dir, ["../outside.png"])
             self.assertFalse(sequence_is_complete(sequence, raw_dir=raw_dir))
+
+    def test_explicit_missing_frame_can_be_quarantined(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            raw_dir = Path(directory)
+            sequence, root = self.make_sequence(
+                raw_dir, ["/rgb_highres_center/000.png"]
+            )
+            policy = raw_dir / "policy.json"
+            policy.write_text(
+                json.dumps({
+                    "excluded_relative_paths": [
+                        f"{sequence}/rgb_highres_center/000.png"
+                    ]
+                }),
+                encoding="utf-8",
+            )
+            self.assertFalse(sequence_is_complete(sequence, raw_dir=raw_dir))
+            self.assertTrue(sequence_is_usable(sequence, raw_dir, policy))
+            self.assertEqual(
+                load_frame_exclusions(policy),
+                {f"{sequence}/rgb_highres_center/000.png"},
+            )
+            self.assertTrue(root.is_dir())
 
 
 if __name__ == "__main__":

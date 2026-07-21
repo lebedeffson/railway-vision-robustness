@@ -6,7 +6,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from download_osdar23_direct import SEQUENCES, sequence_is_complete
+from download_osdar23_direct import SEQUENCES, sequence_is_usable
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
@@ -50,7 +50,7 @@ def run(
 
 
 def main() -> None:
-    missing = [sequence for sequence in SEQUENCES if not sequence_is_complete(sequence)]
+    missing = [sequence for sequence in SEQUENCES if not sequence_is_usable(sequence)]
     if missing:
         write_state("download", "BLOCKED", missing_sequences=missing)
         raise SystemExit(

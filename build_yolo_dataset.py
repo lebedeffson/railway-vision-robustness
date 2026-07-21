@@ -11,6 +11,8 @@ from typing import Any
 
 from PIL import Image
 
+from download_osdar23_direct import RAW_EXCLUSIONS_PATH, load_frame_exclusions
+
 
 # =====================================================================
 # НАСТРОЙКИ
@@ -20,6 +22,7 @@ PROJECT_DIR = Path(__file__).resolve().parent
 
 RAW_DIR = PROJECT_DIR / "data" / "raw"
 OUTPUT_DIR = PROJECT_DIR / "data" / "yolo_osdar23"
+RAW_AUDIT_DIR = PROJECT_DIR / "outputs" / "final_practice" / "00_audit"
 
 STREAM_NAME = "rgb_highres_center"
 
@@ -824,6 +827,7 @@ def build_dataset(
     list[dict[str, Any]],
     dict[str, Counter[str]],
     Counter[str],
+    list[dict[str, Any]],
 ]:
     group_to_split: dict[str, str] = {}
 
@@ -846,6 +850,8 @@ def build_dataset(
     }
 
     global_class_stats: Counter[str] = Counter()
+    frame_exclusions = load_frame_exclusions()
+    excluded_rows: list[dict[str, Any]] = []
 
     for sequence_index, sequence_dir in enumerate(
         sequences,
@@ -892,6 +898,20 @@ def build_dataset(
                 sequence_dir,
                 uri,
             )
+
+            source_relative = source_image.resolve().relative_to(
+                RAW_DIR.resolve()
+            ).as_posix()
+            if source_relative in frame_exclusions:
+                excluded_rows.append({
+                    "sequence_id": group_name,
+                    "sequence": sequence_name,
+                    "frame_id": str(frame_id),
+                    "relative_path": source_relative,
+                    "file_exists": source_image.is_file(),
+                    "disposition": "EXCLUDED_BEFORE_SPLIT",
+                })
+                continue
 
             if not source_image.is_file():
                 raise FileNotFoundError(
@@ -981,6 +1001,7 @@ def build_dataset(
         manifest,
         split_stats,
         global_class_stats,
+        excluded_rows,
     )
 
 
@@ -1043,6 +1064,58 @@ def write_manifest(
 
         writer.writeheader()
         writer.writerows(manifest)
+
+
+def write_raw_exclusion_audit(
+    excluded_rows: list[dict[str, Any]],
+    manifest_rows: int,
+) -> None:
+    configured = load_frame_exclusions()
+    observed = {str(row["relative_path"]) for row in excluded_rows}
+    if observed != configured:
+        missing_from_labels = sorted(configured - observed)
+        unexpected = sorted(observed - configured)
+        raise RuntimeError(
+            "Raw exclusion policy does not match OpenLABEL references: "
+            f"missing_from_labels={missing_from_labels}, unexpected={unexpected}"
+        )
+    RAW_AUDIT_DIR.mkdir(parents=True, exist_ok=True)
+    csv_path = RAW_AUDIT_DIR / "raw_frame_exclusions.csv"
+    with csv_path.open("w", encoding="utf-8-sig", newline="") as file:
+        writer = csv.DictWriter(
+            file,
+            fieldnames=[
+                "sequence_id", "sequence", "frame_id", "relative_path",
+                "file_exists", "disposition",
+            ],
+        )
+        writer.writeheader()
+        writer.writerows(excluded_rows)
+    policy = json.loads(RAW_EXCLUSIONS_PATH.read_text(encoding="utf-8"))
+    computed_expected = manifest_rows + len(excluded_rows)
+    declared_expected = policy.get("expected_frames")
+    declared_usable = policy.get("usable_frames")
+    if declared_expected != computed_expected or declared_usable != manifest_rows:
+        raise RuntimeError(
+            "Raw exclusion policy counts do not match the built dataset: "
+            f"declared expected/usable={declared_expected}/{declared_usable}, "
+            f"computed={computed_expected}/{manifest_rows}"
+        )
+    summary = {
+        "status": "PASS",
+        "policy_id": policy.get("policy_id"),
+        "reason": policy.get("reason"),
+        "policy_path": str(RAW_EXCLUSIONS_PATH),
+        "configured_exclusions": len(configured),
+        "observed_exclusions": len(observed),
+        "expected_openlabel_frames": computed_expected,
+        "usable_manifest_frames": manifest_rows,
+        "exclusions_applied_before_split": True,
+    }
+    (RAW_AUDIT_DIR / "raw_frame_exclusions.json").write_text(
+        json.dumps(summary, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
 
 
 def write_split_definition(
@@ -1119,6 +1192,7 @@ def main() -> None:
         manifest,
         split_stats,
         global_class_stats,
+        excluded_rows,
     ) = build_dataset(
         sequences=sequences,
         split_definition=split_definition,
@@ -1127,6 +1201,7 @@ def main() -> None:
 
     write_data_yaml(selected_classes)
     write_manifest(manifest)
+    write_raw_exclusion_audit(excluded_rows, len(manifest))
     write_split_definition(split_definition)
 
     print("\n" + "=" * 72)

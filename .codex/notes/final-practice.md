@@ -40,3 +40,10 @@ before the desktop session under system-wide memory pressure.
 Stage training resumes from `last.pt`. Final-matrix work checkpoints after every
 fully completed image, and `run_training_pipeline.py` records a marker after
 each stage so reboots do not repeat completed practice blocks.
+
+The `3_fire_site_3.1` archive repeatedly failed through the required VPN and the
+official host does not support Range. The frozen fallback policy excludes the
+18 unavailable OpenLABEL-referenced RGB frames before splitting. The resulting
+corpus has 1406 referenced images (1058 train, 198 val, 150 test) across all 43
+downloaded subsequences. One extra physical PNG in `15_construction_vehicle_15.1`
+is not referenced by OpenLABEL and is therefore not a dataset sample.

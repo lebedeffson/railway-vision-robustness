@@ -13,6 +13,7 @@ from pathlib import Path, PurePosixPath
 PROJECT_DIR = Path(__file__).resolve().parent
 ARCHIVES_DIR = PROJECT_DIR / "data/archives"
 RAW_DIR = PROJECT_DIR / "data/raw"
+RAW_EXCLUSIONS_PATH = PROJECT_DIR / "config/raw_frame_exclusions.json"
 DOWNLOAD_BASE_URL = "https://download.data.fid-move.de/dzsf/osdar23"
 CAMERA_FOLDER = "rgb_highres_center"
 SEQUENCES = [
@@ -111,6 +112,55 @@ def missing_sequence_files(
 
 def sequence_is_complete(sequence: str, raw_dir: Path = RAW_DIR) -> bool:
     return not missing_sequence_files(sequence, raw_dir=raw_dir)
+
+
+def load_frame_exclusions(path: Path = RAW_EXCLUSIONS_PATH) -> set[str]:
+    if not path.is_file():
+        return set()
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    values = payload.get("excluded_relative_paths", [])
+    if not isinstance(values, list):
+        raise ValueError("excluded_relative_paths must be a list")
+    exclusions: set[str] = set()
+    for value in values:
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("Every raw frame exclusion must be a non-empty string")
+        relative = PurePosixPath(value)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise ValueError(f"Unsafe raw frame exclusion: {value}")
+        exclusions.add(relative.as_posix())
+    return exclusions
+
+
+def missing_outside_exclusions(
+    sequence: str,
+    raw_dir: Path = RAW_DIR,
+    exclusions_path: Path = RAW_EXCLUSIONS_PATH,
+) -> list[Path]:
+    allowed = load_frame_exclusions(exclusions_path)
+    raw_root = raw_dir.resolve()
+    result: list[Path] = []
+    for path in missing_sequence_files(sequence, raw_dir=raw_dir):
+        try:
+            relative = path.resolve().relative_to(raw_root).as_posix()
+        except ValueError:
+            result.append(path)
+            continue
+        if relative not in allowed:
+            result.append(path)
+    return result
+
+
+def sequence_is_usable(
+    sequence: str,
+    raw_dir: Path = RAW_DIR,
+    exclusions_path: Path = RAW_EXCLUSIONS_PATH,
+) -> bool:
+    return not missing_outside_exclusions(
+        sequence,
+        raw_dir=raw_dir,
+        exclusions_path=exclusions_path,
+    )
 
 
 def relative_archive_path(name: str, sequence: str) -> PurePosixPath | None:
