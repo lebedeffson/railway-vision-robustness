@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import subprocess
 import threading
@@ -60,11 +61,56 @@ def partial_archive_path(sequence: str) -> Path:
     return ARCHIVES_DIR / f"{sequence}.zip.part"
 
 
-def sequence_is_complete(sequence: str) -> bool:
-    root = RAW_DIR / sequence
+def expected_camera_paths(
+    sequence: str,
+    raw_dir: Path = RAW_DIR,
+) -> list[Path]:
+    """Return all high-resolution camera frames referenced by OpenLABEL."""
+    root = raw_dir / sequence
     labels = root / f"{sequence}_labels.json"
-    camera = root / CAMERA_FOLDER
-    return labels.is_file() and camera.is_dir() and any(camera.iterdir())
+    payload = json.loads(labels.read_text(encoding="utf-8-sig"))
+    frames = payload["openlabel"]["frames"]
+    if not isinstance(frames, dict):
+        raise ValueError("openlabel.frames must be an object")
+
+    root_resolved = root.resolve()
+    paths: list[Path] = []
+    for frame_id, frame in frames.items():
+        try:
+            uri = frame["frame_properties"]["streams"][CAMERA_FOLDER]["uri"]
+        except (KeyError, TypeError) as error:
+            raise ValueError(
+                f"Frame {frame_id} has no {CAMERA_FOLDER} URI"
+            ) from error
+        if not isinstance(uri, str) or not uri.strip():
+            raise ValueError(f"Frame {frame_id} has an invalid camera URI")
+        relative = PurePosixPath(uri.lstrip("/"))
+        if ".." in relative.parts:
+            raise ValueError(f"Unsafe camera URI in frame {frame_id}: {uri}")
+        target = (root / Path(*relative.parts)).resolve()
+        try:
+            target.relative_to(root_resolved)
+        except ValueError as error:
+            raise ValueError(f"Unsafe camera URI in frame {frame_id}: {uri}") from error
+        paths.append(target)
+    if not paths:
+        raise ValueError("No camera frames are referenced by OpenLABEL")
+    return paths
+
+
+def missing_sequence_files(
+    sequence: str,
+    raw_dir: Path = RAW_DIR,
+) -> list[Path]:
+    try:
+        expected = expected_camera_paths(sequence, raw_dir=raw_dir)
+    except (OSError, ValueError, KeyError, json.JSONDecodeError):
+        return [raw_dir / sequence / f"{sequence}_labels.json"]
+    return [path for path in expected if not path.is_file()]
+
+
+def sequence_is_complete(sequence: str, raw_dir: Path = RAW_DIR) -> bool:
+    return not missing_sequence_files(sequence, raw_dir=raw_dir)
 
 
 def relative_archive_path(name: str, sequence: str) -> PurePosixPath | None:
@@ -188,6 +234,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sequences", nargs="*", default=SEQUENCES)
     parser.add_argument("--shard-count", type=int, default=1)
     parser.add_argument("--shard-index", type=int, default=0)
+    parser.add_argument(
+        "--audit-only",
+        action="store_true",
+        help="Validate referenced camera frames without downloading",
+    )
     return parser.parse_args()
 
 
@@ -199,6 +250,21 @@ def main() -> None:
         raise SystemExit("Require shard_count >= 1 and 0 <= shard_index < shard_count")
     sequences = args.sequences[args.shard_index::args.shard_count]
     prepare_directories()
+    if args.audit_only:
+        failures = 0
+        for sequence in sequences:
+            missing = missing_sequence_files(sequence)
+            if missing:
+                failures += 1
+                log(f"INCOMPLETE {sequence}: {len(missing)} missing or invalid")
+                for path in missing[:5]:
+                    log(f"  {path}")
+            else:
+                log(f"OK {sequence}")
+        log(f"Audit: {len(sequences) - failures} complete, {failures} incomplete")
+        if failures:
+            raise SystemExit(1)
+        return
     log(f"Raw output: {RAW_DIR}")
     log(
         f"Sequences: {len(sequences)}, shard: {args.shard_index}/{args.shard_count}, "
