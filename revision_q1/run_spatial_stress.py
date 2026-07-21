@@ -19,6 +19,7 @@ from extract_feature_consistency import FeatureHook, loader, to_device
 from revision_q1.feature_metrics import pair_metrics
 from revision_q1.protocol import load_protocol, output_root
 from revision_q1.spatial import spatial_transform, transform_xywh_boxes
+from revision_q1.statistics import cluster_mean_interval
 from run_final_matrix import detection_for_image
 
 
@@ -143,15 +144,36 @@ def main() -> None:
     raw_path.parent.mkdir(parents=True, exist_ok=True)
     raw = pd.DataFrame(rows)
     raw.to_csv(raw_path, index=False)
-    summary = raw.groupby(
-        ["scenario", "angle_degrees", "scale"], as_index=False
-    ).agg(
-        f1_clean=("f1_clean", "mean"), f1_stressed=("f1_stressed", "mean"),
-        delta_f1=("delta_f1", "mean"), recall_stressed=("recall_stressed", "mean"),
-        product=("product", "mean"), godel=("godel", "mean"),
-        lukasiewicz=("lukasiewicz", "mean"), c_atk_object=("c_atk_object", "mean"),
-        frames=("image_path", "nunique"), sequences=("sequence_id", "nunique"),
-    )
+    per_image = raw.groupby(
+        ["sequence_id", "image_path", "scenario", "angle_degrees", "scale"],
+        as_index=False,
+    ).agg({
+        "f1_clean": "first", "f1_stressed": "first", "delta_f1": "first",
+        "recall_stressed": "first", "product": "mean", "godel": "mean",
+        "lukasiewicz": "mean", "c_atk_object": "mean",
+    })
+    summary_rows = []
+    for keys, group in per_image.groupby(["scenario", "angle_degrees", "scale"]):
+        interval = cluster_mean_interval(
+            group, "delta_f1", iterations=int(protocol["bootstrap_iterations"]),
+            seed=int(protocol["random_seed"]),
+        )
+        summary_rows.append({
+            "scenario": keys[0], "angle_degrees": keys[1], "scale": keys[2],
+            "f1_clean": group["f1_clean"].mean(),
+            "f1_stressed": group["f1_stressed"].mean(),
+            "delta_f1": interval["estimate"],
+            "delta_f1_ci_low": interval["ci_low"],
+            "delta_f1_ci_high": interval["ci_high"],
+            "recall_stressed": group["recall_stressed"].mean(),
+            "product": group["product"].mean(), "godel": group["godel"].mean(),
+            "lukasiewicz": group["lukasiewicz"].mean(),
+            "c_atk_object": group["c_atk_object"].mean(),
+            "frames": group["image_path"].nunique(),
+            "sequences": interval["sequences"],
+            "bootstrap_iterations": interval["bootstrap_iterations"],
+        })
+    summary = pd.DataFrame(summary_rows)
     args.output.joinpath("tables").mkdir(parents=True, exist_ok=True)
     summary.to_csv(args.output / "tables/10_spatial_stress_test.csv", index=False)
     print(json.dumps({"rows": len(raw), "conditions": len(summary), "normalization": mode}, indent=2))

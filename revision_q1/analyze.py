@@ -27,6 +27,7 @@ from revision_q1.statistics import (
     holm_bonferroni,
     materialize_cluster_sample,
     paired_cluster_delta_correlation,
+    unique_cluster_samples,
 )
 
 
@@ -237,7 +238,7 @@ def paired_model_bootstrap(
 ) -> pd.DataFrame:
     target = predictions[target_name].to_numpy(float)
     sequence_ids = predictions["sequence_id"].astype(str).to_numpy()
-    plan = cluster_sample_plan(sequence_ids, iterations, seed)
+    plan = unique_cluster_samples(sequence_ids, iterations, seed)
     rows: list[dict[str, object]] = []
     for baseline, extended in comparisons:
         baseline_prediction = predictions[f"prediction_{baseline}"].to_numpy(float)
@@ -245,13 +246,14 @@ def paired_model_bootstrap(
         observed_baseline = metric_values(target, baseline_prediction)
         observed_extended = metric_values(target, extended_prediction)
         samples = {name: [] for name in ("delta_mae", "delta_r2", "delta_spearman")}
-        for selected in plan:
-            indices = materialize_cluster_sample(sequence_ids, selected)
+        for indices, multiplicity in plan:
             left = metric_values(target[indices], baseline_prediction[indices])
             right = metric_values(target[indices], extended_prediction[indices])
-            samples["delta_mae"].append(left["mae"] - right["mae"])
-            samples["delta_r2"].append(right["r2"] - left["r2"])
-            samples["delta_spearman"].append(right["spearman"] - left["spearman"])
+            samples["delta_mae"].extend([left["mae"] - right["mae"]] * multiplicity)
+            samples["delta_r2"].extend([right["r2"] - left["r2"]] * multiplicity)
+            samples["delta_spearman"].extend([
+                right["spearman"] - left["spearman"]
+            ] * multiplicity)
         observed = {
             "delta_mae": observed_baseline["mae"] - observed_extended["mae"],
             "delta_r2": observed_extended["r2"] - observed_baseline["r2"],
@@ -268,9 +270,9 @@ def paired_model_bootstrap(
                 "comparison": f"{extended}_vs_{baseline}",
                 "metric": metric_name,
                 "estimate": observed[metric_name],
-                "ci_low": float(np.percentile(values, 2.5)),
-                "ci_high": float(np.percentile(values, 97.5)),
-                "p_value": min(1.0, 2 * min(lower, upper)),
+                "ci_low": float(np.percentile(values, 2.5)) if len(values) else math.nan,
+                "ci_high": float(np.percentile(values, 97.5)) if len(values) else math.nan,
+                "p_value": min(1.0, 2 * min(lower, upper)) if len(values) else 1.0,
                 "relative_mae_reduction": (
                     observed["delta_mae"] / observed_baseline["mae"]
                     if observed_baseline["mae"] else math.nan
@@ -322,14 +324,14 @@ def correlation_tables(
             )
             sequence_ids = pair["sequence_id"].astype(str).to_numpy()
             samples = {"pearson": [], "spearman": []}
-            for selected in cluster_sample_plan(sequence_ids, iterations, seed):
-                indices = materialize_cluster_sample(sequence_ids, selected)
+            for indices, multiplicity in unique_cluster_samples(
+                sequence_ids, iterations, seed
+            ):
                 for kind in samples:
-                    samples[kind].append(correlation(
-                        kind,
-                        pair[endpoint].to_numpy(float)[indices],
+                    samples[kind].extend([correlation(
+                        kind, pair[endpoint].to_numpy(float)[indices],
                         pair[metric_name].to_numpy(float)[indices],
-                    ))
+                    )] * multiplicity)
             for kind, observed in (("pearson", observed_pearson), ("spearman", observed_spearman)):
                 values = np.asarray(samples[kind], dtype=float)
                 values = values[np.isfinite(values)]
@@ -338,9 +340,9 @@ def correlation_tables(
                 correlation_rows.append({
                     "task": task, "endpoint": endpoint, "layer": layer,
                     "metric": metric_name, "correlation": kind, "estimate": observed,
-                    "ci_low": float(np.percentile(values, 2.5)),
-                    "ci_high": float(np.percentile(values, 97.5)),
-                    "p_value": min(1.0, 2 * min(lower, upper)),
+                    "ci_low": float(np.percentile(values, 2.5)) if len(values) else math.nan,
+                    "ci_high": float(np.percentile(values, 97.5)) if len(values) else math.nan,
+                    "p_value": min(1.0, 2 * min(lower, upper)) if len(values) else 1.0,
                     "frames": int(pair["image_path"].nunique()) if "image_path" in pair else len(pair),
                     "sequences": int(pair["sequence_id"].nunique()),
                     "bootstrap_iterations": iterations,
@@ -365,9 +367,25 @@ def add_corrections(frame: pd.DataFrame, family: str) -> pd.DataFrame:
     result = frame.copy()
     if result.empty:
         return result
-    result["holm_corrected_p"] = holm_bonferroni(result["p_value"])
-    result["bh_fdr_p"] = benjamini_hochberg(result["p_value"])
-    result["hypothesis_family"] = family
+    if {"task", "endpoint"} <= set(result):
+        result["hypothesis_family"] = result.apply(
+            lambda row: (
+                f"{family}_primary"
+                if row["endpoint"] == ENDPOINTS[row["task"]][0]
+                else f"{family}_secondary_{row['endpoint']}"
+            ), axis=1,
+        )
+    else:
+        result["hypothesis_family"] = family
+    result["holm_corrected_p"] = np.nan
+    result["bh_fdr_p"] = np.nan
+    for _, indices in result.groupby("hypothesis_family").groups.items():
+        result.loc[indices, "holm_corrected_p"] = holm_bonferroni(
+            result.loc[indices, "p_value"]
+        )
+        result.loc[indices, "bh_fdr_p"] = benjamini_hochberg(
+            result.loc[indices, "p_value"]
+        )
     return result
 
 
@@ -408,36 +426,41 @@ def run_analysis(
     all_correlations: list[pd.DataFrame] = []
     all_deltas: list[pd.DataFrame] = []
     for task in ("damage", "recovery"):
-        endpoint = ENDPOINTS[task][0]
         specifications = model_specifications(protocol, task)
-        prepared = aggregate_task(data, task, endpoint, specifications)
-        prepared.to_csv(raw / f"{task}_sequence_aggregates.csv", index=False)
-        for algorithm in protocol["algorithms"]["primary"]:
-            models, predictions = out_of_fold_predictions(
-                prepared, endpoint, specifications, algorithm,
-                int(protocol["statistics"]["group_folds"]),
+        for endpoint in ENDPOINTS[task]:
+            prepared = aggregate_task(data, task, endpoint, specifications)
+            prepared.to_csv(
+                raw / f"{task}_{endpoint}_sequence_aggregates.csv", index=False
             )
-            models.insert(0, "task", task)
-            models.insert(1, "normalization", mode)
-            all_models[task].append(models)
-            predictions.to_csv(
-                statistics / f"{task}_{algorithm}_oof_predictions.csv", index=False
+            for algorithm in protocol["algorithms"]["primary"]:
+                models, predictions = out_of_fold_predictions(
+                    prepared, endpoint, specifications, algorithm,
+                    int(protocol["statistics"]["group_folds"]),
+                )
+                models.insert(0, "task", task)
+                models.insert(1, "endpoint", endpoint)
+                models.insert(2, "normalization", mode)
+                all_models[task].append(models)
+                predictions.to_csv(
+                    statistics / f"{task}_{endpoint}_{algorithm}_oof_predictions.csv",
+                    index=False,
+                )
+                gains = paired_model_bootstrap(
+                    predictions, endpoint, MODEL_COMPARISONS[task], iterations,
+                    int(protocol["random_seed"]),
+                )
+                gains.insert(0, "task", task)
+                gains.insert(1, "endpoint", endpoint)
+                gains.insert(2, "algorithm", algorithm)
+                gains.insert(3, "normalization", mode)
+                all_gains.append(gains)
+            correlations, deltas = correlation_tables(
+                data, task, endpoint, iterations, int(protocol["random_seed"])
             )
-            gains = paired_model_bootstrap(
-                predictions, endpoint, MODEL_COMPARISONS[task], iterations,
-                int(protocol["random_seed"]),
-            )
-            gains.insert(0, "task", task)
-            gains.insert(1, "algorithm", algorithm)
-            gains.insert(2, "normalization", mode)
-            all_gains.append(gains)
-        correlations, deltas = correlation_tables(
-            data, task, endpoint, iterations, int(protocol["random_seed"])
-        )
-        correlations.insert(0, "normalization", mode)
-        deltas.insert(0, "normalization", mode)
-        all_correlations.append(correlations)
-        all_deltas.append(deltas)
+            correlations.insert(0, "normalization", mode)
+            deltas.insert(0, "normalization", mode)
+            all_correlations.append(correlations)
+            all_deltas.append(deltas)
     damage_models = pd.concat(all_models["damage"], ignore_index=True)
     recovery_models = pd.concat(all_models["recovery"], ignore_index=True)
     damage_models.to_csv(tables / "05_damage_models_D0_D4.csv", index=False)

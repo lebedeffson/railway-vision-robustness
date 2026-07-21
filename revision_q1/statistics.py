@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import warnings
+from collections import Counter
 from collections.abc import Iterable
 
 import numpy as np
@@ -40,6 +41,21 @@ def materialize_cluster_sample(sequence_ids: np.ndarray, selected: np.ndarray) -
     return np.concatenate([indices[value] for value in selected])
 
 
+def unique_cluster_samples(
+    sequence_ids: Iterable[str], iterations: int, seed: int
+) -> list[tuple[np.ndarray, int]]:
+    values = np.asarray(list(sequence_ids), dtype=object)
+    plans = cluster_sample_plan(values, iterations, seed)
+    multiplicities = Counter(tuple(sorted(str(value) for value in plan)) for plan in plans)
+    return [
+        (
+            materialize_cluster_sample(values, np.asarray(selected, dtype=object)),
+            count,
+        )
+        for selected, count in multiplicities.items()
+    ]
+
+
 def correlation(kind: str, left: np.ndarray, right: np.ndarray) -> float:
     valid = np.isfinite(left) & np.isfinite(right)
     if valid.sum() < 3:
@@ -75,14 +91,19 @@ def paired_cluster_delta_correlation(
         correlation(kind, target_values, right_values)
     )
     samples: list[float] = []
-    for selected in cluster_sample_plan(sequence_ids, iterations, seed):
-        sampled = materialize_cluster_sample(sequence_ids, selected)
+    for sampled, multiplicity in unique_cluster_samples(sequence_ids, iterations, seed):
         delta = abs(correlation(kind, target_values[sampled], left_values[sampled])) - abs(
             correlation(kind, target_values[sampled], right_values[sampled])
         )
         if math.isfinite(delta):
-            samples.append(delta)
+            samples.extend([delta] * multiplicity)
     values = np.asarray(samples)
+    if not len(values):
+        return {
+            "delta_rho": observed, "ci_low": math.nan, "ci_high": math.nan,
+            "p_value": 1.0, "bootstrap_iterations": iterations,
+            "sequences": int(pd.Series(sequence_ids).nunique()), "frames": len(frame),
+        }
     probability_low = (np.count_nonzero(values <= 0) + 1) / (len(values) + 1)
     probability_high = (np.count_nonzero(values >= 0) + 1) / (len(values) + 1)
     return {
@@ -123,3 +144,25 @@ def benjamini_hochberg(values: Iterable[float]) -> np.ndarray:
 
 def floor_effect_mode(map50: float, threshold: float = 0.01) -> str:
     return "recall_f1_false_negatives" if map50 <= threshold else "map_and_detection"
+
+
+def cluster_mean_interval(
+    frame: pd.DataFrame,
+    value: str,
+    *,
+    iterations: int = 5000,
+    seed: int = 20260720,
+) -> dict[str, float | int]:
+    sequence_ids = frame["sequence_id"].astype(str).to_numpy()
+    values = frame[value].to_numpy(float)
+    samples = []
+    for indices, multiplicity in unique_cluster_samples(sequence_ids, iterations, seed):
+        samples.extend([float(np.nanmean(values[indices]))] * multiplicity)
+    distribution = np.asarray(samples)
+    return {
+        "estimate": float(np.nanmean(values)),
+        "ci_low": float(np.nanpercentile(distribution, 2.5)),
+        "ci_high": float(np.nanpercentile(distribution, 97.5)),
+        "sequences": int(pd.Series(sequence_ids).nunique()),
+        "bootstrap_iterations": iterations,
+    }

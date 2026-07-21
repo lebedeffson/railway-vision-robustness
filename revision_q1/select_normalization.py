@@ -75,10 +75,10 @@ def main() -> None:
             "fraction_above_0.99_max": float(scope["fraction_above_0.99"].max()),
             **validation_scores(raw, protocol, mode),
         })
-    summary = pd.DataFrame(rows)
-    eligible = summary[~summary["saturation_warning"]]
+    mode_summary = pd.DataFrame(rows)
+    eligible = mode_summary[~mode_summary["saturation_warning"]]
     if eligible.empty:
-        eligible = summary
+        eligible = mode_summary
         selection_warning = "all_normalizations_exceeded_saturation_threshold"
     else:
         selection_warning = None
@@ -87,6 +87,13 @@ def main() -> None:
         ascending=[False, True, True],
     )
     selected = str(ordered.iloc[0]["normalization"])
+    diagnostics = diagnostics.drop(
+        columns=[
+            column for column in ("validation_cv_mae", "validation_cv_r2", "selected")
+            if column in diagnostics
+        ]
+    )
+    summary = diagnostics.merge(mode_summary, on="normalization", suffixes=("", "_mode"))
     summary["selected"] = summary["normalization"].eq(selected)
     args.output.joinpath("tables").mkdir(parents=True, exist_ok=True)
     summary.to_csv(args.output / "tables/02_normalization_ablation.csv", index=False)

@@ -17,12 +17,14 @@ from revision_q1.protocol import assert_split_action, load_protocol
 from revision_q1.spatial import spatial_transform, transform_xywh_boxes
 from revision_q1.statistics import (
     benjamini_hochberg,
+    cluster_mean_interval,
     cluster_sample_plan,
     floor_effect_mode,
     group_fold_assignments,
     holm_bonferroni,
     materialize_cluster_sample,
     paired_cluster_delta_correlation,
+    unique_cluster_samples,
 )
 from revision_q1.transfer import validate_transfer_pair
 
@@ -66,6 +68,13 @@ class RevisionQ1Test(unittest.TestCase):
         for group in selected:
             expected = np.count_nonzero(groups == group)
             self.assertGreaterEqual(np.count_nonzero(groups[indices] == group), expected)
+        interval = cluster_mean_interval(
+            pd.DataFrame({"sequence_id": groups, "value": np.arange(len(groups))}),
+            "value", iterations=20, seed=7,
+        )
+        self.assertEqual(interval["sequences"], 3)
+        unique = unique_cluster_samples(groups, 100, 7)
+        self.assertEqual(sum(count for _, count in unique), 100)
 
     def test_same_folds_for_all_metrics(self) -> None:
         groups = ["a", "a", "b", "b", "c", "c"]

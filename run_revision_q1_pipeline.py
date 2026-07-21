@@ -19,12 +19,17 @@ ROOT = output_root(PROTOCOL)
 STATUS = ROOT / "pipeline_status.json"
 PYTHON = PROJECT_DIR / ".venv/bin/python"
 NORMALIZATION_STATS = ROOT / "normalization/layer_channel_statistics.pt"
+STAGE1_NORMALIZATION_ROOT = ROOT / "normalization/stage1"
+STAGE1_NORMALIZATION_STATS = (
+    STAGE1_NORMALIZATION_ROOT / "normalization/layer_channel_statistics.pt"
+)
 VAL_MATRIX = ROOT / "raw/normalization_validation_matrix.csv"
 TEST_MATRIX = ROOT / "raw/stage2_best_test_matrix.csv"
 SENSITIVITY_MATRIX = ROOT / "raw/stage1_best_sensitivity_matrix.csv"
 STAGE_NAMES = (
     "scene_difficulty", "normalization_fit", "normalization_validation_matrix",
-    "normalization_selection", "stage2_primary_matrix", "stage2_statistics",
+    "normalization_selection", "normalization_fit_stage1",
+    "stage2_primary_matrix", "stage2_statistics",
     "stage1_sensitivity_matrix", "stage1_statistics", "checkpoint_sequence_metrics",
     "checkpoint_comparison", "scene_difficulty_analysis", "spatial_stress",
     "cross_checkpoint_transfer", "figures", "bundle",
@@ -179,6 +184,15 @@ def main() -> None:
     )
     mode = selected_normalization()
     run_stage(
+        "normalization_fit_stage1",
+        python_module(
+            "revision_q1.collect_normalization", "--model",
+            str(PROJECT_DIR / PROTOCOL["sensitivity_checkpoint"]),
+            "--output", str(STAGE1_NORMALIZATION_ROOT),
+        ),
+        [STAGE1_NORMALIZATION_STATS],
+    )
+    run_stage(
         "stage2_primary_matrix",
         [
             str(PYTHON), "run_final_matrix.py", "--split", "test", "--workers", "1",
@@ -205,7 +219,7 @@ def main() -> None:
         [
             str(PYTHON), "run_final_matrix.py", "--split", "test", "--workers", "1",
             "--model", str(PROJECT_DIR / PROTOCOL["sensitivity_checkpoint"]),
-            "--checkpoint-name", "stage1_best", "--revision-stats", str(NORMALIZATION_STATS),
+            "--checkpoint-name", "stage1_best", "--revision-stats", str(STAGE1_NORMALIZATION_STATS),
             "--normalizations", mode, "--fgsm-eps", "1,4",
             "--pgd-eps", "0.25,1", "--pgd-steps", "20",
             "--adaptive-pgd-eps", "1", "--adaptive-pgd-steps", "20,40",

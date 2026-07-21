@@ -33,6 +33,10 @@ REQUIRED_FIGURES = [
     "09_small_object_stratification.png", "10_spatial_stress_test.png",
     "11_adaptive_vs_nonadaptive.png",
 ]
+ENDPOINTS_FOR_HYPOTHESIS = {
+    "H1": "delta_f1_damage",
+    "H2": "delta_f1_recovery",
+}
 
 
 def sha256(path: Path) -> str:
@@ -57,6 +61,7 @@ def hypothesis_results(root: Path, protocol: dict) -> dict[str, dict[str, object
         scope = gains[
             (gains["task"] == task) & (gains["comparison"] == comparison)
             & (gains["algorithm"] == "ridge")
+            & (gains["endpoint"] == ENDPOINTS_FOR_HYPOTHESIS[hypothesis])
         ]
         significant = scope[
             (scope["holm_corrected_p"] < .05)
@@ -85,7 +90,10 @@ def hypothesis_results(root: Path, protocol: dict) -> dict[str, dict[str, object
         }
     sensitivity = pd.read_csv(root / "tables/08_checkpoint_sensitivity.csv")
     result["H3"] = {
-        "confirmed": bool(sensitivity["same_direction"].fillna(False).all()),
+        "confirmed": bool(
+            sensitivity["same_direction"].fillna(False).all()
+            and sensitivity["ci_overlap"].fillna(False).all()
+        ),
         "checks": len(sensitivity),
     }
     difficulty = pd.read_csv(root / "tables/09_scene_difficulty_analysis.csv")

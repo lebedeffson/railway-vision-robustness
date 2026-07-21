@@ -16,6 +16,7 @@ from extract_attack_consistency import consistency_row, fgsm, object_masks, pgd,
 from extract_feature_consistency import FeatureHook, defend, loader, to_device
 from revision_q1.feature_metrics import pair_metrics
 from revision_q1.protocol import load_protocol, output_root
+from revision_q1.statistics import cluster_mean_interval
 from revision_q1.transfer import validate_transfer_pair
 from run_final_matrix import detection_for_image
 
@@ -150,17 +151,39 @@ def main() -> None:
     raw_path.parent.mkdir(parents=True, exist_ok=True)
     raw = pd.DataFrame(rows)
     raw.to_csv(raw_path, index=False)
-    summary = raw.groupby(
-        ["source_checkpoint", "target_checkpoint", "attack", "defense"],
-        as_index=False,
-    ).agg(
-        f1_clean_target=("f1_clean_target", "mean"),
-        f1_transfer=("f1_transfer", "mean"), f1_drop=("f1_drop", "mean"),
-        recall_transfer=("recall_transfer", "mean"),
-        product=("product", "mean"), godel=("godel", "mean"),
-        lukasiewicz=("lukasiewicz", "mean"), c_atk_object=("c_atk_object", "mean"),
-        frames=("image_path", "nunique"), sequences=("sequence_id", "nunique"),
-    )
+    per_image = raw.groupby([
+        "sequence_id", "image_path", "source_checkpoint", "target_checkpoint",
+        "attack", "defense",
+    ], as_index=False).agg({
+        "f1_clean_target": "first", "f1_transfer": "first", "f1_drop": "first",
+        "recall_transfer": "first", "product": "mean", "godel": "mean",
+        "lukasiewicz": "mean", "c_atk_object": "mean",
+    })
+    summary_rows = []
+    for keys, group in per_image.groupby([
+        "source_checkpoint", "target_checkpoint", "attack", "defense",
+    ]):
+        interval = cluster_mean_interval(
+            group, "f1_drop", iterations=int(protocol["bootstrap_iterations"]),
+            seed=int(protocol["random_seed"]),
+        )
+        summary_rows.append({
+            "source_checkpoint": keys[0], "target_checkpoint": keys[1],
+            "attack": keys[2], "defense": keys[3],
+            "f1_clean_target": group["f1_clean_target"].mean(),
+            "f1_transfer": group["f1_transfer"].mean(),
+            "f1_drop": interval["estimate"],
+            "f1_drop_ci_low": interval["ci_low"],
+            "f1_drop_ci_high": interval["ci_high"],
+            "recall_transfer": group["recall_transfer"].mean(),
+            "product": group["product"].mean(), "godel": group["godel"].mean(),
+            "lukasiewicz": group["lukasiewicz"].mean(),
+            "c_atk_object": group["c_atk_object"].mean(),
+            "frames": group["image_path"].nunique(),
+            "sequences": interval["sequences"],
+            "bootstrap_iterations": interval["bootstrap_iterations"],
+        })
+    summary = pd.DataFrame(summary_rows)
     args.output.joinpath("tables").mkdir(parents=True, exist_ok=True)
     summary.to_csv(args.output / "tables/11_transfer_attack.csv", index=False)
     print(json.dumps({"rows": len(raw), "conditions": len(summary)}, indent=2))

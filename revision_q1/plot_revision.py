@@ -26,7 +26,9 @@ def errorbar_table(frame: pd.DataFrame, label: str, title: str, path: Path) -> N
     values = frame["estimate"].to_numpy(float)
     axis.errorbar(
         values, y,
-        xerr=np.vstack((values - frame["ci_low"], frame["ci_high"] - values)),
+        xerr=np.maximum(0, np.vstack((
+            values - frame["ci_low"], frame["ci_high"] - values
+        ))),
         fmt="o", capsize=3,
     )
     axis.axvline(0, color="black", linewidth=0.8)
@@ -79,7 +81,7 @@ def main() -> None:
         scope = gains[gains["task"] == task].copy()
         scope["label"] = scope.apply(
             lambda row: (
-                f"{row['algorithm']}: {row['comparison']}: {row['metric']} "
+                f"{row['endpoint']}: {row['algorithm']}: {row['comparison']}: {row['metric']} "
                 f"[Holm p={row['holm_corrected_p']:.3g}, n={int(row['sequences'])}]"
             ), axis=1,
         )
@@ -87,8 +89,20 @@ def main() -> None:
     sensitivity = pd.read_csv(args.output / "tables/08_checkpoint_sensitivity.csv")
     figure, axis = plt.subplots(figsize=(9, 5))
     x = np.arange(len(sensitivity))
-    axis.scatter(x, sensitivity["stage2_best"], label="Stage 2 best")
-    axis.scatter(x, sensitivity["stage1_best"], label="Stage 1 best", marker="x")
+    axis.errorbar(
+        x, sensitivity["estimate_stage2_best"],
+        yerr=np.maximum(0, np.vstack((
+            sensitivity["estimate_stage2_best"] - sensitivity["ci_low_stage2_best"],
+            sensitivity["ci_high_stage2_best"] - sensitivity["estimate_stage2_best"],
+        ))), fmt="o", capsize=3, label="Stage 2 best",
+    )
+    axis.errorbar(
+        x, sensitivity["estimate_stage1_best"],
+        yerr=np.maximum(0, np.vstack((
+            sensitivity["estimate_stage1_best"] - sensitivity["ci_low_stage1_best"],
+            sensitivity["ci_high_stage1_best"] - sensitivity["estimate_stage1_best"],
+        ))), fmt="x", capsize=3, label="Stage 1 best",
+    )
     axis.axhline(0, color="black", linewidth=0.8)
     axis.set_xticks(x, sensitivity["metric"], rotation=45, ha="right")
     axis.set_title("Checkpoint sensitivity: effect direction")
@@ -128,7 +142,14 @@ def main() -> None:
         save(figure, figures / filename)
     spatial = pd.read_csv(args.output / "tables/10_spatial_stress_test.csv")
     figure, axis = plt.subplots(figsize=(9, 5))
-    axis.bar(np.arange(len(spatial)), spatial["delta_f1"])
+    values = spatial["delta_f1"].to_numpy(float)
+    axis.bar(
+        np.arange(len(spatial)), values,
+        yerr=np.maximum(0, np.vstack((
+            values - spatial["delta_f1_ci_low"],
+            spatial["delta_f1_ci_high"] - values,
+        ))), capsize=3,
+    )
     axis.set_xticks(np.arange(len(spatial)), spatial["scenario"], rotation=45, ha="right")
     axis.set_title(f"Fixed-affine stress test; n={int(spatial['sequences'].max())} scenes")
     save(figure, figures / "10_spatial_stress_test.png")

@@ -81,3 +81,6 @@ only if validation saturation and cross-validated diagnostics pass; test data
 must never select normalization, features, thresholds, checkpoints or models.
 Stage 2 best remains primary and Stage 1 best is a sensitivity checkpoint, not
 an opportunity for retrospective checkpoint replacement.
+The normalization scheme is selected once on Stage 2 clean validation. Stage 1
+sensitivity uses the same frozen scheme but refits only its per-channel clean
+validation distribution statistics, so test data cannot influence scaling.

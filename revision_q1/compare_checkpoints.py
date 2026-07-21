@@ -10,7 +10,13 @@ import pandas as pd
 
 from revision_q1.analyze import add_endpoints, apply_normalization_aliases, boolean_series
 from revision_q1.protocol import load_protocol, output_root
-from revision_q1.statistics import cluster_sample_plan
+from revision_q1.statistics import (
+    cluster_mean_interval,
+    cluster_sample_plan,
+    correlation,
+    materialize_cluster_sample,
+    unique_cluster_samples,
+)
 
 
 def paired_summary(
@@ -73,30 +79,59 @@ def diagnostic_direction(matrix: pd.DataFrame, checkpoint: str, mode: str) -> pd
             {endpoint: "mean", **{metric: "mean" for metric in metrics}}
         )
         for metric in metrics:
-            rho = aggregate[[endpoint, metric]].corr(method="spearman").iloc[0, 1]
+            target = aggregate[endpoint].to_numpy(float)
+            values = aggregate[metric].to_numpy(float)
+            sequence_ids = aggregate["sequence_id"].astype(str).to_numpy()
+            rho = correlation("spearman", target, values)
+            samples = []
+            for indices, multiplicity in unique_cluster_samples(
+                sequence_ids, 5000, 20260720
+            ):
+                sampled = correlation("spearman", target[indices], values[indices])
+                if math.isfinite(sampled):
+                    samples.extend([sampled] * multiplicity)
             rows.append({
                 "checkpoint": checkpoint, "task": task, "metric": metric,
-                "spearman": rho, "effect_sign": int(np.sign(rho)) if math.isfinite(rho) else 0,
+                "estimate": rho,
+                "ci_low": float(np.percentile(samples, 2.5)) if samples else math.nan,
+                "ci_high": float(np.percentile(samples, 97.5)) if samples else math.nan,
+                "effect_sign": int(np.sign(rho)) if math.isfinite(rho) else 0,
                 "sequences": len(aggregate),
             })
     adaptive = data[(data["attack"] == "pgd") & (data["defense"] == "tnorm")]
     if not adaptive.empty:
+        adaptive = adaptive.copy()
+        adaptive["adaptive"] = boolean_series(adaptive["adaptive"])
         grouped = adaptive.groupby(["sequence_id", "adaptive"], as_index=False)["f1_defended"].mean()
         pivot = grouped.pivot(index="sequence_id", columns="adaptive", values="f1_defended")
         if False in pivot and True in pivot:
+            differences = pivot.dropna().reset_index()
+            differences["difference"] = differences[True] - differences[False]
+            interval = cluster_mean_interval(
+                differences, "difference", iterations=5000, seed=20260720
+            )
             rows.append({
                 "checkpoint": checkpoint, "task": "adaptive_pgd",
                 "metric": "adaptive_minus_nonadaptive_f1",
-                "spearman": float((pivot[True] - pivot[False]).mean()),
-                "effect_sign": int(np.sign((pivot[True] - pivot[False]).mean())),
+                "estimate": interval["estimate"], "ci_low": interval["ci_low"],
+                "ci_high": interval["ci_high"],
+                "effect_sign": int(np.sign(interval["estimate"])),
                 "sequences": len(pivot.dropna()),
             })
-    object_background = data["c_atk_object"] - data["c_atk_background"]
+    object_background = data[["sequence_id", "image_path", "c_atk_object", "c_atk_background"]].copy()
+    object_background["difference"] = (
+        object_background["c_atk_object"] - object_background["c_atk_background"]
+    )
+    object_background = object_background.groupby(
+        ["sequence_id", "image_path"], as_index=False
+    )["difference"].mean()
+    interval = cluster_mean_interval(object_background, "difference", iterations=5000, seed=20260720)
     rows.append({
         "checkpoint": checkpoint, "task": "object_background",
         "metric": "c_atk_object_minus_background",
-        "spearman": float(object_background.mean()),
-        "effect_sign": int(np.sign(object_background.mean())),
+        "estimate": interval["estimate"], "ci_low": interval["ci_low"],
+        "ci_high": interval["ci_high"],
+        "effect_sign": int(np.sign(interval["estimate"])),
         "sequences": int(data["sequence_id"].nunique()),
     })
     return pd.DataFrame(rows)
@@ -142,10 +177,20 @@ def main() -> None:
         diagnostic_direction(stage1, "stage1_best", mode),
     ], ignore_index=True)
     pivot = sensitivity.pivot_table(
-        index=["task", "metric"], columns="checkpoint", values="effect_sign", aggfunc="first"
-    ).reset_index()
-    if {"stage1_best", "stage2_best"} <= set(pivot):
-        pivot["same_direction"] = pivot["stage1_best"] == pivot["stage2_best"]
+        index=["task", "metric"], columns="checkpoint",
+        values=["estimate", "ci_low", "ci_high", "effect_sign", "sequences"],
+        aggfunc="first",
+    )
+    pivot.columns = [f"{metric}_{checkpoint}" for metric, checkpoint in pivot.columns]
+    pivot = pivot.reset_index()
+    if {"effect_sign_stage1_best", "effect_sign_stage2_best"} <= set(pivot):
+        pivot["same_direction"] = (
+            pivot["effect_sign_stage1_best"] == pivot["effect_sign_stage2_best"]
+        )
+        pivot["ci_overlap"] = (
+            pivot[["ci_high_stage1_best", "ci_high_stage2_best"]].min(axis=1)
+            >= pivot[["ci_low_stage1_best", "ci_low_stage2_best"]].max(axis=1)
+        )
     pivot.to_csv(tables / "08_checkpoint_sensitivity.csv", index=False)
     print(json.dumps({
         "normalization": mode, "paired_metrics": len(rows),
