@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import os
@@ -21,6 +22,13 @@ NORMALIZATION_STATS = ROOT / "normalization/layer_channel_statistics.pt"
 VAL_MATRIX = ROOT / "raw/normalization_validation_matrix.csv"
 TEST_MATRIX = ROOT / "raw/stage2_best_test_matrix.csv"
 SENSITIVITY_MATRIX = ROOT / "raw/stage1_best_sensitivity_matrix.csv"
+STAGE_NAMES = (
+    "scene_difficulty", "normalization_fit", "normalization_validation_matrix",
+    "normalization_selection", "stage2_primary_matrix", "stage2_statistics",
+    "stage1_sensitivity_matrix", "stage1_statistics", "checkpoint_sequence_metrics",
+    "checkpoint_comparison", "scene_difficulty_analysis", "spatial_stress",
+    "cross_checkpoint_transfer", "figures", "bundle",
+)
 
 
 def now() -> str:
@@ -120,10 +128,24 @@ def initialize() -> None:
     shutil.copy2(PROJECT_DIR / "revision_q1/hypotheses.md", ROOT / "hypotheses.md")
     for test in (PROJECT_DIR / "tests").glob("test_revision_q1*.py"):
         shutil.copy2(test, ROOT / "tests" / test.name)
+    status = load_status()
+    status.setdefault("status", "pending")
+    for name in STAGE_NAMES:
+        status["stages"].setdefault(name, {
+            "status": "pending", "started_at": None, "finished_at": None,
+            "input_hash": None, "output_files": [], "error": None,
+        })
+    write_status(status)
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Resumable TNormFilter Q1 pipeline")
+    parser.add_argument("--initialize-only", action="store_true")
+    args = parser.parse_args()
     initialize()
+    if args.initialize_only:
+        print(f"Initialized Q1 status: {STATUS}")
+        return
     main_bundle = PROJECT_DIR / "outputs/bundles/TNormFilter_final_practice.zip"
     if not main_bundle.is_file():
         raise RuntimeError("Q1 revision waits for successful completion of the main practice bundle")
