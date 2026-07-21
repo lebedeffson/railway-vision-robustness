@@ -82,6 +82,7 @@ def main() -> None:
     root = args.root
     required = [
         root / "audit/split_audit.json",
+        root / "audit/checkpoint_selection.json",
         root / "tables/01_dataset_and_clean_model.csv",
         root / "tables/07_model_comparison_statistics.csv",
         root / "tables/08_adaptive_robustness.csv",
@@ -91,6 +92,9 @@ def main() -> None:
         if not path.is_file():
             raise FileNotFoundError(path)
     audit = json.loads((root / "audit/split_audit.json").read_text(encoding="utf-8"))
+    checkpoint_selection = json.loads(
+        (root / "audit/checkpoint_selection.json").read_text(encoding="utf-8")
+    )
     clean = pd.read_csv(root / "tables/clean_model_metrics.csv")
     overall = clean[clean["scope"] == "overall"].iloc[0]
     interpretation = json.loads((root / "09_statistics/interpretation.json").read_text(encoding="utf-8"))
@@ -130,6 +134,7 @@ def main() -> None:
         ])
         dataset_source_page(pdf)
         paragraph_page(pdf, "2. Clean baseline", [
+            f"Checkpoint selection used validation only: {checkpoint_selection['selected_checkpoint']} (epoch {checkpoint_selection['selected_epoch']}). Primary criterion: {checkpoint_selection['selection_metric']}.",
             f"Test metrics from best.pt: mAP50={fmt(overall['mAP50'])}, mAP50-95={fmt(overall['mAP50-95'])}, precision={fmt(overall['precision'])}, recall={fmt(overall['recall'])}, F1={fmt(overall['f1'])}, false negatives/frame={fmt(overall['false_negatives_per_frame'])}.",
             "Confidence, IoU, NMS, image size, batch size, completed epochs, best epoch, seeds and loss history are frozen in configs/training_config.yaml. Test thresholds were not tuned to hide low clean quality.",
         ])

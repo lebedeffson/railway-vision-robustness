@@ -10,6 +10,7 @@ import torch
 import yaml
 from ultralytics import YOLO
 
+from checkpoint_selection import selected_checkpoint
 from extract_feature_consistency import split_images
 
 
@@ -22,14 +23,7 @@ DATA_YAML = (
     / "data.yaml"
 )
 
-MODEL_PATH = (
-    PROJECT_DIR
-    / "outputs"
-    / "training"
-    / "yolo11m_baseline_stage2"
-    / "weights"
-    / "best.pt"
-)
+MODEL_PATH = selected_checkpoint()
 
 OUTPUT_DIR = (
     PROJECT_DIR
@@ -265,14 +259,12 @@ def main() -> None:
     configs_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(audit_dir / "clean_model_metrics.csv", tables_dir / "clean_model_metrics.csv")
 
-    training_curve = (
-        PROJECT_DIR / "outputs" / "training" / "yolo11m_baseline_stage2" / "results.png"
-    )
+    training_dir = MODEL_PATH.parents[1]
+    training_curve = training_dir / "results.png"
     if training_curve.is_file():
         shutil.copy2(training_curve, audit_dir / "training_curves.png")
         shutil.copy2(training_curve, figures_dir / "training_curves.png")
 
-    training_dir = PROJECT_DIR / "outputs/training/yolo11m_baseline_stage2"
     args_path = training_dir / "args.yaml"
     training_config = (
         yaml.safe_load(args_path.read_text(encoding="utf-8")) or {}

@@ -23,6 +23,8 @@
   reconcile it from checkpoint/output evidence with `pipeline_status.py sync`.
 - The final matrix keeps six clean/non-adaptive defenses, while white-box Product
   evaluation uses adaptive PGD-20 and PGD-40 only; JPEG/median require BPDA.
+- Resolve every post-training evaluator through `config/checkpoint_selection.json`;
+  never silently substitute `last.pt` or hard-code a stage checkpoint.
 
 ## Notes
 

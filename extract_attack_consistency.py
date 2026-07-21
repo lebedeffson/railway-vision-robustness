@@ -18,11 +18,12 @@ from ultralytics import YOLO
 from ultralytics.cfg import get_cfg
 
 from audit_final_practice import canonical_path, load_manifest
+from checkpoint_selection import selected_checkpoint
 from extract_feature_consistency import loader, to_device, tnorm_filter, yolo_loss
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
-MODEL = PROJECT_DIR / "outputs/training/yolo11m_baseline_stage2/weights/best.pt"
+MODEL = selected_checkpoint()
 DATA = PROJECT_DIR / "data/yolo_osdar23/data.yaml"
 MANIFEST = PROJECT_DIR / "data/yolo_osdar23/manifest.csv"
 OUTPUT = PROJECT_DIR / "outputs/final_practice/attack_consistency_raw.csv"

@@ -18,8 +18,10 @@ from tqdm import tqdm
 from ultralytics import YOLO
 from ultralytics.cfg import get_cfg
 
+from checkpoint_selection import selected_checkpoint
 
-MODEL = "outputs/training/yolo11m_baseline_stage2/weights/best.pt"
+
+MODEL = str(selected_checkpoint())
 DATA = "data/yolo_osdar23/data.yaml"
 OUTDIR = "outputs/diagnostics/feature_consistency"
 

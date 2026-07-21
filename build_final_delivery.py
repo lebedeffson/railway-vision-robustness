@@ -14,6 +14,7 @@ from pathlib import Path
 
 import torch
 
+from checkpoint_selection import selected_checkpoint
 from pipeline_status import STATUS_PATH, load as load_pipeline_status, sync as sync_pipeline_status
 from pipeline_status import update as update_pipeline_status
 
@@ -64,6 +65,7 @@ def stage_payload(staging: Path, output: Path) -> None:
     copy_file(STATUS_PATH, staging / "pipeline_status.json")
     for source, relative in (
         (PROJECT_DIR / "config/raw_frame_exclusions.json", "configs/raw_frame_exclusions.json"),
+        (PROJECT_DIR / "config/checkpoint_selection.json", "configs/checkpoint_selection.json"),
         (PROJECT_DIR / "data/yolo_osdar23/data.yaml", "configs/data.yaml"),
         (PROJECT_DIR / "data/yolo_osdar23/manifest.csv", "audit/dataset_manifest.csv"),
         (PROJECT_DIR / "data/yolo_osdar23/split_groups.txt", "audit/split_groups.txt"),
@@ -155,7 +157,7 @@ Dataset sources: [OSDaR23 DOI](https://doi.org/10.57806/9mv146r0),
 
     dataset_manifest = PROJECT_DIR / "data/yolo_osdar23/manifest.csv"
     split_groups = PROJECT_DIR / "data/yolo_osdar23/split_groups.txt"
-    checkpoint = PROJECT_DIR / "outputs/training/yolo11m_baseline_stage2/weights/best.pt"
+    checkpoint = selected_checkpoint()
     manifest = {
         "project": "TNormFilter OSDaR23 final practice",
         "commit": commit,
@@ -204,7 +206,7 @@ Dataset sources: [OSDaR23 DOI](https://doi.org/10.57806/9mv146r0),
 
 
 def build(output: Path) -> dict[str, object]:
-    checkpoint = PROJECT_DIR / "outputs/training/yolo11m_baseline_stage2/weights/best.pt"
+    checkpoint = selected_checkpoint()
     report = FINAL_ROOT / "TNormFilter_final_practice_report.pdf"
     if checkpoint.is_file() and not report.is_file():
         subprocess.run(

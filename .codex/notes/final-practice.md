@@ -63,3 +63,11 @@ The frozen final matrix uses FGSM at 0.5/1/2/4/8 pixel levels and PGD pilot at
 Non-adaptive clean/attack analysis includes none, Product, bilateral, Gaussian,
 median and JPEG. Adaptive Product evaluation uses PGD-20 and PGD-40; JPEG and
 median remain outside the adaptive ranking because no BPDA is implemented.
+
+Post-training checkpoint selection is frozen in
+`config/checkpoint_selection.json` and exported to the final audit. A common
+198-image validation evaluator measured mAP50-95 of 0.095797 for Stage 1 best,
+0.097000 for Stage 2 best (epoch 1), and 0.073284 for Stage 2 last. Stage 2 best
+is therefore the primary checkpoint by mAP50-95. Stage 1 best is retained as a
+sensitivity result because it has higher precision, recall, F1 and mAP50. Test
+metrics were not used for selection.

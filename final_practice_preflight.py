@@ -7,6 +7,8 @@ import json
 import subprocess
 from pathlib import Path
 
+from checkpoint_selection import export_selection, selected_checkpoint
+
 
 PROJECT_DIR = Path(__file__).resolve().parent
 DEFAULT_OUTPUT = PROJECT_DIR / "outputs/final_practice/preflight.json"
@@ -15,7 +17,7 @@ DEFAULT_OUTPUT = PROJECT_DIR / "outputs/final_practice/preflight.json"
 REQUIRED_INPUTS = {
     "dataset_yaml": "data/yolo_osdar23/data.yaml",
     "dataset_manifest": "data/yolo_osdar23/manifest.csv",
-    "trained_model": "outputs/training/yolo11m_baseline_stage2/weights/best.pt",
+    "trained_model": str(selected_checkpoint().relative_to(PROJECT_DIR)),
 }
 
 LEGACY_RESULTS = {
@@ -97,6 +99,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     args = parser.parse_args()
     report = build_report()
+    export_selection(PROJECT_DIR / "outputs/final_practice/audit")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(json.dumps(report, indent=2, ensure_ascii=False))
