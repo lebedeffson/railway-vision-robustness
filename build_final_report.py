@@ -41,6 +41,32 @@ def image_page(pdf: PdfPages, path: Path) -> None:
     plt.close(figure)
 
 
+def dataset_source_page(pdf: PdfPages) -> None:
+    links = [
+        ("OSDaR23 dataset DOI", "https://doi.org/10.57806/9mv146r0"),
+        ("DZSF research report", "https://doi.org/10.48755/dzsf.230012.01"),
+        ("OSDaR23 labeling guide", "https://doi.org/10.48755/dzsf.230012.05"),
+        ("DZSF project page", "https://www.dzsf.bund.de/SharedDocs/Standardartikel/DZSF/Projekte/Projekt_70_Reale_Datensaetze.html"),
+        ("ASAM OpenLABEL specification", "https://www.asam.net/standards/detail/openlabel/"),
+        ("RailLabel tools", "https://github.com/DSD-DBS/raillabel"),
+    ]
+    figure = plt.figure(figsize=(8.27, 11.69))
+    figure.text(.08, .94, "Dataset provenance and links", fontsize=17, weight="bold", va="top")
+    figure.text(
+        .08, .88,
+        "OSDaR23 version 1.1.0 was published by DZSF with DB Netz / Digitale Schiene Deutschland and FusionSystems. The study uses only the rgb_highres_center stream and ASAM OpenLABEL annotations. JSON annotations are CC0 1.0; sensor files are CC BY-SA 3.0 DE.",
+        fontsize=10, va="top", wrap=True,
+    )
+    y = .79
+    for label, url in links:
+        figure.text(.09, y, label + ":", fontsize=10, weight="bold", va="top")
+        figure.text(.09, y - .025, url, fontsize=9, color="blue", va="top", url=url)
+        y -= .09
+    plt.axis("off")
+    pdf.savefig(figure, bbox_inches="tight")
+    plt.close(figure)
+
+
 def fmt(value: object) -> str:
     try:
         return f"{float(value):.4f}"
@@ -102,6 +128,7 @@ def main() -> None:
             f"Checked {audit['scenes_checked']} of {audit['scenes_expected']} raw scenes. Expected OpenLABEL frames: {audit['frames_expected']}; readable retained frames: {audit['frames_found_and_readable']}; configured pre-split exclusions: {audit['configured_exclusions']}.",
             f"Sequence groups by split: {audit['split_sequence_counts']}. Intersections: {audit['split_intersections']}. Failed scenes: {failed['scene_name'].tolist()}.",
         ])
+        dataset_source_page(pdf)
         paragraph_page(pdf, "2. Clean baseline", [
             f"Test metrics from best.pt: mAP50={fmt(overall['mAP50'])}, mAP50-95={fmt(overall['mAP50-95'])}, precision={fmt(overall['precision'])}, recall={fmt(overall['recall'])}, F1={fmt(overall['f1'])}, false negatives/frame={fmt(overall['false_negatives_per_frame'])}.",
             "Confidence, IoU, NMS, image size, batch size, completed epochs, best epoch, seeds and loss history are frozen in configs/training_config.yaml. Test thresholds were not tuned to hide low clean quality.",

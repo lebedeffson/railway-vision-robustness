@@ -77,6 +77,9 @@ def stage_payload(staging: Path, output: Path) -> None:
         (FINAL_ROOT / "preflight.json", "configs/preflight.json"),
         (FINAL_ROOT / "TNormFilter_final_practice_report.pdf", "report/TNormFilter_final_practice_report.pdf"),
         (FINAL_ROOT / "report_summary.json", "report/report_summary.json"),
+        (PROJECT_DIR.parent / "RZD (2).pdf", "report/RZD_original_intermediate_report.pdf"),
+        (PROJECT_DIR / "data/raw/2_station_berliner_tor_2.1/readme.md", "audit/osdar23_readme.md"),
+        (PROJECT_DIR / "data/raw/2_station_berliner_tor_2.1/license.md", "audit/osdar23_license.md"),
     ):
         copy_file(source, staging / relative)
     copy_tree(FINAL_ROOT / "configs", staging / "configs")
@@ -126,6 +129,11 @@ The Product filter is not claimed to be a universal white-box defense. JPEG and
 median are excluded from adaptive robustness rankings because BPDA is not used.
 
 The raw OSDaR23 images are intentionally not included.
+
+Dataset sources: [OSDaR23 DOI](https://doi.org/10.57806/9mv146r0),
+[research report](https://doi.org/10.48755/dzsf.230012.01),
+[labeling guide](https://doi.org/10.48755/dzsf.230012.05), and
+[ASAM OpenLABEL](https://www.asam.net/standards/detail/openlabel/).
 """
     (staging / "README.md").write_text(readme, encoding="utf-8")
 
@@ -160,6 +168,15 @@ The raw OSDaR23 images are intentionally not included.
             "cuda": torch.version.cuda,
         },
         "dataset_hash": sha256(dataset_manifest),
+        "dataset": {
+            "name": "Open Sensor Data for Rail 2023 (OSDaR23)",
+            "version": "1.1.0",
+            "doi": "https://doi.org/10.57806/9mv146r0",
+            "research_report": "https://doi.org/10.48755/dzsf.230012.01",
+            "labeling_guide": "https://doi.org/10.48755/dzsf.230012.05",
+            "annotation_license": "CC0 1.0",
+            "sensor_license": "CC BY-SA 3.0 DE",
+        },
         "split_hash": sha256(split_groups if split_groups.is_file() else dataset_manifest),
         "checkpoint": str(checkpoint.relative_to(PROJECT_DIR)),
         "checkpoint_sha256": sha256(checkpoint),
