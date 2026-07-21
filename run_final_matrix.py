@@ -46,6 +46,12 @@ from extract_feature_consistency import (
     recovery,
     to_device,
 )
+from revision_q1.feature_metrics import (
+    distance_recovery as revision_distance_recovery,
+    pair_metrics as revision_pair_metrics,
+    similarity_recovery as revision_similarity_recovery,
+)
+from revision_q1.normalization import normalized_quality_recovery
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
@@ -67,6 +73,10 @@ def parse_ints(value: str) -> list[int]:
 
 def parse_strings(value: str) -> list[str]:
     return [item.strip().lower() for item in value.split(",") if item.strip()]
+
+
+def parse_modes(value: str) -> list[str]:
+    return [item.strip() for item in value.split(",") if item.strip()]
 
 
 def prediction_diagnostics(
@@ -175,12 +185,52 @@ def feature_values(
     }
 
 
+def revision_feature_values(
+    clean: Tensor,
+    attacked: Tensor,
+    defended: Tensor,
+    filtered_clean: Tensor,
+    statistics: dict[str, Tensor],
+    mode: str,
+) -> dict[str, float]:
+    attacked_values = revision_pair_metrics(clean, attacked, statistics, mode)[0]
+    defended_values = revision_pair_metrics(clean, defended, statistics, mode)[0]
+    preservation_values = revision_pair_metrics(clean, filtered_clean, statistics, mode)[0]
+    result = {f"{mode}_{name}": value for name, value in attacked_values.items()}
+    similarities = {
+        "cosine_similarity", "pearson_correlation", "spearman_correlation",
+        "product", "godel", "lukasiewicz",
+    }
+    for name in attacked_values:
+        result[f"{mode}_{name}_recovery"] = (
+            revision_similarity_recovery(attacked_values[name], defended_values[name])
+            if name in similarities
+            else revision_distance_recovery(attacked_values[name], defended_values[name])
+        )
+    for operator in ("product", "godel", "lukasiewicz"):
+        preservation = preservation_values[operator]
+        before = attacked_values[operator]
+        after = defended_values[operator]
+        gain = revision_similarity_recovery(before, after)
+        operator_name = "lukas" if operator == "lukasiewicz" else operator
+        result[f"{mode}_p_{operator}"] = preservation
+        result[f"{mode}_a_{operator}"] = before
+        result[f"{mode}_r_{operator}"] = after
+        result[f"{mode}_g_{operator}"] = gain
+        result[f"{mode}_c_def_{operator}"] = defense_consistency(
+            operator_name, preservation, gain
+        )
+    return result
+
+
 def conditions(args: argparse.Namespace) -> list[tuple[str, float, int, bool]]:
     rows = [("fgsm", epsilon, 1, False) for epsilon in args.fgsm_eps]
     for epsilon in args.pgd_eps:
         for steps in args.pgd_steps:
             rows.append(("pgd", epsilon, steps, False))
-        if args.adaptive_pgd:
+    if args.adaptive_pgd:
+        adaptive_eps = args.adaptive_pgd_eps or args.pgd_eps
+        for epsilon in adaptive_eps:
             for steps in args.adaptive_pgd_steps:
                 rows.append(("pgd", epsilon, steps, True))
     return rows
@@ -233,12 +283,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--pgd-eps", type=parse_floats, default=PGD_EPS)
     parser.add_argument("--pgd-steps", type=parse_ints, default=[20])
     parser.add_argument(
+        "--adaptive-pgd-eps", type=parse_floats,
+        help="Optional adaptive-only epsilon grid; defaults to --pgd-eps",
+    )
+    parser.add_argument(
         "--adaptive-pgd-steps", type=parse_ints, default=[20, 40],
         help="PGD step counts through the differentiable Product filter",
     )
     parser.add_argument("--seeds", type=parse_ints, default=SEEDS)
     parser.add_argument("--defenses", type=parse_strings, default=DEFENSES)
     parser.add_argument("--adaptive-pgd", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument(
+        "--revision-stats", type=Path,
+        help="Per-layer/channel clean-validation statistics for Q1 metrics",
+    )
+    parser.add_argument(
+        "--normalizations", type=parse_modes, default=[],
+        help="Comma-separated Q1 normalization modes",
+    )
+    parser.add_argument("--checkpoint-name", default="stage2_best")
     parser.add_argument("--max-images", type=int)
     parser.add_argument("--quick", action="store_true")
     return parser.parse_args()
@@ -248,6 +311,7 @@ def main() -> None:
     args = parse_args()
     if args.quick:
         args.fgsm_eps, args.pgd_eps, args.pgd_steps, args.seeds = [0.5], [0.1], [2], [42]
+        args.adaptive_pgd_eps = [0.1]
         args.adaptive_pgd_steps = [2]
         args.defenses, args.max_images = ["none", "tnorm"], 1
     config_path = args.output.with_suffix(".json")
@@ -271,6 +335,13 @@ def main() -> None:
     for parameter in model.parameters():
         parameter.requires_grad_(False)
     normalization = torch.load(args.stats, map_location="cpu")["stats"]
+    revision_statistics = None
+    if args.revision_stats is not None:
+        revision_statistics = torch.load(
+            args.revision_stats, map_location="cpu"
+        )["statistics"]
+    if args.normalizations and revision_statistics is None:
+        raise RuntimeError("--normalizations requires --revision-stats")
     exact_sequences, named_sequences = sequence_lookup(args.manifest)
     hook = FeatureHook(model)
     loss_weights = model_loss_weights(model)
@@ -320,6 +391,7 @@ def main() -> None:
                     )
                     for restart, (seed, result) in enumerate(zip(seeds, candidates, strict=True)):
                         adversarial = result.adversarial
+                        perturbation = adversarial - clean
                         attacked_features = hook.extract(model, adversarial)
                         attacked_detection = detection_for_image(
                             model, batch, adversarial, args.confidence
@@ -363,6 +435,7 @@ def main() -> None:
                                     normalization[level],
                                 )[0]
                                 row: dict[str, object] = {
+                                    "checkpoint_name": args.checkpoint_name,
                                     "sequence_id": sequence_id,
                                     "image_path": path,
                                     "split": args.split,
@@ -392,6 +465,9 @@ def main() -> None:
                                     "recall_attack": attacked_detection["recall"],
                                     "recall_defended": defended_detection["recall"],
                                     "false_negatives": defended_detection["fn"],
+                                    "fn_clean": clean_detection["fn"],
+                                    "fn_attack": attacked_detection["fn"],
+                                    "fn_defended": defended_detection["fn"],
                                     "confidence_drop": (
                                         clean_detection["mean_confidence"]
                                         - attacked_detection["mean_confidence"]
@@ -433,10 +509,45 @@ def main() -> None:
                                     "latency_ms": math.nan,
                                     "damage": clean_detection["f1"] - attacked_detection["f1"],
                                     "recovery": defended_detection["f1"] - attacked_detection["f1"],
+                                    "delta_recall_damage": (
+                                        clean_detection["recall"]
+                                        - attacked_detection["recall"]
+                                    ),
+                                    "delta_recall_recovery": (
+                                        defended_detection["recall"]
+                                        - attacked_detection["recall"]
+                                    ),
+                                    "false_negatives_increase": (
+                                        attacked_detection["fn"] - clean_detection["fn"]
+                                    ),
+                                    "false_negatives_reduction": (
+                                        attacked_detection["fn"] - defended_detection["fn"]
+                                    ),
+                                    "normalized_quality_recovery": normalized_quality_recovery(
+                                        float(clean_detection["f1"]),
+                                        float(attacked_detection["f1"]),
+                                        float(defended_detection["f1"]),
+                                    ),
+                                    "perturbation_l1": float(perturbation.abs().sum()),
+                                    "perturbation_l2": float(perturbation.norm()),
+                                    "perturbation_linf": float(perturbation.abs().max()),
+                                    "gradient_l1": float(result.path_gradient.abs().sum()),
+                                    "gradient_l2": float(result.path_gradient.norm()),
+                                    "gradient_linf": float(result.path_gradient.abs().max()),
                                 }
                                 row.update(feature_values(
                                     attacked_metric, defended_metric, preservation_metric
                                 ))
+                                if revision_statistics is not None:
+                                    for mode in args.normalizations:
+                                        row.update(revision_feature_values(
+                                            clean_features[level_index],
+                                            attacked_features[level_index],
+                                            defended_features[level_index],
+                                            clean_defense_features[defense_name][level_index],
+                                            revision_statistics[level],
+                                            mode,
+                                        ))
                                 row.update(clean_attack_values)
                                 row.update(path_attack_values)
                                 image_rows.append(row)
@@ -460,8 +571,14 @@ def main() -> None:
         raise RuntimeError("Final matrix produced no rows")
     partial_path.replace(args.output)
     config = {
-        "model": str(args.model), "data": str(args.data), "manifest": str(args.manifest),
+        "model": str(args.model.resolve()), "data": str(args.data), "manifest": str(args.manifest),
         "split": args.split, "conditions": conditions(args), "seeds": args.seeds,
+        "checkpoint_name": args.checkpoint_name,
+        "revision_stats": (
+            str(args.revision_stats.resolve()) if args.revision_stats is not None else None
+        ),
+        "normalizations": args.normalizations,
+        "adaptive_pgd_eps": args.adaptive_pgd_eps,
         "adaptive_pgd_steps": args.adaptive_pgd_steps,
         "defenses": args.defenses, "confidence": args.confidence,
         "statistical_unit": "sequence_id", "rows": total_rows,

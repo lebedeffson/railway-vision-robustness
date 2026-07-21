@@ -71,3 +71,13 @@ Post-training checkpoint selection is frozen in
 is therefore the primary checkpoint by mAP50-95. Stage 1 best is retained as a
 sensitivity result because it has higher precision, recall, F1 and mAP50. Test
 metrics were not used for selection.
+
+The Q1 revision is frozen in `config/revision_q1_protocol.yaml` before test
+analysis. Its main inference uses 5000 paired cluster-bootstrap resamples with
+seed 20260720, GroupKFold by `sequence_id`, Holm-Bonferroni for the primary
+hypothesis family and BH-FDR as a secondary correction. Per-channel P3/P4/P5
+normalization is fit once on clean validation only. N1 quantile is preferred
+only if validation saturation and cross-validated diagnostics pass; test data
+must never select normalization, features, thresholds, checkpoints or models.
+Stage 2 best remains primary and Stage 1 best is a sensitivity checkpoint, not
+an opportunity for retrospective checkpoint replacement.

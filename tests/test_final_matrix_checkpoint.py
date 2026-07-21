@@ -11,6 +11,7 @@ class FinalMatrixCheckpointTest(unittest.TestCase):
     def test_partial_checkpoint_keeps_only_complete_images(self) -> None:
         args = SimpleNamespace(
             fgsm_eps=[0.5], pgd_eps=[0.1], pgd_steps=[20], adaptive_pgd=True,
+            adaptive_pgd_eps=None,
             adaptive_pgd_steps=[20, 40],
             seeds=[42, 123, 999],
             defenses=["none", "tnorm", "bilateral", "gaussian", "jpeg", "median"],

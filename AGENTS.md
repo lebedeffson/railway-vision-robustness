@@ -25,6 +25,10 @@
   evaluation uses adaptive PGD-20 and PGD-40 only; JPEG/median require BPDA.
 - Resolve every post-training evaluator through `config/checkpoint_selection.json`;
   never silently substitute `last.pt` or hard-code a stage checkpoint.
+- Keep Q1 revision outputs isolated under `outputs/final_practice/revision_q1`;
+  fit normalization and scene thresholds on clean validation only, never test.
+- Q1 inference uses Stage 2 best as primary and Stage 1 best only for the frozen
+  cross-checkpoint sensitivity protocol; all resampling clusters by `sequence_id`.
 
 ## Notes
 
