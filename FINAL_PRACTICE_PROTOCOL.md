@@ -5,9 +5,10 @@ The immutable received-code baseline is the Git tag `diagnostics_v1_current`.
 
 ## Hard gates
 
-1. The frozen raw-data policy contains 1424 OpenLABEL-referenced frames: 1406
-   usable frames and 18 pre-split exclusions from `3_fire_site_3.1`. The exact
-   exclusions are versioned in `config/raw_frame_exclusions.json` and audited
+1. The frozen raw-data policy contains 1424 OpenLABEL-referenced frames: 1405
+   usable frames and 19 pre-split exclusions from `3_fire_site_3.1` (18 missing,
+   one truncated). The exact exclusions are versioned in
+   `config/raw_frame_exclusions.json` and audited
    in `outputs/final_practice/00_audit/raw_frame_exclusions.*`.
 2. `python final_practice_preflight.py` must report `READY`.
 3. `python audit_final_practice.py` must report `PASS` before any new attack run.

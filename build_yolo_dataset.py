@@ -919,8 +919,14 @@ def build_dataset(
                     f"{source_image}"
                 )
 
-            with Image.open(source_image) as image:
-                image_width, image_height = image.size
+            try:
+                with Image.open(source_image) as image:
+                    image_width, image_height = image.size
+                    image.verify()
+            except (OSError, ValueError) as error:
+                raise RuntimeError(
+                    f"Повреждённое изображение вне списка исключений:\n{source_image}"
+                ) from error
 
             lines, class_counter = (
                 get_yolo_annotations(

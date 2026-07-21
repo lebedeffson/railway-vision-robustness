@@ -1,8 +1,8 @@
 {
   "policy_id": "osdar23_raw_frame_exclusions_v1",
-  "reason": "Frames unavailable after repeated non-resumable official archive transfer failures; excluded before dataset split and training.",
+  "reason": "Frames missing or truncated after repeated non-resumable official archive transfer failures; excluded before dataset split and training.",
   "expected_frames": 1424,
-  "usable_frames": 1406,
+  "usable_frames": 1405,
   "excluded_relative_paths": [
     "3_fire_site_3.1/rgb_highres_center/001_1631639431.200000029.png",
     "3_fire_site_3.1/rgb_highres_center/006_1631639431.700000019.png",
@@ -12,6 +12,7 @@
     "3_fire_site_3.1/rgb_highres_center/046_1631639435.700000024.png",
     "3_fire_site_3.1/rgb_highres_center/047_1631639435.800000024.png",
     "3_fire_site_3.1/rgb_highres_center/052_1631639436.300000022.png",
+    "3_fire_site_3.1/rgb_highres_center/055_1631639436.600000012.png",
     "3_fire_site_3.1/rgb_highres_center/059_1631639437.000000018.png",
     "3_fire_site_3.1/rgb_highres_center/064_1631639437.500000020.png",
     "3_fire_site_3.1/rgb_highres_center/074_1631639438.500000006.png",

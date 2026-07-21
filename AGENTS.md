@@ -13,7 +13,7 @@
   its OpenLABEL JSON resolves to an existing file.
 - If the non-resumable host repeatedly drops a large archive, use
   `stream_extract_osdar23.py`; it retains extracted RGB frames between attempts.
-- The frozen fallback corpus is 1406 OpenLABEL-referenced images; only the 18
+- The frozen fallback corpus is 1405 OpenLABEL-referenced images; only the 19
   paths in `config/raw_frame_exclusions.json` may be absent or skipped.
 - Fast mode uses two non-overlapping dataset shards with four workers each;
   training keeps batch size 1 but uses two dataloader workers and no cooldown.
