@@ -27,6 +27,18 @@ def curl_command(url: str, download_ip: str | None, rate_limit: str | None) -> l
     return command
 
 
+def required_members(sequence: str, raw_dir: Path) -> list[str]:
+    root = raw_dir / sequence
+    labels = root / f"{sequence}_labels.json"
+    if not labels.is_file():
+        return [f"{CAMERA_FOLDER}/*", labels.name]
+    root_resolved = root.resolve()
+    return [
+        path.resolve().relative_to(root_resolved).as_posix()
+        for path in missing_sequence_files(sequence, raw_dir=raw_dir)
+    ]
+
+
 def stream_extract(
     sequence: str,
     url: str,
@@ -37,6 +49,9 @@ def stream_extract(
     """Extract useful ZIP members while downloading, retaining partial progress."""
     output = raw_dir / sequence
     output.mkdir(parents=True, exist_ok=True)
+    members = required_members(sequence, raw_dir)
+    if not members:
+        return 0, 0, []
     curl = subprocess.Popen(
         curl_command(url, download_ip, rate_limit),
         stdout=subprocess.PIPE,
@@ -45,7 +60,7 @@ def stream_extract(
     archive = subprocess.Popen(
         [
             "bsdtar", "-xvf", "-", "-C", str(output), "--no-same-owner",
-            f"{CAMERA_FOLDER}/*", f"{sequence}_labels.json",
+            *members,
         ],
         stdin=curl.stdout,
     )
