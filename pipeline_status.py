@@ -156,6 +156,11 @@ def sync(path: Path = STATUS_PATH) -> dict[str, object]:
             "success", [stage2 / "weights/best.pt"],
             [stage1 / "weights/best.pt", PROJECT_DIR / "train_yolo_baseline.py"],
         )
+    elif (stage2 / "weights/last.pt").is_file():
+        evidence["stage2_training"] = (
+            "running", [stage2 / "weights/last.pt"],
+            [stage1 / "weights/best.pt", PROJECT_DIR / "train_yolo_baseline.py"],
+        )
 
     output_map = {
         "clean_evaluation": [PROJECT_DIR / "outputs/evaluation/clean_test_baseline/clean_test_metrics.json"],
