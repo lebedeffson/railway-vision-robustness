@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import warnings
 from collections.abc import Iterable
 
 import numpy as np
@@ -43,10 +44,12 @@ def correlation(kind: str, left: np.ndarray, right: np.ndarray) -> float:
     valid = np.isfinite(left) & np.isfinite(right)
     if valid.sum() < 3:
         return math.nan
-    if kind == "spearman":
-        return float(spearmanr(left[valid], right[valid]).statistic)
-    if kind == "pearson":
-        return float(pearsonr(left[valid], right[valid]).statistic)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        if kind == "spearman":
+            return float(spearmanr(left[valid], right[valid]).statistic)
+        if kind == "pearson":
+            return float(pearsonr(left[valid], right[valid]).statistic)
     raise ValueError(kind)
 
 

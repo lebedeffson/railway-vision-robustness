@@ -196,6 +196,17 @@ def revision_feature_values(
     attacked_values = revision_pair_metrics(clean, attacked, statistics, mode)[0]
     defended_values = revision_pair_metrics(clean, defended, statistics, mode)[0]
     preservation_values = revision_pair_metrics(clean, filtered_clean, statistics, mode)[0]
+    return revision_feature_values_from_metrics(
+        attacked_values, defended_values, preservation_values, mode
+    )
+
+
+def revision_feature_values_from_metrics(
+    attacked_values: dict[str, float],
+    defended_values: dict[str, float],
+    preservation_values: dict[str, float],
+    mode: str,
+) -> dict[str, float]:
     result = {f"{mode}_{name}": value for name, value in attacked_values.items()}
     similarities = {
         "cosine_similarity", "pearson_correlation", "spearman_correlation",
@@ -372,6 +383,20 @@ def main() -> None:
                         clean_defense_features[defense_name] = hook.extract(
                             model, defend(clean, defense_name)
                         )
+                revision_preservation_cache: dict[
+                    tuple[str, int, str], dict[str, float]
+                ] = {}
+                if revision_statistics is not None:
+                    for defense_name, defense_features in clean_defense_features.items():
+                        for level_index, level in enumerate(("P3", "P4", "P5")):
+                            for mode in args.normalizations:
+                                revision_preservation_cache[(
+                                    defense_name, level_index, mode
+                                )] = revision_pair_metrics(
+                                    clean_features[level_index],
+                                    defense_features[level_index],
+                                    revision_statistics[level], mode,
+                                )[0]
                 mask = object_masks(batch, clean.shape[-2], clean.shape[-1])[0]
 
                 for attack_name, epsilon_px, steps, adaptive in conditions(args):
@@ -393,6 +418,19 @@ def main() -> None:
                         adversarial = result.adversarial
                         perturbation = adversarial - clean
                         attacked_features = hook.extract(model, adversarial)
+                        revision_attacked_cache: dict[
+                            tuple[int, str], dict[str, float]
+                        ] = {}
+                        if revision_statistics is not None:
+                            for level_index, level in enumerate(("P3", "P4", "P5")):
+                                for mode in args.normalizations:
+                                    revision_attacked_cache[(
+                                        level_index, mode
+                                    )] = revision_pair_metrics(
+                                        clean_features[level_index],
+                                        attacked_features[level_index],
+                                        revision_statistics[level], mode,
+                                    )[0]
                         attacked_detection = detection_for_image(
                             model, batch, adversarial, args.confidence
                         )
@@ -540,12 +578,22 @@ def main() -> None:
                                 ))
                                 if revision_statistics is not None:
                                     for mode in args.normalizations:
-                                        row.update(revision_feature_values(
-                                            clean_features[level_index],
-                                            attacked_features[level_index],
-                                            defended_features[level_index],
-                                            clean_defense_features[defense_name][level_index],
-                                            revision_statistics[level],
+                                        defended_revision = (
+                                            revision_attacked_cache[(level_index, mode)]
+                                            if defense_name == "none"
+                                            else revision_pair_metrics(
+                                                clean_features[level_index],
+                                                defended_features[level_index],
+                                                revision_statistics[level],
+                                                mode,
+                                            )[0]
+                                        )
+                                        row.update(revision_feature_values_from_metrics(
+                                            revision_attacked_cache[(level_index, mode)],
+                                            defended_revision,
+                                            revision_preservation_cache[(
+                                                defense_name, level_index, mode
+                                            )],
                                             mode,
                                         ))
                                 row.update(clean_attack_values)
@@ -558,7 +606,12 @@ def main() -> None:
                     )
                 if writer is None:
                     fieldnames = fieldnames or list(image_rows[0])
-                    writer = csv.DictWriter(checkpoint, fieldnames=fieldnames)
+                    # A running legacy matrix may resume after a code update that adds
+                    # optional Q1 columns. Preserve its frozen header and rows; fresh Q1
+                    # outputs receive the expanded schema from their first image.
+                    writer = csv.DictWriter(
+                        checkpoint, fieldnames=fieldnames, extrasaction="ignore"
+                    )
                     if checkpoint.tell() == 0:
                         writer.writeheader()
                 writer.writerows(image_rows)

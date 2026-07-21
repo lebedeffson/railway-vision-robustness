@@ -1,18 +1,17 @@
 [Unit]
-Description=Low-impact TNorm practice training pipeline
-After=network-online.target
-OnSuccess=tnorm-revision-q1.service
+Description=TNormFilter Q1 scientific revision pipeline
+After=tnorm-wait-train.service
 
 [Service]
 Type=simple
 WorkingDirectory=/home/lebedeffson/Code/андрей/TNormFilter_handoff
-ExecStart=/home/lebedeffson/Code/андрей/TNormFilter_handoff/.venv/bin/python wait_and_train.py
+ExecStart=/home/lebedeffson/Code/андрей/TNormFilter_handoff/.venv/bin/python run_revision_q1_pipeline.py
 Restart=on-failure
 RestartSec=900
 Nice=10
 CPUWeight=50
 IOWeight=50
-CPUQuota=200%
+CPUQuota=300%
 MemoryHigh=10G
 MemoryMax=11G
 OOMPolicy=stop
@@ -21,7 +20,6 @@ TasksMax=256
 Environment=OMP_NUM_THREADS=4
 Environment=MKL_NUM_THREADS=4
 Environment=OPENBLAS_NUM_THREADS=4
-Environment=TNORM_EPOCH_COOLDOWN_SECONDS=0
 
 [Install]
 WantedBy=default.target

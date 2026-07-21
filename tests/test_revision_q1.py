@@ -14,7 +14,7 @@ from revision_q1.normalization import (
     normalized_quality_recovery,
 )
 from revision_q1.protocol import assert_split_action, load_protocol
-from revision_q1.spatial import spatial_transform
+from revision_q1.spatial import spatial_transform, transform_xywh_boxes
 from revision_q1.statistics import (
     benjamini_hochberg,
     cluster_sample_plan,
@@ -121,6 +121,8 @@ class RevisionQ1Test(unittest.TestCase):
         first = spatial_transform(image, angle_degrees=2, scale=1.0)
         second = spatial_transform(image, angle_degrees=2, scale=1.0)
         torch.testing.assert_close(first, second)
+        boxes = torch.tensor([[0.5, 0.5, 0.2, 0.4]])
+        torch.testing.assert_close(transform_xywh_boxes(boxes), boxes)
 
     def test_transfer_source_target_separation(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
