@@ -7,6 +7,8 @@ from pathlib import Path
 import torch
 from ultralytics import YOLO
 
+from pipeline_status import update as update_pipeline_status
+
 
 # ============================================================
 # ПУТИ
@@ -143,7 +145,16 @@ def train_stage1() -> Path:
     checkpoint, should_resume = completed_or_resumable_model(STAGE1_NAME)
     if checkpoint is not None and not should_resume:
         print(f"Этап 1 уже завершён: {checkpoint}")
+        update_pipeline_status(
+            "stage1_training", "success", inputs=[DATA_YAML, PROJECT_DIR / "train_yolo_baseline.py"],
+            outputs=[checkpoint],
+        )
         return checkpoint
+
+    update_pipeline_status(
+        "stage1_training", "running",
+        inputs=[DATA_YAML, checkpoint or PROJECT_DIR / PRETRAINED_MODEL],
+    )
 
     model = YOLO(str(checkpoint) if should_resume else PRETRAINED_MODEL)
     model.add_callback("on_train_epoch_end", low_impact_epoch_cooldown)
@@ -155,6 +166,7 @@ def train_stage1() -> Path:
         if not best_model_path.is_file():
             raise FileNotFoundError(f"После resume не найден {best_model_path}")
         mark_stage_complete(STAGE1_NAME, best_model_path)
+        update_pipeline_status("stage1_training", "success", outputs=[best_model_path])
         return best_model_path
 
     model.train(
@@ -241,6 +253,7 @@ def train_stage1() -> Path:
         )
 
     mark_stage_complete(STAGE1_NAME, best_model_path)
+    update_pipeline_status("stage1_training", "success", outputs=[best_model_path])
 
     print("\nПервый этап завершён.")
     print(f"Лучшая модель этапа 1:\n{best_model_path}")
@@ -263,7 +276,14 @@ def train_stage2(stage1_best_model: Path) -> Path:
     checkpoint, should_resume = completed_or_resumable_model(STAGE2_NAME)
     if checkpoint is not None and not should_resume:
         print(f"Этап 2 уже завершён: {checkpoint}")
+        update_pipeline_status(
+            "stage2_training", "success", inputs=[stage1_best_model], outputs=[checkpoint]
+        )
         return checkpoint
+
+    update_pipeline_status(
+        "stage2_training", "running", inputs=[checkpoint or stage1_best_model]
+    )
 
     model = YOLO(str(checkpoint) if should_resume else str(stage1_best_model))
     model.add_callback("on_train_epoch_end", low_impact_epoch_cooldown)
@@ -275,6 +295,7 @@ def train_stage2(stage1_best_model: Path) -> Path:
         if not best_model_path.is_file():
             raise FileNotFoundError(f"После resume не найден {best_model_path}")
         mark_stage_complete(STAGE2_NAME, best_model_path)
+        update_pipeline_status("stage2_training", "success", outputs=[best_model_path])
         return best_model_path
 
     model.train(
@@ -361,6 +382,7 @@ def train_stage2(stage1_best_model: Path) -> Path:
         )
 
     mark_stage_complete(STAGE2_NAME, best_model_path)
+    update_pipeline_status("stage2_training", "success", outputs=[best_model_path])
 
     return best_model_path
 
@@ -369,8 +391,20 @@ def main() -> None:
     check_environment()
     check_output_directories()
 
-    stage1_best_model = train_stage1()
-    final_best_model = train_stage2(stage1_best_model)
+    try:
+        stage1_best_model = train_stage1()
+    except Exception as error:
+        update_pipeline_status(
+            "stage1_training", "failed", error=f"{type(error).__name__}: {error}"
+        )
+        raise
+    try:
+        final_best_model = train_stage2(stage1_best_model)
+    except Exception as error:
+        update_pipeline_status(
+            "stage2_training", "failed", error=f"{type(error).__name__}: {error}"
+        )
+        raise
 
     print("\n" + "=" * 72)
     print("ДВУХЭТАПНОЕ ОБУЧЕНИЕ ЗАВЕРШЕНО")
