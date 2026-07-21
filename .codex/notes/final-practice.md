@@ -40,6 +40,9 @@ before the desktop session under system-wide memory pressure.
 Stage training resumes from `last.pt`. Final-matrix work checkpoints after every
 fully completed image, and `run_training_pipeline.py` records a marker after
 each stage so reboots do not repeat completed practice blocks.
+The training user unit runs Python directly: wrapping it in `systemd-inhibit`
+failed with an interactive-authorization error after reboot. Sleep may pause the
+job, but checkpoints make that safer than preventing unattended startup.
 
 The `3_fire_site_3.1` archive repeatedly failed through the required VPN and the
 official host does not support Range. The frozen fallback policy excludes 18

@@ -17,6 +17,8 @@
   paths in `config/raw_frame_exclusions.json` may be absent or skipped.
 - Fast mode uses two non-overlapping dataset shards with four workers each;
   training keeps batch size 1 but uses two dataloader workers and no cooldown.
+- The persistent training unit must not wrap `ExecStart` in `systemd-inhibit`;
+  after reboot the user service may lack interactive authorization for inhibitors.
 
 ## Notes
 

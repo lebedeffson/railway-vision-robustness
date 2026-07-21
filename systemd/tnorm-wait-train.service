@@ -5,7 +5,7 @@ After=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=/home/lebedeffson/Code/андрей/TNormFilter_handoff
-ExecStart=/usr/bin/systemd-inhibit --what=sleep:idle --who=tnorm-practice --why=TNorm-training --mode=block /home/lebedeffson/Code/андрей/TNormFilter_handoff/.venv/bin/python wait_and_train.py
+ExecStart=/home/lebedeffson/Code/андрей/TNormFilter_handoff/.venv/bin/python wait_and_train.py
 Restart=on-failure
 RestartSec=900
 Nice=10
