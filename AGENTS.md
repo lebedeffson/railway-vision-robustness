@@ -29,6 +29,8 @@
   fit normalization and scene thresholds on clean validation only, never test.
 - Q1 inference uses Stage 2 best as primary and Stage 1 best only for the frozen
   cross-checkpoint sensitivity protocol; all resampling clusters by `sequence_id`.
+- Validation has only three independent sequences. The 12-frame deadline pilot
+  is a code smoke test, never article evidence or a substitute for cluster CIs.
 - Deadline mode keeps full Q1 masked/deferred; after the validation pilot passes,
   canonical test inference uses the frozen 114-row minimal grid and is finalized
   only through `deadline_finalize.py` after the standard delivery bundle.
