@@ -216,3 +216,12 @@ only by complete frame. The final article uses the read-only expanded source
 `/home/lebedeffson/Downloads/TNorm_RZD_article_expanded_internal_review.docx`
 and writes `TNorm_RZD_article_final.docx`, its PDF, and
 `TNorm_RZD_supplementary.pdf` under `outputs/article`.
+
+Canonical v2 training completed 63 epochs and stopped early. The validation-only
+threshold sweep selected standard confidence 0.081 (Recall 0.17310, F1 0.20989)
+and safety confidence 0.017 (Recall 0.27233, F2 0.22387); validation mAP50 was
+0.11896. The predeclared gate required Recall 0.35 and mAP50 0.25, so the run
+stopped before normalization, pilot attacks, test evaluation, canonical attacks,
+statistics, latency and article finalization. The diagnostic handoff is
+`outputs/bundles/TNormFilter_baseline_gate_failed.zip`; downstream stages are
+explicitly `skipped`, and the inactive linked service is not enabled at login.

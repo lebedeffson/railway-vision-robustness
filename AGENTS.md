@@ -60,6 +60,9 @@
   selection and non-floor attack budgets are frozen; validation attacks are not test.
 - Final article content comes from the read-only expanded DOCX in `Downloads`;
   canonical outputs are `TNorm_RZD_article_final.{docx,pdf}` plus supplementary PDF.
+- Canonical v2 stopped at the frozen validation quality gate: mAP50=0.11896
+  and standard-point Recall=0.17310. Do not open test or attacks without a new,
+  prospectively frozen rescue protocol.
 
 ## Notes
 

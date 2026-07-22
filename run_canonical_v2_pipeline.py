@@ -168,12 +168,17 @@ def wait_for_legacy() -> None:
 
 
 def build_quality_gate_failure_bundle(summary_path: Path) -> Path:
+    summary_path = summary_path.resolve()
     destination = PROJECT_DIR / "outputs/bundles/TNormFilter_baseline_gate_failed.zip"
     destination.parent.mkdir(parents=True, exist_ok=True)
     roots = [
         summary_path.parent,
         ROOT / "split",
-        ROOT / "training/yolo11m_canonical_v2",
+        # Include both the exported checkpoint selection/provenance and the
+        # Ultralytics validation artifacts. Checkpoint weights remain excluded
+        # by the extension allow-list below.
+        ROOT / "training",
+        ROOT / "pipeline_status.json",
         PROJECT_DIR / "config/canonical_v2_protocol.yaml",
     ]
     allowed = {".csv", ".json", ".png", ".yaml", ".yml", ".txt"}
@@ -243,12 +248,30 @@ def quality_gate(summary_path: Path) -> None:
         json.dumps(gate_record, indent=2) + "\n", encoding="utf-8"
     )
     if not gate_record["passed"]:
-        bundle = build_quality_gate_failure_bundle(summary_path)
+        bundle = PROJECT_DIR / "outputs/bundles/TNormFilter_baseline_gate_failed.zip"
         payload = read_status(); payload["status"] = "stopped_baseline_quality_gate"
         payload["canonical_attacks_started"] = False
+        payload["quality_gate_passed"] = False
         payload["quality_gate"] = gate_record
         payload["quality_gate_failure_bundle"] = str(bundle)
+        gate_stage = payload.setdefault("stages", {}).setdefault("baseline_quality_gate", {})
+        gate_stage.update({
+            "status": "failed",
+            "finished_at": now(),
+            "outputs": [str(output / "quality_gate.json"), str(bundle)],
+            "error": "validation_quality_gate_not_reached",
+        })
+        stage_order = PROTOCOL.get("canonical_stage_order", [])
+        gate_index = stage_order.index("baseline_quality_gate")
+        for name in stage_order[gate_index + 1:]:
+            payload["stages"].setdefault(name, {
+                "status": "skipped",
+                "finished_at": now(),
+                "outputs": [],
+                "error": "blocked_by_validation_quality_gate",
+            })
         write_status(payload)
+        build_quality_gate_failure_bundle(summary_path)
         raise SystemExit("Canonical v2 stopped: validation quality gate was not reached")
 
 

@@ -13,6 +13,7 @@ import yaml
 
 from deadline_select_budgets import budget_table, select_budgets
 import run_final_matrix
+import run_canonical_v2_pipeline
 from verify_canonical_provenance import verify_hash
 
 
@@ -123,6 +124,38 @@ class CanonicalV2Test(unittest.TestCase):
         legacy = source.index('stage("legacy_threshold_calibration"')
         split = source.index('stage("split_v2"')
         self.assertIn('"--splits", "val"', source[legacy:split])
+
+    def test_gate_failure_bundle_includes_exported_checkpoint_provenance(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            canonical = project / "outputs/canonical_v2"
+            summary_dir = canonical / "baseline_rescue_v2"
+            training = canonical / "training"
+            split = canonical / "split"
+            config = project / "config"
+            for path in (summary_dir, training, split, config):
+                path.mkdir(parents=True, exist_ok=True)
+            summary = summary_dir / "baseline_rescue_summary.json"
+            summary.write_text("{}\n", encoding="utf-8")
+            (training / "checkpoint_provenance.json").write_text("{}\n", encoding="utf-8")
+            (training / "checkpoint_selection.csv").write_text("status\nPASS\n", encoding="utf-8")
+            (training / "best.pt").write_bytes(b"must not enter diagnostic bundle")
+            (split / "split_v2_hash.txt").write_text("hash\n", encoding="utf-8")
+            (config / "canonical_v2_protocol.yaml").write_text("protocol: test\n", encoding="utf-8")
+            with patch.object(run_canonical_v2_pipeline, "PROJECT_DIR", project), patch.object(
+                run_canonical_v2_pipeline, "ROOT", canonical
+            ):
+                bundle = run_canonical_v2_pipeline.build_quality_gate_failure_bundle(summary)
+            import zipfile
+            with zipfile.ZipFile(bundle) as archive:
+                names = set(archive.namelist())
+            self.assertIn(
+                "outputs/canonical_v2/training/checkpoint_provenance.json", names
+            )
+            self.assertIn(
+                "outputs/canonical_v2/training/checkpoint_selection.csv", names
+            )
+            self.assertNotIn("outputs/canonical_v2/training/best.pt", names)
 
     def test_checkpoint_hash_must_match_threshold_clean_test_and_attacks(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
