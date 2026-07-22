@@ -63,6 +63,7 @@ class DeadlineModeTest(unittest.TestCase):
             self.assertEqual(args.normalizations, ["N1_quantile"])
             self.assertEqual(args.fgsm_eps, [1.0, 4.0])
             self.assertEqual(args.pgd_steps, [20])
+            self.assertEqual(args.adaptive_pgd_eps, [1.0])
             self.assertEqual(args.defenses, ["none", "tnorm", "bilateral", "median"])
             self.assertEqual(args.nms_max_time_img, 10.0)
 
