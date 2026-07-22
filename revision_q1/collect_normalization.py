@@ -169,6 +169,16 @@ def main() -> None:
     (destination / "normalization_manifest.json").write_text(
         json.dumps(metadata, indent=2) + "\n", encoding="utf-8"
     )
+    np.savez_compressed(
+        destination / "normalization_stats.npz",
+        **{
+            f"{layer}__{name}": value.detach().cpu().numpy()
+            for layer, layer_values in statistics.items()
+            for name, value in layer_values.items()
+        },
+    )
+    audit_source = args.output / "tables/02_normalization_ablation.csv"
+    (destination / "normalization_audit.csv").write_bytes(audit_source.read_bytes())
     print(json.dumps(metadata, indent=2))
 
 

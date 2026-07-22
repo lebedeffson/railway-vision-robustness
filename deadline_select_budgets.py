@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import yaml
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
@@ -131,6 +132,9 @@ def main() -> None:
     args.output.parent.mkdir(parents=True, exist_ok=True)
     table.to_csv(args.output.with_suffix(".csv"), index=False)
     args.output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    (args.output.parent / "frozen_attack_budgets.yaml").write_text(
+        yaml.safe_dump(payload, sort_keys=False), encoding="utf-8"
+    )
     print(json.dumps(payload, indent=2))
     if payload["status"] != "PASS":
         raise SystemExit(2)

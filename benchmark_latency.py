@@ -14,6 +14,7 @@ from ultralytics import YOLO
 
 from checkpoint_selection import selected_checkpoint
 from extract_feature_consistency import FeatureHook, defend, loader, metrics, to_device
+from revision_q1.feature_metrics import pair_metrics as canonical_pair_metrics
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
@@ -78,6 +79,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", type=Path, default=MODEL)
     parser.add_argument("--data", type=Path, default=DATA)
     parser.add_argument("--stats", type=Path, default=STATS)
+    parser.add_argument("--revision-stats", type=Path)
     parser.add_argument("--output", type=Path, default=OUTPUT)
     parser.add_argument("--device", default="0")
     parser.add_argument("--imgsz", type=int, default=1280)
@@ -94,21 +96,40 @@ def main() -> None:
     batch = to_device(next(iter(loader(args.data, "test", args.imgsz, args.batch, 0, device.type == "cuda"))), device)
     images = batch["img"]
     hook = FeatureHook(model)
-    stats_payload = torch.load(args.stats, map_location="cpu")["stats"]
+    stats_file = args.revision_stats or args.stats
+    stats_container = torch.load(stats_file, map_location="cpu")
+    canonical = args.revision_stats is not None
+    stats_payload = stats_container["statistics" if canonical else "stats"]
     reference = hook.extract(model, images)
 
-    operations = {"detector": lambda: model(images)}
-    for defense_name in ("tnorm", "bilateral", "gaussian", "jpeg", "median"):
-        operations[f"{defense_name}+detector"] = (
-            lambda name=defense_name: model(defend(images, name))
-        )
+    operations = {
+        "YOLO only": lambda: model(images),
+        "Product + YOLO": lambda: model(defend(images, "tnorm")),
+    }
 
     def diagnostic_operation() -> None:
         current = hook.extract(model, images)
         for index, level in enumerate(("P3", "P4", "P5")):
-            metrics(reference[index], current[index], stats_payload[level])
+            if canonical:
+                canonical_pair_metrics(
+                    reference[index], current[index], stats_payload[level], "N1_quantile"
+                )
+            else:
+                metrics(reference[index], current[index], stats_payload[level])
 
-    operations["diagnostics+detector"] = diagnostic_operation
+    def full_operation() -> None:
+        defended = defend(images, "tnorm")
+        current = hook.extract(model, defended)
+        for index, level in enumerate(("P3", "P4", "P5")):
+            if canonical:
+                canonical_pair_metrics(
+                    reference[index], current[index], stats_payload[level], "N1_quantile"
+                )
+            else:
+                metrics(reference[index], current[index], stats_payload[level])
+
+    operations["diagnostic metrics + YOLO"] = diagnostic_operation
+    operations["full diagnostic pipeline"] = full_operation
     raw: dict[str, list[float]] = {}
     peak_memory: dict[str, float] = {}
     try:
@@ -119,16 +140,24 @@ def main() -> None:
     finally:
         hook.close()
 
-    detector_mean = statistics.fmean(raw["detector"])
+    detector_mean = statistics.fmean(raw["YOLO only"])
     rows = [
         summary(name, values, args.batch, detector_mean, peak_memory[name])
         for name, values in raw.items()
     ]
     args.output.mkdir(parents=True, exist_ok=True)
-    with (args.output / "latency.csv").open("w", encoding="utf-8", newline="") as handle:
+    with (args.output / "latency_summary.csv").open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
         writer.writeheader()
         writer.writerows(rows)
+    with (args.output / "latency_raw.csv").open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=["method", "run", "latency_ms"])
+        writer.writeheader()
+        for method, values in raw.items():
+            writer.writerows(
+                {"method": method, "run": index, "latency_ms": value}
+                for index, value in enumerate(values, 1)
+            )
     environment = {
         "platform": platform.platform(),
         "python": platform.python_version(),
@@ -142,6 +171,8 @@ def main() -> None:
         "batch_size": args.batch,
         "warmup": args.warmup,
         "repetitions": args.repetitions,
+        "normalization": "N1_quantile" if canonical else "legacy",
+        "statistics": str(stats_file.resolve()),
     }
     (args.output / "environment.json").write_text(json.dumps(environment, indent=2) + "\n", encoding="utf-8")
 

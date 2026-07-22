@@ -21,6 +21,7 @@ from ultralytics import YOLO
 from ultralytics.cfg import get_cfg
 from ultralytics.utils.metrics import box_iou
 
+from audit_final_practice import canonical_path, load_manifest
 from evaluate_image_level_detection import get_ground_truth, predict_batch
 from extract_feature_consistency import loader, to_device
 
@@ -198,6 +199,30 @@ def save_false_negative_examples(
     pd.DataFrame(manifest).to_csv(output / "false_negative_examples.csv", index=False)
 
 
+def per_scene_rows(
+    samples: list[dict[str, Any]], split: str, confidence: float,
+    operating_point: str, manifest_path: Path,
+) -> list[dict[str, Any]]:
+    lookup = {
+        canonical_path(row["image_path"]): row["sequence_id"]
+        for row in load_manifest(manifest_path) if row["split"] == split
+    }
+    grouped: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
+    for sample in samples:
+        path = canonical_path(sample["image_path"])
+        if path not in lookup:
+            raise RuntimeError(f"Clean evaluation frame missing from manifest: {path}")
+        grouped[lookup[path]].append(sample)
+    return [
+        {
+            "split": split, "grouped_scene_id": scene,
+            "sequence_id": scene, "operating_point": operating_point,
+            "frames": len(values), **aggregate(values, confidence),
+        }
+        for scene, values in sorted(grouped.items())
+    ]
+
+
 def ultralytics_metrics(
     checkpoint: Path, data: Path, split: str, imgsz: int, output: Path
 ) -> tuple[dict[str, float], list[dict[str, Any]]]:
@@ -234,12 +259,15 @@ def main() -> None:
     parser.add_argument("--imgsz", type=int, default=1280)
     parser.add_argument("--small-area", type=float, default=0.001)
     parser.add_argument("--medium-area", type=float, default=0.01)
+    parser.add_argument("--manifest", type=Path)
     parser.add_argument("--splits", type=parse_splits, default=SPLITS)
     parser.add_argument(
         "--frozen-thresholds", type=Path,
         help="Use an already frozen validation selection; do not fit thresholds.",
     )
     args = parser.parse_args()
+    if args.manifest is None:
+        args.manifest = args.data.parent / "manifest.csv"
     if args.frozen_thresholds is None and "val" not in args.splits:
         parser.error("Threshold calibration requires validation in --splits")
     if args.frozen_thresholds is not None and "val" in args.splits:
@@ -305,8 +333,11 @@ def main() -> None:
     clean_rows: list[dict[str, Any]] = []
     detail: list[dict[str, Any]] = []
     ap_rows: list[dict[str, Any]] = []
+    scene_rows: list[dict[str, Any]] = []
+    ap_by_split: dict[str, dict[str, float]] = {}
     for split in args.splits:
         ap, classes = ultralytics_metrics(args.model, args.data, split, args.imgsz, args.output)
+        ap_by_split[split] = ap
         ap_rows.extend(classes)
         for point, threshold in (("standard", float(standard["confidence"])), ("safety", float(safety["confidence"]))):
             clean_rows.append({"split": split, "operating_point": point, **aggregate(predictions[split], threshold), **ap})
@@ -314,9 +345,18 @@ def main() -> None:
                 predictions[split], split, threshold, point, names,
                 args.small_area, args.medium_area,
             ))
+            scene_rows.extend(per_scene_rows(
+                predictions[split], split, threshold, point, args.manifest,
+            ))
     pd.DataFrame(clean_rows).to_csv(args.output / "clean_metrics_train_val_test.csv", index=False)
     pd.DataFrame(detail).to_csv(args.output / "clean_metrics_by_class_and_size.csv", index=False)
     pd.DataFrame(ap_rows).to_csv(args.output / "ap_by_class.csv", index=False)
+    pd.DataFrame(scene_rows).to_csv(args.output / "clean_metrics_per_scene.csv", index=False)
+    if args.frozen_thresholds is None:
+        validation_ap = ap_by_split["val"]
+        sweep["mAP50"] = validation_ap["mAP50"]
+        sweep["mAP50-95"] = validation_ap["mAP50-95"]
+        sweep.to_csv(args.output / "threshold_sweep.csv", index=False)
     val_standard = next(
         (row for row in clean_rows if row["split"] == "val" and row["operating_point"] == "standard"),
         None,

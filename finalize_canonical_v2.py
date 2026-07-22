@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import tempfile
 import zipfile
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -30,6 +31,10 @@ def sha256(path: Path) -> str:
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""): digest.update(chunk)
     return digest.hexdigest()
+
+
+def split_manifest_hash() -> str:
+    return (ROOT / "split/split_v2_hash.txt").read_text(encoding="utf-8").split()[0]
 
 
 def boolean(values: pd.Series) -> pd.Series:
@@ -108,7 +113,52 @@ def copy_tree(source: Path, destination: Path) -> None:
             target = destination / path.relative_to(source); target.parent.mkdir(parents=True, exist_ok=True); shutil.copy2(path, target)
 
 
+def required_artifacts() -> list[Path]:
+    return [
+        ROOT / "tables" / f"{index:02d}_{name}"
+        for index, name in enumerate((
+            "split_v2_summary.csv", "training_and_threshold.csv",
+            "clean_test_metrics.csv", "attack_parameters.csv",
+            "canonical_robustness.csv", "attack_consistency.csv",
+            "defense_consistency.csv", "damage_D2_D3.csv",
+            "recovery_R2_R3.csv", "object_global_comparison.csv",
+            "adaptive_comparison.csv", "per_scene_results.csv",
+            "loso_results.csv", "latency_summary.csv", "nms_audit.csv",
+        ), 1)
+    ] + [
+        ROOT / "figures" / f"{index:02d}_{name}"
+        for index, name in enumerate((
+            "training_curves.png", "precision_recall_curve.png",
+            "f1_recall_vs_epsilon.png", "damage_D3_vs_D2.png",
+            "recovery_R3_vs_R2.png", "tnorm_vs_baselines.png",
+            "object_vs_global.png", "adaptive_vs_nonadaptive.png",
+            "per_scene_effects.png", "latency_tradeoff.png",
+        ), 1)
+    ] + [
+        PROJECT_DIR / "outputs/article/TNormFilter_canonical_final.docx",
+        PROJECT_DIR / "outputs/article/TNormFilter_canonical_final.pdf",
+        PROJECT_DIR / "outputs/article/article_validation.json",
+        ROOT / "config/provenance_final.json",
+        ROOT / "pilot/pilot_gate.json",
+        ROOT / "baseline_rescue_v2/baseline_rescue_summary.json",
+    ]
+
+
 def main() -> None:
+    missing = [str(path) for path in required_artifacts() if not path.is_file()]
+    if missing:
+        raise RuntimeError(f"Canonical evidence is incomplete: {missing}")
+    article_validation = json.loads(
+        (PROJECT_DIR / "outputs/article/article_validation.json").read_text(encoding="utf-8")
+    )
+    pilot_gate = json.loads((ROOT / "pilot/pilot_gate.json").read_text(encoding="utf-8"))
+    quality_gate = json.loads(
+        (ROOT / "baseline_rescue_v2/baseline_rescue_summary.json").read_text(encoding="utf-8")
+    )["quality_gate"]
+    if article_validation.get("status") != "PASS":
+        raise RuntimeError("Final article validation did not pass")
+    if not pilot_gate.get("pilot_gate_passed") or not quality_gate.get("passed"):
+        raise RuntimeError("Canonical gates did not pass")
     data = pd.read_csv(TEST, low_memory=False)
     results = {
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -136,29 +186,127 @@ def main() -> None:
         encoding="utf-8",
     )
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    status = json.loads((ROOT / "pipeline_status.json").read_text(encoding="utf-8"))
+    failed = [name for name, row in status.get("stages", {}).items() if row.get("status") == "failed"]
+    pending = [name for name, row in status.get("stages", {}).items() if row.get("status") == "pending"]
+    running = [
+        name for name, row in status.get("stages", {}).items()
+        if row.get("status") == "running" and name != "canonical_bundle"
+    ]
+    if failed or pending or running:
+        raise RuntimeError(
+            f"Pipeline contains unresolved stages: failed={failed}, "
+            f"pending={pending}, running={running}"
+        )
+    packaged_status = json.loads(json.dumps(status))
+    packaged_status["status"] = "success"
+    packaged_status.setdefault("stages", {}).setdefault("canonical_bundle", {}).update({
+        "status": "success", "finished_at": datetime.now(timezone.utc).isoformat(),
+        "error": None,
+    })
     with tempfile.TemporaryDirectory(prefix="tnorm_canonical_") as directory:
         staging = Path(directory) / "TNormFilter_canonical_final"
-        for name in ("split", "baseline_rescue_v2", "normalization_v2", "analysis_test", "tables", "report", "config"):
-            source = ROOT / name
-            if source.is_dir(): copy_tree(source, staging / name)
+        directories = {
+            "audit": PROJECT_DIR / "outputs/final_practice/audit",
+            "calibration": ROOT / "calibration",
+            "normalization": ROOT / "normalization",
+            "raw": ROOT / "raw",
+            "tables": ROOT / "tables",
+            "figures": ROOT / "figures",
+            "statistics": ROOT / "analysis_test",
+            "article": PROJECT_DIR / "outputs/article",
+            "tests": ROOT / "tests",
+            "report": ROOT / "report",
+            "supplementary": ROOT / "supplementary",
+        }
+        for name, source in directories.items():
+            if source.is_dir():
+                copy_tree(source, staging / name)
+            else:
+                (staging / name).mkdir(parents=True, exist_ok=True)
+        # Training evidence is included without the large checkpoint payload.
+        training = ROOT / "training"
+        for name in (
+            "training_config.yaml", "results.csv", "training_curves.png",
+            "checkpoint_selection.csv", "checkpoint_provenance.json",
+        ):
+            source = training / name
+            if source.is_file():
+                target = staging / "training" / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, target)
+        (staging / "configs").mkdir(parents=True, exist_ok=True)
+        for source in (
+            PROJECT_DIR / "config/canonical_v2_protocol.yaml",
+            PROJECT_DIR / "config/canonical_v2_analysis.yaml",
+            ROOT / "config/frozen_attack_budgets.yaml",
+        ):
+            shutil.copy2(source, staging / "configs" / source.name)
         for source, relative in (
-            (TEST, "raw/canonical_test.csv"),
-            (TEST.with_suffix(".json"), "raw/canonical_test.json"),
-            (ROOT / "raw/canonical_validation.csv", "raw/canonical_validation.csv"),
-            (ROOT / "config/canonical_budget_selection.json", "config/canonical_budget_selection.json"),
-            (PROJECT_DIR / "config/canonical_v2_protocol.yaml", "config/canonical_v2_protocol.yaml"),
-            (ROOT / "pipeline_status.json", "pipeline_status.json"),
+            (ROOT / "split/split_v2_manifest.csv", "configs/split_v2_manifest.csv"),
+            (ROOT / "split/split_v2_summary.json", "configs/split_v2_summary.json"),
+            (ROOT / "split/split_v2_hash.txt", "configs/split_v2_hash.txt"),
         ):
             if source.is_file():
                 target = staging / relative; target.parent.mkdir(parents=True, exist_ok=True); shutil.copy2(source, target)
-        (staging / "README.md").write_text("Canonical scene-level TNormFilter experiment; weights and source dataset are excluded.\n", encoding="utf-8")
-        files = sorted(path for path in staging.rglob("*") if path.is_file())
-        (staging / "checksums.sha256").write_text("".join(f"{sha256(path)}  {path.relative_to(staging).as_posix()}\n" for path in files), encoding="utf-8")
+        (staging / "pipeline_status.json").write_text(
+            json.dumps(packaged_status, indent=2) + "\n", encoding="utf-8"
+        )
+        log_dir = staging / "logs"; log_dir.mkdir(parents=True, exist_ok=True)
+        log = subprocess.run(
+            ["journalctl", "--user", "-u", "tnorm-canonical-v2.service", "--no-pager"],
+            text=True, capture_output=True, check=False,
+        )
+        (log_dir / "tnorm-canonical-v2.service.log").write_text(log.stdout, encoding="utf-8")
+        git_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=PROJECT_DIR, text=True).strip()
+        git_status = subprocess.check_output(["git", "status", "--short"], cwd=PROJECT_DIR, text=True)
+        (staging / "git_info.txt").write_text(
+            f"commit={git_commit}\nworktree_status_at_bundle_build=\n{git_status}", encoding="utf-8"
+        )
+        (staging / "README.md").write_text(
+            "# TNormFilter canonical v2 evidence\n\n"
+            "Grouped-scene canonical experiment. Legacy compatibility metrics are excluded "
+            "from primary claims. Dataset and full checkpoint weights are excluded; hashes "
+            "and provenance are included.\n",
+            encoding="utf-8",
+        )
+        stage_counts = Counter(
+            row.get("status", "unknown")
+            for row in packaged_status.get("stages", {}).values()
+        )
+        run_summary = {
+            "status": "PASS", "created_at": datetime.now(timezone.utc).isoformat(),
+            "git_commit": git_commit, "manifest_sha256": split_manifest_hash(),
+            "checkpoint_sha256": json.loads((ROOT / "calibration/threshold_selection.json").read_text())["checkpoint_sha256"],
+            "validation_threshold": json.loads((ROOT / "calibration/threshold_selection.json").read_text())["safety"]["confidence"],
+            "quality_gate": quality_gate, "pilot_gate": pilot_gate.get("status"),
+            "hypotheses": {key: results[key] for key in ("H1", "H2", "H3", "H4")},
+            "independent_test_scenes": results["independent_test_scenes"],
+            "stage_counts": dict(stage_counts), "failed_stages": failed, "pending_stages": pending,
+            "article_validation": article_validation,
+        }
+        (staging / "run_summary.json").write_text(json.dumps(run_summary, indent=2) + "\n", encoding="utf-8")
         manifest = {
-            "git_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=PROJECT_DIR, text=True).strip(),
+            "git_commit": git_commit,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "dataset_manifest_sha256": split_manifest_hash(),
+            "checkpoint_sha256": run_summary["checkpoint_sha256"],
+            "dataset_included": False, "checkpoint_weights_included": False,
             "files": {path.relative_to(staging).as_posix(): sha256(path) for path in staging.rglob("*") if path.is_file()},
         }
         (staging / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        files = sorted(path for path in staging.rglob("*") if path.is_file())
+        (staging / "checksums.sha256").write_text("".join(f"{sha256(path)}  {path.relative_to(staging).as_posix()}\n" for path in files), encoding="utf-8")
+        forbidden = []
+        for path in staging.rglob("*"):
+            if path.is_file() and path.suffix.lower() in {".md", ".txt", ".json", ".yaml", ".yml", ".csv"}:
+                try:
+                    if "[TBD" in path.read_text(encoding="utf-8"):
+                        forbidden.append(str(path.relative_to(staging)))
+                except UnicodeDecodeError:
+                    pass
+        if forbidden:
+            raise RuntimeError(f"Unresolved placeholders in bundle: {forbidden}")
         temporary = OUTPUT.with_suffix(".zip.tmp")
         with zipfile.ZipFile(temporary, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
             for path in staging.rglob("*"):

@@ -17,7 +17,7 @@ from ultralytics import YOLO
 from ultralytics.cfg import get_cfg
 from ultralytics.utils.metrics import box_iou
 
-from audit_final_practice import canonical_path
+from audit_final_practice import canonical_path, load_manifest
 from checkpoint_selection import selected_checkpoint
 from evaluate_image_level_detection import (
     DEFAULT_CONFIDENCE,
@@ -347,6 +347,23 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def frame_metadata_lookup(
+    manifest: Path,
+) -> tuple[dict[str, dict[str, str]], dict[str, dict[str, str]]]:
+    rows = load_manifest(manifest)
+    exact: dict[str, dict[str, str]] = {}
+    names: dict[str, list[dict[str, str]]] = {}
+    for row in rows:
+        metadata = {
+            "grouped_scene_id": row["sequence_id"],
+            "subsequence_id": row.get("subsequence_id") or row.get("source_sequence") or row["sequence_id"],
+        }
+        exact[row["image_path"]] = metadata
+        names.setdefault(Path(row["image_path"]).name, []).append(metadata)
+    unique = {name: values[0] for name, values in names.items() if len(values) == 1}
+    return exact, unique
+
+
 def apply_deadline_defaults(args: argparse.Namespace) -> None:
     """Apply the validation-frozen minimal matrix to the canonical test run."""
     gate_path = DEADLINE_ROOT / "pilot/pilot_gate.json"
@@ -426,6 +443,7 @@ def main() -> None:
     if args.normalizations and revision_statistics is None:
         raise RuntimeError("--normalizations requires --revision-stats")
     exact_sequences, named_sequences = sequence_lookup(args.manifest)
+    exact_metadata, named_metadata = frame_metadata_lookup(args.manifest)
     hook = FeatureHook(model)
     loss_weights = model_loss_weights(model)
     data_loader = loader(args.data, args.split, args.imgsz, 1, args.workers, device.type == "cuda")
@@ -447,6 +465,11 @@ def main() -> None:
                 )
                 if sequence_id is None:
                     raise RuntimeError(f"No sequence_id for {path}")
+                frame_metadata = exact_metadata.get(
+                    canonical_path(path), named_metadata.get(Path(path).name)
+                )
+                if frame_metadata is None:
+                    raise RuntimeError(f"No grouped-scene/subsequence metadata for {path}")
                 clean_features = hook.extract(model, clean)
                 clean_detection = detection_for_image(
                     model, batch, clean, args.confidence, args.nms_max_time_img
@@ -553,6 +576,8 @@ def main() -> None:
                                 row: dict[str, object] = {
                                     "checkpoint_name": args.checkpoint_name,
                                     "sequence_id": sequence_id,
+                                    "grouped_scene_id": frame_metadata["grouped_scene_id"],
+                                    "subsequence_id": frame_metadata["subsequence_id"],
                                     "image_path": path,
                                     "split": args.split,
                                     "class_name": "all",
@@ -573,6 +598,10 @@ def main() -> None:
                                     "selected_best": restart == best_restart,
                                     "defense": defense_name,
                                     "layer": level,
+                                    "normalization": (
+                                        args.normalizations[0]
+                                        if len(args.normalizations) == 1 else "wide_multi_mode"
+                                    ),
                                     "perturbation_norm": "linf",
                                     "f1_clean": clean_detection["f1"],
                                     "f1_attack": attacked_detection["f1"],
@@ -580,6 +609,23 @@ def main() -> None:
                                     "recall_clean": clean_detection["recall"],
                                     "recall_attack": attacked_detection["recall"],
                                     "recall_defended": defended_detection["recall"],
+                                    "precision_clean": clean_detection["precision"],
+                                    "precision_attack": attacked_detection["precision"],
+                                    "precision_defended": defended_detection["precision"],
+                                    "precision": defended_detection["precision"],
+                                    "recall": defended_detection["recall"],
+                                    "f1": defended_detection["f1"],
+                                    "f2": (
+                                        5.0 * defended_detection["precision"]
+                                        * defended_detection["recall"]
+                                        / max(
+                                            4.0 * defended_detection["precision"]
+                                            + defended_detection["recall"], 1e-12,
+                                        )
+                                    ),
+                                    "fn": defended_detection["fn"],
+                                    "map50": math.nan,
+                                    "map50_95": math.nan,
                                     "false_negatives": defended_detection["fn"],
                                     "fn_clean": clean_detection["fn"],
                                     "fn_attack": attacked_detection["fn"],
@@ -680,6 +726,9 @@ def main() -> None:
                                     "actual_l1": float(perturbation.abs().sum()),
                                     "actual_l2": float(perturbation.norm()),
                                     "actual_linf": float(perturbation.abs().max()),
+                                    "actual_L1": float(perturbation.abs().sum()),
+                                    "actual_L2": float(perturbation.norm()),
+                                    "actual_Linf": float(perturbation.abs().max()),
                                     "legacy_metric_family": "legacy_compatibility",
                                     "canonical_metric_family": (
                                         "canonical_tnorm"
@@ -712,6 +761,19 @@ def main() -> None:
                                             )],
                                             mode,
                                         ))
+                                        if mode == "N1_quantile":
+                                            row.update({
+                                                "canonical_Product": row[f"{mode}_product"],
+                                                "canonical_Lukasiewicz": row[f"{mode}_lukasiewicz"],
+                                                "canonical_Product_recovery": row[f"{mode}_product_recovery"],
+                                                "canonical_Lukasiewicz_recovery": row[f"{mode}_lukasiewicz_recovery"],
+                                                "P": row[f"{mode}_p_product"],
+                                                "A": row[f"{mode}_a_product"],
+                                                "R": row[f"{mode}_r_product"],
+                                                "G_raw": row[f"{mode}_g_product"],
+                                                "G_clipped": row[f"{mode}_g_product_clipped"],
+                                                "C_def": row[f"{mode}_c_def_product"],
+                                            })
                                 row.update(clean_attack_values)
                                 row.update(path_attack_values)
                                 image_rows.append(row)

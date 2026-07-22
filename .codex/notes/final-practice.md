@@ -175,3 +175,25 @@ per-class object and grouped-scene counts, small/medium/large counts and each
 scene's frame/object share. Some rare classes occur in only one training or
 validation grouped scene, so class-specific claims must report that limitation
 even though all six classes occur in every split.
+
+Legacy validation completed at 198/198 frames and 89,100 rows with no partial,
+missing or duplicate conditions. The post-audit CSV hash changed only because
+raw/clipped G and NMS audit columns were appended; the original completion hash
+is retained in the baseline snapshot. The targeted audit covers 55 warnings in
+six frames, reruns only those frames with instrumented NMS, and exports the exact
+recheck contract before the legacy ZIP is sealed.
+
+Canonical normalization fitting remains exact on all sampled clean-validation
+positions, separately per layer/channel. Only distribution diagnostics use a
+deterministic bounded sample (maximum one million values), because a full
+`torch.quantile` over the diagnostic tensor exceeded its input-size limit. This
+does not change q01/q99, median, MAD, mean or standard deviation used by N1-N3.
+
+The final canonical chain now includes a preselected five-scene pilot, v2 model
+training, validation-only F1/F2 calibration, quality and pilot gates, one clean
+test evaluation, validation-frozen budgets, test attacks, 5000 grouped-scene
+bootstraps, latency, 15 tables, 10 figures, article fill/validation and the final
+ZIP. The canonical analysis config defines D3 as Product/Lukasiewicz added to
+D2 and R3 as Product/Lukasiewicz recovery plus raw G and C_def added to R2.
+Article output is generated from a frozen internal DOCX reference; the template
+is hash-checked before and after filling and is never overwritten.

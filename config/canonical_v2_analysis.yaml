@@ -1,0 +1,36 @@
+protocol_id: tnormfilter_canonical_v2_analysis
+output_root: outputs/canonical_v2/analysis_test
+statistical_unit: sequence_id
+random_seed: 20260720
+bootstrap_iterations: 5000
+
+split_policy:
+  test_role: final_locked_evaluation
+
+normalization:
+  fit_split: val
+  fit_inputs: clean_only
+  per_layer: true
+  per_channel: true
+  sample_positions_per_image: 256
+  saturation_warning_fraction: 0.20
+
+damage_models:
+  D2: [epsilon, attack, perturbation_l1, perturbation_l2, perturbation_linf, cosine, l1_distance, normalized_l2, mse, pearson, entropy_shift, gradient_l2]
+  D3: [epsilon, attack, perturbation_l1, perturbation_l2, perturbation_linf, cosine, l1_distance, normalized_l2, mse, pearson, entropy_shift, gradient_l2, product, lukasiewicz]
+  D4: [epsilon, attack, perturbation_l1, perturbation_l2, perturbation_linf, cosine, l1_distance, normalized_l2, mse, pearson, entropy_shift, gradient_l2, product, lukasiewicz, c_sp_object, c_dir, c_atk_object]
+
+recovery_models:
+  R2: [epsilon, attack, defense, f1_attack, cosine_recovery, l1_recovery, normalized_l2_recovery, mse_recovery, pearson_recovery, entropy_recovery]
+  R3: [epsilon, attack, defense, f1_attack, cosine_recovery, l1_recovery, normalized_l2_recovery, mse_recovery, pearson_recovery, entropy_recovery, product_recovery, lukasiewicz_recovery, g_recovery, c_def]
+  R4: [epsilon, attack, defense, f1_attack, cosine_recovery, l1_recovery, normalized_l2_recovery, mse_recovery, pearson_recovery, entropy_recovery, product_recovery, lukasiewicz_recovery, p_clean_preservation, a_attacked_similarity, r_restored_similarity, g_recovery, c_def]
+
+algorithms:
+  primary: [ridge, elastic_net]
+
+statistics:
+  group_folds: 3
+  practical_effect:
+    relative_mae_reduction: 5.0
+    delta_r2: 0.05
+    abs_delta_spearman: 0.05

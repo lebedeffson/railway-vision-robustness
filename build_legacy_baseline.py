@@ -35,6 +35,8 @@ def main() -> None:
     required = [
         VAL, VAL.with_suffix(".json"), CHECKPOINT,
         PROJECT_DIR / "outputs/final_practice/audit/nms_timeout_audit.json",
+        PROJECT_DIR / "outputs/final_practice/audit/nms_audit_summary.json",
+        PROJECT_DIR / "outputs/final_practice/audit/nms_timeout_recheck.csv",
         PROJECT_DIR / "outputs/final_practice/audit/legacy_recovery_recalculation.json",
         PROJECT_DIR / "outputs/final_practice/deadline/pilot/pilot_gate.json",
     ]
@@ -49,10 +51,17 @@ def main() -> None:
             (VAL.with_suffix(".json"), "configs/legacy_matrix.json"),
             (PROJECT_DIR / "outputs/final_practice/09_statistics_val/model_comparison_m0_m4.csv", "statistics/model_comparison_m0_m4.csv"),
             (PROJECT_DIR / "outputs/final_practice/audit/nms_timeout_audit.json", "audit/nms_timeout_audit.json"),
+            (PROJECT_DIR / "outputs/final_practice/audit/nms_audit_summary.json", "audit/nms_audit_summary.json"),
+            (PROJECT_DIR / "outputs/final_practice/audit/nms_timeout_recheck.csv", "audit/nms_timeout_recheck.csv"),
             (PROJECT_DIR / "outputs/final_practice/audit/nms_timeout_cases.csv", "audit/nms_timeout_cases.csv"),
             (PROJECT_DIR / "outputs/final_practice/audit/legacy_recovery_recalculation.json", "audit/legacy_recovery_recalculation.json"),
             (PROJECT_DIR / "outputs/final_practice/deadline/pilot/pilot_gate.json", "audit/canonical_smoke_pilot_gate.json"),
             (PROJECT_DIR / "outputs/final_practice/interim_audit/go_no_go.json", "audit/interim_go_no_go.json"),
+            (PROJECT_DIR / "outputs/final_practice/legacy_validation.complete.json", "audit/legacy_validation.complete.json"),
+            (PROJECT_DIR / "outputs/final_practice/audit/split_audit.json", "split/split_audit.json"),
+            (PROJECT_DIR / "outputs/final_practice/audit/split_manifest.csv", "split/split_manifest.csv"),
+            (PROJECT_DIR / "outputs/final_practice/audit/checkpoint_selection.csv", "checkpoint/checkpoint_selection.csv"),
+            (PROJECT_DIR / "outputs/final_practice/audit/checkpoint_provenance.json", "checkpoint/checkpoint_provenance.json"),
             (PROJECT_DIR / "config/revision_q1_protocol.yaml", "configs/revision_q1_protocol.yaml"),
         ]
         for source, relative in mappings:
@@ -62,6 +71,14 @@ def main() -> None:
             "Validation-only historical compatibility experiment. The feature columns named "
             "Product, Goedel and Lukasiewicz are legacy compatibility scores, not the canonical "
             "pointwise T-norm evidence. No legacy test matrix is included.\n",
+            encoding="utf-8",
+        )
+        (root / "known_limitations.md").write_text(
+            "# Known limitations\n\n"
+            "- Legacy compatibility columns are not canonical pointwise T-norms.\n"
+            "- Validation contains three independent grouped scenes.\n"
+            "- The detector has low clean recall and many strong attacks exhibit floor effects.\n"
+            "- This archive is historical baseline evidence and must not populate canonical claims.\n",
             encoding="utf-8",
         )
         files = sorted(path for path in root.rglob("*") if path.is_file())

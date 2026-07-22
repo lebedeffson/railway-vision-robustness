@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import json
 import hashlib
+import csv
+import os
+import shutil
 from pathlib import Path
 
 import torch
@@ -43,6 +46,47 @@ def record_selection(best: Path, config: dict) -> None:
     (best.parent.parent / "checkpoint_selection.json").write_text(
         json.dumps(selection, indent=2) + "\n", encoding="utf-8"
     )
+    OUTPUT.mkdir(parents=True, exist_ok=True)
+    (OUTPUT / "training_config.yaml").write_text(
+        yaml.safe_dump(config, sort_keys=False), encoding="utf-8"
+    )
+    with (OUTPUT / "checkpoint_selection.csv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(handle, fieldnames=[
+            "selected_checkpoint", "checkpoint_sha256", "selection_split",
+            "test_used", "selection_metric",
+        ])
+        writer.writeheader(); writer.writerow({
+            "selected_checkpoint": str(best.resolve()),
+            "checkpoint_sha256": checkpoint_hash,
+            "selection_split": "val_v2", "test_used": False,
+            "selection_metric": "validation_fitness_best.pt",
+        })
+    (OUTPUT / "checkpoint_provenance.json").write_text(
+        json.dumps(selection, indent=2) + "\n", encoding="utf-8"
+    )
+    aliases = OUTPUT / "weights"
+    aliases.mkdir(parents=True, exist_ok=True)
+    for source in (best, best.with_name("last.pt")):
+        if not source.is_file():
+            continue
+        destination = aliases / source.name
+        if destination.exists():
+            if hashlib.sha256(destination.read_bytes()).hexdigest() == sha256(source):
+                continue
+            raise RuntimeError(f"Training alias already exists with another hash: {destination}")
+        try:
+            os.link(source, destination)
+        except OSError:
+            shutil.copy2(source, destination)
+    run = best.parent.parent
+    for source_name, destination_name in (
+        ("results.csv", "results.csv"), ("results.png", "training_curves.png")
+    ):
+        source = run / source_name
+        if source.is_file():
+            shutil.copy2(source, OUTPUT / destination_name)
 
 
 def main() -> None:

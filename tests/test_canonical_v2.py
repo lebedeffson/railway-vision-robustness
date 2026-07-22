@@ -49,6 +49,37 @@ class CanonicalV2Test(unittest.TestCase):
         self.assertLess(order.index("baseline_quality_gate"), order.index("clean_test_v2_once"))
         self.assertLess(order.index("clean_test_v2_once"), order.index("canonical_validation_attacks"))
 
+    def test_canonical_analysis_uses_required_D2_D3_and_R2_R3_contract(self) -> None:
+        protocol = yaml.safe_load(
+            (ROOT / "config/canonical_v2_analysis.yaml").read_text(encoding="utf-8")
+        )
+        self.assertEqual(protocol["statistical_unit"], "sequence_id")
+        self.assertEqual(protocol["bootstrap_iterations"], 5000)
+        self.assertTrue({"product", "lukasiewicz"}.issubset(protocol["damage_models"]["D3"]))
+        self.assertTrue({"product_recovery", "lukasiewicz_recovery", "g_recovery", "c_def"}.issubset(protocol["recovery_models"]["R3"]))
+        self.assertNotIn("godel", protocol["damage_models"]["D3"])
+
+    def test_canonical_matrix_schema_carries_group_and_subsequence(self) -> None:
+        exact, _ = run_final_matrix.frame_metadata_lookup(
+            ROOT / "data/yolo_osdar23_v2/manifest.csv"
+        )
+        self.assertTrue(exact)
+        self.assertTrue(all(
+            {"grouped_scene_id", "subsequence_id"} <= set(value)
+            for value in exact.values()
+        ))
+
+    def test_article_pipeline_preserves_internal_template(self) -> None:
+        mapping = yaml.safe_load(
+            (ROOT / "article/result_mapping.yaml").read_text(encoding="utf-8")
+        )
+        self.assertEqual(mapping["template"], "article/internal_review_template.md")
+        fill = (ROOT / "article/fill_article_results.py").read_text(encoding="utf-8")
+        self.assertIn("template_sha256_before", fill)
+        self.assertIn("template_sha256_after", fill)
+        validation = (ROOT / "article/validate_final_article.py").read_text(encoding="utf-8")
+        self.assertIn("delta_mae_signs_valid", validation)
+
     def test_split_summary_reports_class_scene_size_and_scene_contributions(self) -> None:
         summary = json.loads(
             (ROOT / "outputs/canonical_v2/split/split_v2_summary.json").read_text()

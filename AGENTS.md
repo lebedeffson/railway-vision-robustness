@@ -49,6 +49,13 @@
   calibration, clean test and attack configs must share one checkpoint SHA-256.
 - Start canonical v2 only from the audited atomic legacy completion marker and
   hold `outputs/locks/canonical_v2.lock` for the entire pipeline.
+- Canonical v2 primary recovery R3 includes Product/Lukasiewicz recovery plus
+  raw G and C_def; use `config/canonical_v2_analysis.yaml`, not the legacy Q1 R3.
+- Do not treat quantile/histogram diagnostic sampling as normalization fitting:
+  fit statistics stay exact on clean validation, while diagnostics may use the
+  deterministic bounded sample to avoid `torch.quantile` allocation failure.
+- Final article generation must preserve `article/internal_review_template.docx`;
+  only generated files under `outputs/article` may be filled or converted.
 
 ## Notes
 

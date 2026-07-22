@@ -579,14 +579,18 @@ def run_analysis(
 
 
 def main() -> None:
-    protocol = load_protocol()
     parser = argparse.ArgumentParser(description="Frozen sequence-level Q1 analysis")
+    parser.add_argument(
+        "--protocol", type=Path,
+        default=PROJECT_DIR / "config/revision_q1_protocol.yaml",
+    )
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, default=output_root(protocol))
     parser.add_argument("--normalization", choices=MODES, required=True)
     parser.add_argument("--split", choices=["val", "test"], required=True)
-    parser.add_argument("--bootstrap", type=int, default=int(protocol["bootstrap_iterations"]))
+    parser.add_argument("--bootstrap", type=int, default=5000)
     args = parser.parse_args()
+    protocol = load_protocol(args.protocol)
     if args.bootstrap < int(protocol["bootstrap_iterations"]):
         raise RuntimeError("Final Q1 analysis cannot reduce the frozen bootstrap count")
     assert_split_action("final_locked_evaluation", args.split)

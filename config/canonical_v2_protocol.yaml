@@ -15,6 +15,7 @@ canonical_stage_order:
   - threshold_sweep_validation_v2
   - freeze_operating_points
   - baseline_quality_gate
+  - canonical_v2_pilot_gate
   - clean_test_v2_once
   - canonical_validation_attacks
   - freeze_non_floor_budgets
@@ -44,6 +45,15 @@ validation_attacks:
   adaptive_pgd20_epsilon_px: [0.25, 0.5]
   restarts: 3
   seeds: [42, 123, 999]
+pilot:
+  selection: three_geometry_stratified_frames_per_validation_grouped_scene
+  grouped_scenes: 5
+  frames: 15
+  fgsm_epsilon_px: [1]
+  pgd20_epsilon_px: [0.25]
+  adaptive_pgd20_epsilon_px: [0.25]
+  defenses: [none, tnorm, bilateral, median]
+  gate_required_before_test: true
 defenses: [none, tnorm, bilateral, median]
 primary_tnorms: [product, lukasiewicz]
 supplementary_tnorms: [godel]
