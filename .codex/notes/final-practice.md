@@ -101,6 +101,16 @@ sensitivity run on all frozen test frames using only FGSM 1, PGD 1 and adaptive
 PGD 1 with none/Product. Full spatial stress, transfer, PGD-40, the second
 architecture and the full normalization/filter sweep remain deferred.
 
+The immutable 129-frame interim audit established that the live 198-frame stage
+is correctly `val`; the dataset manifest has train/val/test counts 1057/198/150,
+while an older narrative reversed val and test. The legacy matrix has 450 rows
+per complete frame and remains useful only as a compatibility baseline. Its
+feature `product`, `godel` and `lukasiewicz` columns are not the formal pointwise
+T-norm conjunctions, and its `g_recovery` is clipped. Formal Q1 metrics now use
+`a*b`, `min(a,b)` and `max(0,a+b-1)` on memberships, preserve raw G, and clip
+only inside C_def. Do not open canonical test until the clean-validation pilot,
+targeted NMS rerun and independent recheck pass.
+
 Deadline mode was frozen on 2026-07-22 because the broad Q1 matrix could not
 finish before the article deadline. The active validation matrix remains the
 baseline and must not be interrupted. `tnorm-revision-q1.service` is runtime

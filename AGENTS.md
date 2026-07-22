@@ -31,6 +31,10 @@
   cross-checkpoint sensitivity protocol; all resampling clusters by `sequence_id`.
 - Validation has only three independent sequences. The 12-frame deadline pilot
   is a code smoke test, never article evidence or a substitute for cluster CIs.
+- On-disk split identity is train=1057, val=198, test=150; an older narrative
+  reversed val/test counts. Trust `split_manifest.csv`, not the prose count.
+- Legacy feature `product/godel/lukasiewicz` columns are compatibility scores.
+  Scientific Q1 claims must use the formal pointwise T-norm implementation.
 - Deadline mode keeps full Q1 masked/deferred; after the validation pilot passes,
   canonical test inference uses the frozen 114-row minimal grid and is finalized
   only through `deadline_finalize.py` after the standard delivery bundle.

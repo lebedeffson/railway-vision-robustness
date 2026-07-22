@@ -13,6 +13,17 @@ from revision_q1.normalization import TAU, membership
 MAX_RANK_SAMPLES = 65_536
 
 
+def tnorm(left: Tensor, right: Tensor, operator: str) -> Tensor:
+    """Apply the formal fuzzy conjunction pointwise to memberships in [0, 1]."""
+    if operator == "product":
+        return left * right
+    if operator == "godel":
+        return torch.minimum(left, right)
+    if operator == "lukasiewicz":
+        return torch.clamp(left + right - 1.0, min=0.0)
+    raise ValueError(operator)
+
+
 def _cosine(left: Tensor, right: Tensor) -> float:
     denominator = left.norm() * right.norm()
     if denominator <= TAU:
@@ -64,8 +75,6 @@ def pair_metrics(
         raw_right = other[image_index].flatten().float()
         difference = left - right
         absolute = difference.abs()
-        minimum = torch.minimum(left, right)
-        maximum = torch.maximum(left, right)
         rank_left, rank_right = _rank_sample(left, right)
         entropy_clean = activation_entropy(clean_membership[image_index])
         entropy_other = activation_entropy(other_membership[image_index])
@@ -88,14 +97,9 @@ def pair_metrics(
             "activation_entropy_clean": entropy_clean,
             "activation_entropy_other": entropy_other,
             "entropy_shift": abs(entropy_clean - entropy_other),
-            # Compatibility definitions used by the existing TNormFilter study.
-            "product": float(torch.where(
-                maximum <= TAU, torch.ones_like(maximum), minimum / (maximum + TAU)
-            ).mean()),
-            "godel": float(torch.where(
-                absolute <= 1e-4, torch.ones_like(left), minimum
-            ).mean()),
-            "lukasiewicz": float((1.0 - absolute).clamp(0.0, 1.0).mean()),
+            "product": float(tnorm(left, right, "product").mean()),
+            "godel": float(tnorm(left, right, "godel").mean()),
+            "lukasiewicz": float(tnorm(left, right, "lukasiewicz").mean()),
         })
     return rows
 

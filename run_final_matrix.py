@@ -140,6 +140,10 @@ def feature_values(
     defended: dict[str, float],
     preservation: dict[str, float],
 ) -> dict[str, float]:
+    gains_raw = {
+        name: recovery(attacked[name], defended[name])
+        for name in ("cos_norm", "product", "godel", "lukas")
+    }
     gains = {
         name: clipped_recovery(attacked[name], defended[name])
         for name in ("cos_norm", "product", "godel", "lukas")
@@ -172,21 +176,24 @@ def feature_values(
         "p_clean_preservation": preservation["product"],
         "a_attacked_similarity": attacked["product"],
         "r_restored_similarity": defended["product"],
-        "g_recovery": gains["product"],
+        "g_recovery": gains_raw["product"],
+        "g_recovery_clipped": gains["product"],
         "c_def": defense_consistency(
             "product", preservation["product"], gains["product"]
         ),
         "p_godel": preservation["godel"],
         "a_godel": attacked["godel"],
         "r_godel": defended["godel"],
-        "g_godel": gains["godel"],
+        "g_godel": gains_raw["godel"],
+        "g_godel_clipped": gains["godel"],
         "c_def_godel": defense_consistency(
             "godel", preservation["godel"], gains["godel"]
         ),
         "p_lukasiewicz": preservation["lukas"],
         "a_lukasiewicz": attacked["lukas"],
         "r_lukasiewicz": defended["lukas"],
-        "g_lukasiewicz": gains["lukas"],
+        "g_lukasiewicz": gains_raw["lukas"],
+        "g_lukasiewicz_clipped": gains["lukas"],
         "c_def_lukasiewicz": defense_consistency(
             "lukas", preservation["lukas"], gains["lukas"]
         ),
