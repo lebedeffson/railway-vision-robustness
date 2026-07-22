@@ -204,3 +204,5 @@ All critical attack, gradient, formula, leakage, finite-value and model checks
 passed. This result is archived as a legacy limitation and does not gate the
 separately trained/fitted five-scene canonical v2 pilot; the latter keeps the
 strict saturation gate and is the only gate allowed to open canonical test.
+Legacy threshold calibration is explicitly validation-only (`--splits val`);
+the default all-split evaluator must never be used for that isolated baseline.

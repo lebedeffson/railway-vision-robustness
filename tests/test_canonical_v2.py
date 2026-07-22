@@ -109,6 +109,9 @@ class CanonicalV2Test(unittest.TestCase):
         calibration_command = source[calibration:gate]
         self.assertIn('"--splits", "train,val"', calibration_command)
         self.assertNotIn('"--splits", "test"', calibration_command)
+        legacy = source.index('stage("legacy_threshold_calibration"')
+        split = source.index('stage("split_v2"')
+        self.assertIn('"--splits", "val"', source[legacy:split])
 
     def test_checkpoint_hash_must_match_threshold_clean_test_and_attacks(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

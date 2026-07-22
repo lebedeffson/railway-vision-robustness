@@ -217,7 +217,7 @@ def main() -> None:
     stage("legacy_statistics", [str(PYTHON), "analyze_final_practice.py", "--input", str(LEGACY_VAL), "--output", "outputs/final_practice/09_statistics_val", "--bootstrap", "2000"], [PROJECT_DIR / "outputs/final_practice/09_statistics_val/model_comparison_m0_m4.csv"])
     stage("legacy_bundle", [str(PYTHON), "build_legacy_baseline.py"], [PROJECT_DIR / "outputs/bundles/TNormFilter_legacy_baseline.zip", PROJECT_DIR / "outputs/bundles/TNormFilter_legacy_baseline.zip.sha256"])
     legacy_threshold = ROOT / "legacy_threshold_calibration"
-    stage("legacy_threshold_calibration", [str(PYTHON), "baseline_rescue_audit.py", "--output", str(legacy_threshold)], [legacy_threshold / "baseline_rescue_summary.json", legacy_threshold / "threshold_selection.json"])
+    stage("legacy_threshold_calibration", [str(PYTHON), "baseline_rescue_audit.py", "--output", str(legacy_threshold), "--splits", "val"], [legacy_threshold / "baseline_rescue_summary.json", legacy_threshold / "threshold_selection.json"])
     stage("split_v2", [str(PYTHON), "create_split_v2.py"], [ROOT / "split/split_v2_manifest.csv", ROOT / "split/split_v2_summary.json", ROOT / "split/split_v2_hash.txt", PROJECT_DIR / "data/yolo_osdar23_v2/data.yaml"])
     stage("canonical_v2_pilot_selection", [str(PYTHON), "canonical_v2_select_pilot.py"], [ROOT / "pilot/pilot_manifest.csv", ROOT / "pilot/pilot_selection.json", ROOT / "pilot/pilot_data.yaml"])
     stage("train_v2", [str(PYTHON), "train_canonical_v2.py"], [ROOT / "training/yolo11m_canonical_v2/weights/best.pt", ROOT / "training/yolo11m_canonical_v2/TRAINING_COMPLETE"])
