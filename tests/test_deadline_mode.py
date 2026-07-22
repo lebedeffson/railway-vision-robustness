@@ -73,11 +73,13 @@ class DeadlineModeTest(unittest.TestCase):
         delivery = (PROJECT_DIR / "build_final_delivery.py").read_text(encoding="utf-8")
         self.assertIn('"deadline_finalize.py"', delivery)
 
-    def test_stage1_sensitivity_is_small_and_paired(self) -> None:
+    def test_stage1_sensitivity_is_reduced_and_uses_all_frozen_test_frames(self) -> None:
         protocol = yaml.safe_load(
             (PROJECT_DIR / "config/deadline_protocol.yaml").read_text(encoding="utf-8")
         )
         sensitivity = protocol["stage1_sensitivity"]
+        self.assertEqual(sensitivity["split"], "test")
+        self.assertEqual(sensitivity["frame_scope"], "all_frozen_test_frames")
         self.assertEqual(sensitivity["fgsm_epsilon_px"], [1])
         self.assertEqual(sensitivity["pgd_epsilon_px"], [1])
         self.assertEqual(sensitivity["defenses"], ["none", "tnorm"])

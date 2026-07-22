@@ -196,6 +196,13 @@ def main() -> None:
         ),
         status_stage="bundle",
     )
+    run(
+        "deadline_finalize", "deadline_finalize.py",
+        expected=(
+            "outputs/bundles/TNormFilter_deadline_final.zip",
+            "outputs/bundles/TNormFilter_deadline_final.zip.sha256",
+        ),
+    )
     write_state("complete", "PASS")
 
 

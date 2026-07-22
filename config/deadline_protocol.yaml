@@ -38,6 +38,8 @@ final_matrix:
   defenses: [none, tnorm, bilateral, median]
   normalization: N1_quantile
 stage1_sensitivity:
+  split: test
+  frame_scope: all_frozen_test_frames
   fgsm_epsilon_px: [1]
   pgd_epsilon_px: [1]
   pgd_steps: [20]

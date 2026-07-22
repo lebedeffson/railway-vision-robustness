@@ -23,9 +23,8 @@ import pandas as pd
 import torch
 import yaml
 
-from audit_final_practice import label_path, load_manifest
+from audit_final_practice import load_manifest
 from revision_q1.analyze import boolean_series
-from revision_q1.scene_difficulty import frame_geometry
 from revision_q1.statistics import cluster_mean_interval
 
 

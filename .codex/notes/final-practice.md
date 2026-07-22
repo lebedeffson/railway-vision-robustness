@@ -85,6 +85,22 @@ The normalization scheme is selected once on Stage 2 clean validation. Stage 1
 sensitivity uses the same frozen scheme but refits only its per-channel clean
 validation distribution statistics, so test data cannot influence scaling.
 
+Deadline mode (2026-07-22) preserves the active 198-image validation run and
+masks `tnorm-revision-q1.service`. After validation, the pipeline snapshots the
+legacy matrix, audits row integrity and NMS warnings, reruns only warning images,
+fits clean-validation N1/N2/N3 statistics, and runs a 12-frame smoke pilot over
+all three validation sequences. Because the split contains only three validation
+sequences, those 12 frames are not independent and must not appear as article
+results.
+
+The validation-gated canonical test run is reduced to FGSM 1/4, PGD 0.25/1 at
+20 steps, and adaptive Product PGD 1 at 20 steps, with three seeds and defenses
+none/Product/bilateral/median. This is 114 layer rows per test image. The final
+deadline stage computes 5000 sequence-cluster bootstraps and a paired Stage 1
+sensitivity run on all frozen test frames using only FGSM 1, PGD 1 and adaptive
+PGD 1 with none/Product. Full spatial stress, transfer, PGD-40, the second
+architecture and the full normalization/filter sweep remain deferred.
+
 Deadline mode was frozen on 2026-07-22 because the broad Q1 matrix could not
 finish before the article deadline. The active validation matrix remains the
 baseline and must not be interrupted. `tnorm-revision-q1.service` is runtime
@@ -100,7 +116,7 @@ none/Product/bilateral/median defenses. This is 114 rows per image instead of
 the same Stage 2 inference pass.
 
 `build_final_delivery.py` first preserves the standard practice bundle, then
-calls the resumable `deadline_finalize.py`. The latter runs a 15-frame,
+calls the resumable `deadline_finalize.py`. The latter runs a full-test,
 three-sequence paired Stage 1/Stage 2 sensitivity check, 5000 sequence-cluster
 bootstraps, the ten deadline tables and seven figures, and creates
 `outputs/bundles/TNormFilter_deadline_final.zip`. Only three independent val and
