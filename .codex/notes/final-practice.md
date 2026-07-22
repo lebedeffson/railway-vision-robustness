@@ -139,3 +139,22 @@ Product and Lukasiewicz are primary canonical metrics; Gödel remains a
 supplementary redundancy ablation because legacy Product/Gödel rho was 0.99199.
 Legacy G is reconstructed from stored A/R without inference, preserved as raw
 and clipped variants, and clipped only inside C_def and visualizations.
+
+Canonical v2 supersedes the three-scene deadline test. The 43 downloaded raw
+subsequence directories represent only 20 independent grouped railway scenes;
+the original split is therefore 14/3/3, not 37/3/3. A model-result-independent
+100,000-candidate search froze `data/yolo_osdar23_v2` at 10 train, 5 validation
+and 5 test scenes (774/311/320 frames), with all six classes present and zero
+sequence overlap. Its manifest hash and audit live under
+`outputs/canonical_v2/split`.
+
+The active legacy validation child remains untouched. Its already-loaded parent
+controller is paused so it cannot launch the obsolete legacy test. The enabled
+`tnorm-canonical-v2.service` waits for the atomic 198-frame validation output,
+stops the obsolete service only after the child exits, performs targeted NMS/G
+repair, creates `TNormFilter_legacy_baseline.zip`, audits train/val/test and
+calibrates standard F1 and safety F2 thresholds, retrains one leakage-free model
+from `yolo11m.pt`, and starts canonical attacks only when validation Recall is at
+least 0.35 and mAP50 at least 0.25. Canonical attack budgets must additionally
+pass a strict absolute (<50%) validation floor gate; no clean-detectable fallback
+is allowed for the article experiment.

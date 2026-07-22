@@ -343,6 +343,11 @@ def apply_deadline_defaults(args: argparse.Namespace) -> None:
     gate_path = DEADLINE_ROOT / "pilot/pilot_gate.json"
     statistics_path = DEADLINE_ROOT / "normalization/layer_channel_statistics.pt"
     canonical_test = args.output.resolve() == OUTPUT.resolve()
+    canonical_v2_block = PROJECT_DIR / "outputs/canonical_v2/LEGACY_TEST_BLOCKED"
+    if args.split == "test" and canonical_test and canonical_v2_block.is_file():
+        raise RuntimeError(
+            "Legacy/current-split test is blocked by canonical v2 baseline-rescue protocol"
+        )
     if (
         args.split != "test" or not canonical_test or args.revision_stats is not None
         or not gate_path.is_file() or not statistics_path.is_file()

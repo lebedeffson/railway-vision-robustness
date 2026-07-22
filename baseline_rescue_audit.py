@@ -1,0 +1,249 @@
+from __future__ import annotations
+
+import argparse
+import json
+import math
+from collections import defaultdict
+from pathlib import Path
+from typing import Any
+
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import torch
+from torch import Tensor
+from ultralytics import YOLO
+from ultralytics.cfg import get_cfg
+from ultralytics.utils.metrics import box_iou
+
+from evaluate_image_level_detection import get_ground_truth, predict_batch
+from extract_feature_consistency import loader, to_device
+
+
+PROJECT_DIR = Path(__file__).resolve().parent
+DEFAULT_MODEL = PROJECT_DIR / "outputs/training/yolo11m_baseline_stage2/weights/best.pt"
+DEFAULT_DATA = PROJECT_DIR / "data/yolo_osdar23/data.yaml"
+DEFAULT_OUTPUT = PROJECT_DIR / "outputs/canonical_v2/baseline_rescue_current"
+SPLITS = ("train", "val", "test")
+
+
+def match_counts(
+    prediction: Tensor, gt_boxes: Tensor, gt_classes: Tensor, confidence: float
+) -> dict[str, Any]:
+    prediction = prediction[prediction[:, 4] >= confidence]
+    prediction = prediction[prediction[:, 4].argsort(descending=True)]
+    matched: set[int] = set()
+    tp_by_class: defaultdict[int, int] = defaultdict(int)
+    fp_by_class: defaultdict[int, int] = defaultdict(int)
+    matched_gt: set[int] = set()
+    for row in prediction:
+        class_id = int(row[5])
+        candidates = [
+            index for index in range(len(gt_boxes))
+            if index not in matched and int(gt_classes[index]) == class_id
+        ]
+        if candidates:
+            candidate_tensor = torch.tensor(candidates, dtype=torch.long)
+            ious = box_iou(row[:4].view(1, 4), gt_boxes[candidate_tensor]).view(-1)
+            best = int(torch.argmax(ious))
+            if float(ious[best]) >= 0.5:
+                gt_index = candidates[best]
+                matched.add(gt_index)
+                matched_gt.add(gt_index)
+                tp_by_class[class_id] += 1
+                continue
+        fp_by_class[class_id] += 1
+    gt_by_class: defaultdict[int, int] = defaultdict(int)
+    for class_id in gt_classes.tolist():
+        gt_by_class[int(class_id)] += 1
+    return {
+        "tp": len(matched), "fp": len(prediction) - len(matched),
+        "fn": len(gt_boxes) - len(matched), "tp_by_class": tp_by_class,
+        "fp_by_class": fp_by_class, "gt_by_class": gt_by_class,
+        "matched_gt": matched_gt,
+    }
+
+
+def collect_predictions(model: torch.nn.Module, data: Path, split: str, imgsz: int) -> list[dict[str, Any]]:
+    device = torch.device("cuda:0")
+    rows: list[dict[str, Any]] = []
+    for raw in loader(data, split, imgsz, 1, 2, True):
+        batch = to_device(raw, device)
+        predictions = predict_batch(model, batch["img"], max_time_img=10.0)
+        boxes, classes = get_ground_truth(batch, 0)
+        rows.append({
+            "image_path": str(batch["im_file"][0]),
+            "prediction": predictions[0].detach().cpu(),
+            "gt_boxes": boxes.detach().cpu(), "gt_classes": classes.detach().cpu(),
+            "width": int(batch["img"].shape[-1]), "height": int(batch["img"].shape[-2]),
+        })
+    return rows
+
+
+def aggregate(samples: list[dict[str, Any]], confidence: float) -> dict[str, float]:
+    tp = fp = fn = 0
+    image_f1: list[float] = []
+    for sample in samples:
+        counts = match_counts(
+            sample["prediction"], sample["gt_boxes"], sample["gt_classes"], confidence
+        )
+        tp += counts["tp"]; fp += counts["fp"]; fn += counts["fn"]
+        p = counts["tp"] / max(counts["tp"] + counts["fp"], 1)
+        r = counts["tp"] / max(counts["tp"] + counts["fn"], 1)
+        image_f1.append(2 * p * r / max(p + r, 1e-12))
+    precision = tp / max(tp + fp, 1)
+    recall = tp / max(tp + fn, 1)
+    f1 = 2 * precision * recall / max(precision + recall, 1e-12)
+    f2 = 5 * precision * recall / max(4 * precision + recall, 1e-12)
+    return {
+        "confidence": confidence, "tp": tp, "fp": fp, "fn": fn,
+        "precision": precision, "recall": recall, "f1": f1, "f2": f2,
+        "mean_image_f1": float(np.mean(image_f1)),
+        "fn_per_frame": fn / max(len(samples), 1),
+    }
+
+
+def detail_rows(
+    samples: list[dict[str, Any]], split: str, confidence: float,
+    operating_point: str, names: dict[int, str], small: float, medium: float,
+) -> list[dict[str, Any]]:
+    class_counts: defaultdict[int, dict[str, int]] = defaultdict(lambda: {"tp": 0, "fp": 0, "gt": 0})
+    size_counts = {name: {"tp": 0, "gt": 0} for name in ("small", "medium", "large")}
+    for sample in samples:
+        counts = match_counts(sample["prediction"], sample["gt_boxes"], sample["gt_classes"], confidence)
+        for class_id, value in counts["tp_by_class"].items(): class_counts[class_id]["tp"] += value
+        for class_id, value in counts["fp_by_class"].items(): class_counts[class_id]["fp"] += value
+        for class_id, value in counts["gt_by_class"].items(): class_counts[class_id]["gt"] += value
+        area = (
+            (sample["gt_boxes"][:, 2] - sample["gt_boxes"][:, 0])
+            * (sample["gt_boxes"][:, 3] - sample["gt_boxes"][:, 1])
+            / (sample["width"] * sample["height"])
+        )
+        for index, value in enumerate(area.tolist()):
+            size = "small" if value < small else "medium" if value < medium else "large"
+            size_counts[size]["gt"] += 1
+            if index in counts["matched_gt"]: size_counts[size]["tp"] += 1
+    rows: list[dict[str, Any]] = []
+    for class_id in sorted(names):
+        values = class_counts[class_id]
+        rows.append({
+            "split": split, "operating_point": operating_point, "scope": "class",
+            "name": names[class_id], "confidence": confidence, **values,
+            "precision": values["tp"] / max(values["tp"] + values["fp"], 1),
+            "recall": values["tp"] / max(values["gt"], 1),
+        })
+    for name, values in size_counts.items():
+        rows.append({
+            "split": split, "operating_point": operating_point, "scope": "size",
+            "name": name, "confidence": confidence, **values, "fp": math.nan,
+            "precision": math.nan, "recall": values["tp"] / max(values["gt"], 1),
+        })
+    return rows
+
+
+def ultralytics_metrics(
+    checkpoint: Path, data: Path, split: str, imgsz: int, output: Path
+) -> tuple[dict[str, float], list[dict[str, Any]]]:
+    runner = YOLO(str(checkpoint))
+    metrics = runner.val(
+        data=str(data), split=split, imgsz=imgsz, batch=1, device=0, workers=2,
+        conf=0.001, iou=0.7, max_det=300, plots=False, verbose=False,
+        project=str(output / "ultralytics"), name=split, exist_ok=True,
+    )
+    overall = {
+        "mAP50": float(metrics.box.map50), "mAP50-95": float(metrics.box.map),
+        "precision_ap_evaluator": float(metrics.box.mp),
+        "recall_ap_evaluator": float(metrics.box.mr),
+    }
+    classes = []
+    ap_indices = np.asarray(metrics.box.ap_class_index, dtype=int)
+    for position, class_id in enumerate(ap_indices):
+        classes.append({
+            "split": split, "class_id": int(class_id), "class_name": metrics.names[int(class_id)],
+            "AP50": float(metrics.box.ap50[position]), "AP50-95": float(metrics.box.ap[position]),
+            "recall_ap_evaluator": float(metrics.box.r[position]),
+            "precision_ap_evaluator": float(metrics.box.p[position]),
+        })
+    del metrics, runner
+    torch.cuda.empty_cache()
+    return overall, classes
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Baseline rescue, threshold calibration and clean audit")
+    parser.add_argument("--model", type=Path, default=DEFAULT_MODEL)
+    parser.add_argument("--data", type=Path, default=DEFAULT_DATA)
+    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--imgsz", type=int, default=1280)
+    parser.add_argument("--small-area", type=float, default=0.001)
+    parser.add_argument("--medium-area", type=float, default=0.01)
+    args = parser.parse_args()
+    args.output.mkdir(parents=True, exist_ok=True)
+    yolo = YOLO(str(args.model)); model = yolo.model.cuda().float().eval()
+    overrides = model.args if isinstance(model.args, dict) else vars(model.args)
+    model.args = get_cfg(overrides=overrides)
+    predictions = {split: collect_predictions(model, args.data, split, args.imgsz) for split in SPLITS}
+    names = {int(key): str(value) for key, value in yolo.names.items()}
+    del model, yolo
+    torch.cuda.empty_cache()
+    sweep = pd.DataFrame([
+        aggregate(predictions["val"], float(threshold))
+        for threshold in np.round(np.arange(0.001, 0.501, 0.001), 3)
+    ])
+    standard = sweep.sort_values(["f1", "recall", "confidence"], ascending=[False, False, True]).iloc[0]
+    safety = sweep.sort_values(["f2", "recall", "confidence"], ascending=[False, False, True]).iloc[0]
+    sweep.to_csv(args.output / "threshold_sweep.csv", index=False)
+    selection = {
+        "selection_split": "val", "test_used_for_selection": False,
+        "standard": {"criterion": "maximum_aggregate_F1", **standard.to_dict()},
+        "safety": {"criterion": "maximum_aggregate_F2", **safety.to_dict()},
+    }
+    (args.output / "threshold_selection.json").write_text(
+        json.dumps(selection, indent=2) + "\n", encoding="utf-8"
+    )
+    figure, axis = plt.subplots(figsize=(7, 6))
+    axis.plot(sweep["recall"], sweep["precision"])
+    axis.scatter([standard["recall"], safety["recall"]], [standard["precision"], safety["precision"]])
+    axis.set(xlabel="Recall", ylabel="Precision", title="Validation precision-recall threshold sweep")
+    figure.tight_layout(); figure.savefig(args.output / "precision_recall_curve.png", dpi=180); plt.close(figure)
+    clean_rows: list[dict[str, Any]] = []
+    detail: list[dict[str, Any]] = []
+    ap_rows: list[dict[str, Any]] = []
+    for split in SPLITS:
+        ap, classes = ultralytics_metrics(args.model, args.data, split, args.imgsz, args.output)
+        ap_rows.extend(classes)
+        for point, threshold in (("standard", float(standard["confidence"])), ("safety", float(safety["confidence"]))):
+            clean_rows.append({"split": split, "operating_point": point, **aggregate(predictions[split], threshold), **ap})
+            detail.extend(detail_rows(
+                predictions[split], split, threshold, point, names,
+                args.small_area, args.medium_area,
+            ))
+    pd.DataFrame(clean_rows).to_csv(args.output / "clean_metrics_train_val_test.csv", index=False)
+    pd.DataFrame(detail).to_csv(args.output / "clean_metrics_by_class_and_size.csv", index=False)
+    pd.DataFrame(ap_rows).to_csv(args.output / "ap_by_class.csv", index=False)
+    val_standard = next(row for row in clean_rows if row["split"] == "val" and row["operating_point"] == "standard")
+    test_standard = next(row for row in clean_rows if row["split"] == "test" and row["operating_point"] == "standard")
+    payload = {
+        "status": "PASS", "model": str(args.model.resolve()), "data": str(args.data.resolve()),
+        "imgsz": args.imgsz, "thresholds": selection,
+        "quality_gate": {
+            "recall_min": 0.35, "mAP50_min": 0.25,
+            "observed_validation_recall": val_standard["recall"],
+            "observed_validation_mAP50": val_standard["mAP50"],
+            "passed": val_standard["recall"] >= .35 and val_standard["mAP50"] >= .25,
+            "selection_uses_validation_only": True,
+            "observed_test_recall_diagnostic": test_standard["recall"],
+            "observed_test_mAP50_diagnostic": test_standard["mAP50"],
+        },
+    }
+    (args.output / "baseline_rescue_summary.json").write_text(
+        json.dumps(payload, indent=2) + "\n", encoding="utf-8"
+    )
+    print(json.dumps(payload, indent=2))
+
+
+if __name__ == "__main__":
+    main()

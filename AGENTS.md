@@ -41,6 +41,10 @@
   percent, so an improvement has negative delta and positive reduction.
 - With three independent scenes, always report per-scene, equal-weight macro and
   leave-one-scene-out results; do not turn bootstrap repeats into generality claims.
+- The 43 OSDaR23 directories collapse to 20 independent grouped scenes. Canonical
+  v2 is frozen at 10/5/5 scenes; never treat numbered subsequences as independent.
+- The current-split legacy test is prohibited. Preserve validation as a legacy
+  baseline, then use `tnorm-canonical-v2.service` and its quality/floor gates.
 
 ## Notes
 

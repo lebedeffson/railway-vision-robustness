@@ -70,7 +70,7 @@ def budget_table(data: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def select_budgets(table: pd.DataFrame) -> dict[str, object]:
+def select_budgets(table: pd.DataFrame, allow_conditional: bool = True) -> dict[str, object]:
     selected: dict[str, list[float]] = {}
     evidence: dict[str, object] = {}
     families = {
@@ -87,10 +87,12 @@ def select_budgets(table: pd.DataFrame) -> dict[str, object]:
         absolute = scope[scope["absolute_pass"]]
         if len(absolute):
             accepted, basis = absolute, "absolute_all_validation_frames"
-        else:
+        elif allow_conditional:
             accepted, basis = scope[scope["conditional_pass"]], (
                 "conditional_on_clean_detectable_due_to_baseline_floor"
             )
+        else:
+            accepted, basis = scope.iloc[0:0], "strict_absolute_floor_required"
         values = accepted["epsilon_px"].head(limit).astype(float).tolist()
         selected[output_name] = values
         evidence[output_name] = {
@@ -121,10 +123,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Freeze non-floor canonical budgets on validation")
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--strict-absolute", action="store_true")
     args = parser.parse_args()
     data = pd.read_csv(args.input, low_memory=False)
     table = budget_table(data)
-    payload = select_budgets(table)
+    payload = select_budgets(table, allow_conditional=not args.strict_absolute)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     table.to_csv(args.output.with_suffix(".csv"), index=False)
     args.output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")

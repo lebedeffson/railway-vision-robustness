@@ -69,7 +69,7 @@ class DeadlineModeTest(unittest.TestCase):
             )
             with patch.object(run_final_matrix, "OUTPUT", output), patch.object(
                 run_final_matrix, "DEADLINE_ROOT", root
-            ):
+            ), patch.object(run_final_matrix, "PROJECT_DIR", root):
                 run_final_matrix.apply_deadline_defaults(args)
             self.assertEqual(args.normalizations, ["N1_quantile"])
             self.assertEqual(args.fgsm_eps, [0.1, 0.25])
