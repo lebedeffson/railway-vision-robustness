@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import time
 from pathlib import Path
 from typing import Any
 
@@ -66,19 +67,44 @@ COLUMNS = [
 def predict_batch(
     model: nn.Module,
     images: Tensor,
-) -> list[Tensor]:
+    *,
+    max_time_img: float = 0.05,
+    return_diagnostics: bool = False,
+) -> list[Tensor] | tuple[list[Tensor], list[dict[str, float | int | bool]]]:
     with torch.no_grad():
         output = model(images)
 
     if isinstance(output, tuple):
         output = output[0]
 
-    return non_max_suppression(
+    class_count = max(1, int(getattr(model, "nc", output.shape[1] - 4)))
+    candidates = (
+        output[:, 4:4 + class_count].amax(1) > NMS_CONF
+    ).sum(1).detach().cpu().tolist()
+    started = time.perf_counter()
+    predictions = non_max_suppression(
         output,
         conf_thres=NMS_CONF,
         iou_thres=NMS_IOU,
         max_det=MAX_DETECTIONS,
+        max_time_img=max_time_img,
     )
+    runtime_ms = (time.perf_counter() - started) * 1000.0
+    time_limit_ms = (2.0 + max_time_img * len(images)) * 1000.0
+    timed_out = runtime_ms > time_limit_ms
+    diagnostics = [
+        {
+            "nms_timeout": timed_out,
+            "nms_runtime_ms": runtime_ms,
+            "nms_candidates_before": int(candidates[index]),
+            "predictions_after_nms": int(len(prediction)),
+            # Ultralytics checks its limit after assigning the current output.
+            # Therefore a batch of one is complete even when it emits a warning.
+            "nms_output_complete": len(images) == 1,
+        }
+        for index, prediction in enumerate(predictions)
+    ]
+    return (predictions, diagnostics) if return_diagnostics else predictions
 
 
 def get_ground_truth(

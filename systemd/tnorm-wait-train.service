@@ -1,7 +1,6 @@
 [Unit]
 Description=Low-impact TNorm practice training pipeline
 After=network-online.target
-OnSuccess=tnorm-revision-q1.service
 
 [Service]
 Type=simple

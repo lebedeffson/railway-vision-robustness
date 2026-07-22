@@ -61,6 +61,7 @@ MANIFEST = PROJECT_DIR / "data/yolo_osdar23/manifest.csv"
 STATS = PROJECT_DIR / "outputs/diagnostics/feature_consistency/feature_normalization_val.pt"
 OUTPUT = PROJECT_DIR / "outputs/final_practice/unified_diagnostics_raw.csv"
 DEFENSES = ["none", "tnorm", "bilateral", "gaussian", "median", "jpeg"]
+DEADLINE_ROOT = PROJECT_DIR / "outputs/final_practice/deadline"
 
 
 def parse_floats(value: str) -> list[float]:
@@ -121,10 +122,17 @@ def detection_for_image(
     batch: dict[str, Any],
     images: Tensor,
     confidence: float,
+    nms_max_time_img: float = 0.05,
 ) -> dict[str, float | int]:
-    prediction = predict_batch(model, images)[0]
+    predictions, nms_diagnostics = predict_batch(
+        model, images, max_time_img=nms_max_time_img, return_diagnostics=True
+    )
+    prediction = predictions[0]
     boxes, classes = get_ground_truth(batch, 0)
-    return prediction_diagnostics(prediction, boxes, classes, confidence)
+    return {
+        **prediction_diagnostics(prediction, boxes, classes, confidence),
+        **nms_diagnostics[0],
+    }
 
 
 def feature_values(
@@ -290,6 +298,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--imgsz", type=int, default=1280)
     parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--confidence", type=float, default=DEFAULT_CONFIDENCE)
+    parser.add_argument(
+        "--nms-max-time-img", type=float, default=0.05,
+        help="Ultralytics per-image NMS allowance added to its fixed two-second limit",
+    )
     parser.add_argument("--fgsm-eps", type=parse_floats, default=FGSM_EPS)
     parser.add_argument("--pgd-eps", type=parse_floats, default=PGD_EPS)
     parser.add_argument("--pgd-steps", type=parse_ints, default=[20])
@@ -318,6 +330,32 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def apply_deadline_defaults(args: argparse.Namespace) -> None:
+    """Apply the validation-frozen minimal matrix to the canonical test run."""
+    gate_path = DEADLINE_ROOT / "pilot/pilot_gate.json"
+    statistics_path = DEADLINE_ROOT / "normalization/layer_channel_statistics.pt"
+    canonical_test = args.output.resolve() == OUTPUT.resolve()
+    if (
+        args.split != "test" or not canonical_test or args.revision_stats is not None
+        or not gate_path.is_file() or not statistics_path.is_file()
+    ):
+        return
+    gate = json.loads(gate_path.read_text(encoding="utf-8"))
+    if gate.get("status") != "PASS":
+        raise RuntimeError("Canonical test matrix is blocked by the deadline pilot gate")
+    args.revision_stats = statistics_path
+    args.normalizations = ["N1_quantile"]
+    args.fgsm_eps = [1.0, 4.0]
+    args.pgd_eps = [0.25, 1.0]
+    args.pgd_steps = [20]
+    args.adaptive_pgd_eps = [1.0]
+    args.adaptive_pgd_steps = [20]
+    args.seeds = [42, 123, 999]
+    args.defenses = ["none", "tnorm", "bilateral", "median"]
+    args.checkpoint_name = "stage2_best"
+    args.nms_max_time_img = 10.0
+
+
 def main() -> None:
     args = parse_args()
     if args.quick:
@@ -325,6 +363,8 @@ def main() -> None:
         args.adaptive_pgd_eps = [0.1]
         args.adaptive_pgd_steps = [2]
         args.defenses, args.max_images = ["none", "tnorm"], 1
+    else:
+        apply_deadline_defaults(args)
     config_path = args.output.with_suffix(".json")
     if args.output.is_file() and config_path.is_file():
         print(f"Final matrix already complete: {args.output}")
@@ -376,7 +416,9 @@ def main() -> None:
                 if sequence_id is None:
                     raise RuntimeError(f"No sequence_id for {path}")
                 clean_features = hook.extract(model, clean)
-                clean_detection = detection_for_image(model, batch, clean, args.confidence)
+                clean_detection = detection_for_image(
+                    model, batch, clean, args.confidence, args.nms_max_time_img
+                )
                 clean_defense_features: dict[str, list[Tensor]] = {"none": clean_features}
                 for defense_name in args.defenses:
                     if defense_name != "none":
@@ -432,7 +474,8 @@ def main() -> None:
                                         revision_statistics[level], mode,
                                     )[0]
                         attacked_detection = detection_for_image(
-                            model, batch, adversarial, args.confidence
+                            model, batch, adversarial, args.confidence,
+                            args.nms_max_time_img,
                         )
                         clean_attack_values = consistency_row(
                             clean[0], result, mask, epsilon_px,
@@ -456,7 +499,10 @@ def main() -> None:
                             )
                             defended_detection = (
                                 attacked_detection if defense_name == "none"
-                                else detection_for_image(model, batch, defended, args.confidence)
+                                else detection_for_image(
+                                    model, batch, defended, args.confidence,
+                                    args.nms_max_time_img,
+                                )
                             )
                             for level_index, level in enumerate(("P3", "P4", "P5")):
                                 attacked_metric = metrics(
@@ -506,6 +552,34 @@ def main() -> None:
                                     "fn_clean": clean_detection["fn"],
                                     "fn_attack": attacked_detection["fn"],
                                     "fn_defended": defended_detection["fn"],
+                                    "nms_timeout": bool(
+                                        clean_detection["nms_timeout"]
+                                        or attacked_detection["nms_timeout"]
+                                        or defended_detection["nms_timeout"]
+                                    ),
+                                    "nms_timeout_clean": clean_detection["nms_timeout"],
+                                    "nms_timeout_attack": attacked_detection["nms_timeout"],
+                                    "nms_timeout_defended": defended_detection["nms_timeout"],
+                                    "nms_runtime_ms": max(
+                                        float(clean_detection["nms_runtime_ms"]),
+                                        float(attacked_detection["nms_runtime_ms"]),
+                                        float(defended_detection["nms_runtime_ms"]),
+                                    ),
+                                    "nms_runtime_clean_ms": clean_detection["nms_runtime_ms"],
+                                    "nms_runtime_attack_ms": attacked_detection["nms_runtime_ms"],
+                                    "nms_runtime_defended_ms": defended_detection["nms_runtime_ms"],
+                                    "predictions_before_or_after_timeout": "after_nms",
+                                    "predictions_after_nms": defended_detection[
+                                        "predictions_after_nms"
+                                    ],
+                                    "nms_candidates_before": defended_detection[
+                                        "nms_candidates_before"
+                                    ],
+                                    "nms_output_complete": bool(
+                                        clean_detection["nms_output_complete"]
+                                        and attacked_detection["nms_output_complete"]
+                                        and defended_detection["nms_output_complete"]
+                                    ),
                                     "confidence_drop": (
                                         clean_detection["mean_confidence"]
                                         - attacked_detection["mean_confidence"]
@@ -634,6 +708,7 @@ def main() -> None:
         "adaptive_pgd_eps": args.adaptive_pgd_eps,
         "adaptive_pgd_steps": args.adaptive_pgd_steps,
         "defenses": args.defenses, "confidence": args.confidence,
+        "nms_max_time_img": args.nms_max_time_img,
         "statistical_unit": "sequence_id", "rows": total_rows,
     }
     config_path.write_text(json.dumps(config, indent=2) + "\n")

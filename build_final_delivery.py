@@ -264,7 +264,19 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Build trained final-practice delivery ZIP")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     args = parser.parse_args()
-    print(json.dumps(build(args.output), indent=2))
+    result = build(args.output)
+    if (
+        args.output.resolve() == DEFAULT_OUTPUT.resolve()
+        and (PROJECT_DIR / "config/deadline_protocol.yaml").is_file()
+    ):
+        subprocess.run(
+            [str(PROJECT_DIR / ".venv/bin/python"), "deadline_finalize.py"],
+            cwd=PROJECT_DIR, check=True,
+        )
+        deadline_zip = PROJECT_DIR / "outputs/bundles/TNormFilter_deadline_final.zip"
+        result["deadline_zip"] = str(deadline_zip)
+        result["deadline_zip_sha256"] = sha256(deadline_zip)
+    print(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":

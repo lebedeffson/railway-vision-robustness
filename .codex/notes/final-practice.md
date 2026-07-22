@@ -84,3 +84,25 @@ an opportunity for retrospective checkpoint replacement.
 The normalization scheme is selected once on Stage 2 clean validation. Stage 1
 sensitivity uses the same frozen scheme but refits only its per-channel clean
 validation distribution statistics, so test data cannot influence scaling.
+
+Deadline mode was frozen on 2026-07-22 because the broad Q1 matrix could not
+finish before the article deadline. The active validation matrix remains the
+baseline and must not be interrupted. `tnorm-revision-q1.service` is runtime
+masked, and the main service has no `OnSuccess` unit, preventing a second GPU
+pipeline. `freeze_validation_protocol.py` runs the matrix/NMS audit and the
+validation-only pilot gate before canonical test is opened.
+
+After a passing pilot, `run_final_matrix.py` applies the canonical minimal test
+grid only to `outputs/final_practice/unified_diagnostics_raw.csv`: FGSM 1/4,
+PGD 0.25/1 at 20 steps, adaptive Product-PGD 1 at 20 steps, three PGD seeds and
+none/Product/bilateral/median defenses. This is 114 rows per image instead of
+450. N1 statistics are fit on clean validation and all Q1 metrics are emitted in
+the same Stage 2 inference pass.
+
+`build_final_delivery.py` first preserves the standard practice bundle, then
+calls the resumable `deadline_finalize.py`. The latter runs a 15-frame,
+three-sequence paired Stage 1/Stage 2 sensitivity check, 5000 sequence-cluster
+bootstraps, the ten deadline tables and seven figures, and creates
+`outputs/bundles/TNormFilter_deadline_final.zip`. Only three independent val and
+test scenes exist, so the pilot is smoke-only, Stage 1 sensitivity is
+exploratory, and confirmatory scene-difficulty strata are deferred.

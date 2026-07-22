@@ -15,6 +15,9 @@ VAL_RAW = PROJECT_DIR / "outputs/final_practice/unified_diagnostics_val_raw.csv"
 VAL_CONFIG = VAL_RAW.with_suffix(".json")
 VAL_STATS = PROJECT_DIR / "outputs/final_practice/09_statistics_val/model_comparison_m0_m4.csv"
 OUTPUT = PROJECT_DIR / "outputs/final_practice/validation_freeze.json"
+DEADLINE_PREPARATION = (
+    PROJECT_DIR / "outputs/final_practice/deadline/deadline_validation_preparation.json"
+)
 
 
 def sha256(path: Path) -> str:
@@ -42,6 +45,12 @@ def main() -> None:
         raise RuntimeError(f"Validation freeze rejected; missing={sorted(missing)}, rows={len(data)}")
     if set(data["split"].astype(str)) != {"val"}:
         raise RuntimeError("Validation freeze accepts only split=val")
+    subprocess.run(
+        [str(PROJECT_DIR / ".venv/bin/python"), "prepare_deadline_validation.py"],
+        cwd=PROJECT_DIR, check=True,
+    )
+    if not DEADLINE_PREPARATION.is_file():
+        raise RuntimeError("Deadline validation gate was not frozen before test")
     config = json.loads(args.config.read_text(encoding="utf-8"))
     git = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=PROJECT_DIR, text=True,
@@ -58,7 +67,7 @@ def main() -> None:
         "protocol": config,
         "artifacts": {
             str(path.relative_to(PROJECT_DIR)): sha256(path)
-            for path in (args.raw, args.config, args.statistics)
+            for path in (args.raw, args.config, args.statistics, DEADLINE_PREPARATION)
         },
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

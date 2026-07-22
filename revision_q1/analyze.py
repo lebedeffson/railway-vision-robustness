@@ -153,6 +153,8 @@ def add_endpoints(data: pd.DataFrame) -> pd.DataFrame:
 
 def selected_rows(data: pd.DataFrame) -> pd.DataFrame:
     result = data[data["attack"].ne("clean")].copy()
+    if "exclude_from_primary_statistics" in result:
+        result = result[~boolean_series(result["exclude_from_primary_statistics"])]
     if "selected_best" in result:
         selected = result["selected_best"].astype(str).str.lower().isin({"true", "1"})
         result = result[selected]
