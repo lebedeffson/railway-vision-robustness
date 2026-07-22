@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import unittest
 import argparse
+import hashlib
+import json
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -11,6 +13,7 @@ import yaml
 
 from deadline_select_budgets import budget_table, select_budgets
 import run_final_matrix
+from verify_canonical_provenance import verify_hash
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,8 +22,10 @@ ROOT = Path(__file__).resolve().parents[1]
 class CanonicalV2Test(unittest.TestCase):
     def test_split_v2_has_five_independent_validation_and_test_scenes(self) -> None:
         frame = pd.read_csv(ROOT / "outputs/canonical_v2/split/split_v2_manifest.csv")
+        self.assertTrue({"subsequence_id", "grouped_scene_id", "sequence_id"}.issubset(frame.columns))
+        self.assertTrue(frame["sequence_id"].astype(str).equals(frame["grouped_scene_id"].astype(str)))
         groups = {
-            split: set(scope.sequence_id.astype(str))
+            split: set(scope.grouped_scene_id.astype(str))
             for split, scope in frame.groupby("split")
         }
         self.assertEqual({name: len(value) for name, value in groups.items()}, {
@@ -38,6 +43,45 @@ class CanonicalV2Test(unittest.TestCase):
         self.assertEqual(set(protocol["hypotheses"]), {"H1", "H2", "H3", "H4"})
         self.assertEqual(protocol["split_scenes"], {"train": 10, "val": 5, "test": 5})
         self.assertTrue(protocol["frozen_before_test"])
+        self.assertFalse(protocol["legacy_thresholds_reused_by_canonical_v2"])
+        order = protocol["canonical_stage_order"]
+        self.assertLess(order.index("train_canonical_v2"), order.index("threshold_sweep_validation_v2"))
+        self.assertLess(order.index("baseline_quality_gate"), order.index("clean_test_v2_once"))
+        self.assertLess(order.index("clean_test_v2_once"), order.index("canonical_validation_attacks"))
+
+    def test_split_summary_reports_class_scene_size_and_scene_contributions(self) -> None:
+        summary = json.loads(
+            (ROOT / "outputs/canonical_v2/split/split_v2_summary.json").read_text()
+        )
+        self.assertEqual(summary["grouping_contract"]["independent_unit"], "grouped_scene_id")
+        for split in ("train", "val", "test"):
+            self.assertEqual(set(summary["class_grouped_scene_counts"][split]), set("012345"))
+            self.assertEqual(set(summary["size_object_counts"][split]), {"small", "medium", "large"})
+            self.assertEqual(len(summary["scene_contributions"][split]), {"train": 10, "val": 5, "test": 5}[split])
+
+    def test_canonical_runtime_order_does_not_open_test_before_gate(self) -> None:
+        source = (ROOT / "run_canonical_v2_pipeline.py").read_text(encoding="utf-8")
+        calibration = source.index('stage("canonical_v2_threshold_calibration"')
+        gate = source.index("quality_gate(v2_audit")
+        clean_test = source.index('stage("canonical_v2_clean_test"')
+        attacks = source.index('stage("canonical_validation"')
+        self.assertLess(calibration, gate)
+        self.assertLess(gate, clean_test)
+        self.assertLess(clean_test, attacks)
+        calibration_command = source[calibration:gate]
+        self.assertIn('"--splits", "train,val"', calibration_command)
+        self.assertNotIn('"--splits", "test"', calibration_command)
+
+    def test_checkpoint_hash_must_match_threshold_clean_test_and_attacks(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint = Path(directory) / "best.pt"
+            checkpoint.write_bytes(b"canonical checkpoint")
+            expected = hashlib.sha256(checkpoint.read_bytes()).hexdigest()
+            for role in ("threshold", "clean_test", "validation_attack", "test_attack"):
+                payload = {"checkpoint_sha256": expected}
+                verify_hash(payload, expected, Path(role))
+            with self.assertRaisesRegex(RuntimeError, "provenance mismatch"):
+                verify_hash({"checkpoint_sha256": "wrong"}, expected, Path("attack"))
 
     def test_strict_budget_gate_does_not_fallback_to_clean_detectable_subset(self) -> None:
         rows = []

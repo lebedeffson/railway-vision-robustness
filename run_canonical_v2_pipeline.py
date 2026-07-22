@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+from collections import Counter, defaultdict
+import csv
+import fcntl
+import hashlib
 import json
+import os
 import subprocess
 import sys
 import time
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -16,6 +22,9 @@ ROOT = PROJECT_DIR / "outputs/canonical_v2"
 STATUS = ROOT / "pipeline_status.json"
 PYTHON = PROJECT_DIR / ".venv/bin/python"
 LEGACY_VAL = PROJECT_DIR / "outputs/final_practice/unified_diagnostics_val_raw.csv"
+LEGACY_CONFIG = LEGACY_VAL.with_suffix(".json")
+LEGACY_COMPLETE = PROJECT_DIR / "outputs/final_practice/legacy_validation.complete.json"
+LOCK = PROJECT_DIR / "outputs/locks/canonical_v2.lock"
 PROTOCOL = yaml.safe_load(
     (PROJECT_DIR / "config/canonical_v2_protocol.yaml").read_text(encoding="utf-8")
 )
@@ -60,6 +69,83 @@ def stage(name: str, command: list[str], outputs: list[Path]) -> None:
     }); write_status(payload)
 
 
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def create_legacy_completion_marker() -> dict[str, Any]:
+    """Gate the handoff on a closed, complete and internally balanced CSV."""
+    expected_frames = 198
+    expected_rows_per_frame = 450
+    condition_columns = (
+        "attack", "adaptive", "epsilon_px", "steps", "restart", "seed",
+        "defense", "layer",
+    )
+    frame_counts: Counter[str] = Counter()
+    signatures: defaultdict[str, set[tuple[str, ...]]] = defaultdict(set)
+    duplicate_rows = 0
+    seen: set[tuple[str, ...]] = set()
+    total_rows = 0
+    with LEGACY_VAL.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        required = {"image_path", *condition_columns}
+        if reader.fieldnames is None or not required.issubset(reader.fieldnames):
+            raise RuntimeError("Legacy validation CSV does not contain its condition key")
+        for row in reader:
+            total_rows += 1
+            image = row["image_path"]
+            signature = tuple(row[column] for column in condition_columns)
+            key = (image, *signature)
+            duplicate_rows += int(key in seen)
+            seen.add(key)
+            frame_counts[image] += 1
+            signatures[image].add(signature)
+    completed = sum(count == expected_rows_per_frame for count in frame_counts.values())
+    partial = sum(count != expected_rows_per_frame for count in frame_counts.values())
+    reference = max(signatures.values(), key=len, default=set())
+    missing_conditions = sum(len(reference - value) for value in signatures.values())
+    unexpected_conditions = sum(len(value - reference) for value in signatures.values())
+    payload = {
+        "status": "PASS",
+        "created_at": now(),
+        "csv_path": str(LEGACY_VAL.resolve()),
+        "config_path": str(LEGACY_CONFIG.resolve()),
+        "csv_sha256": sha256(LEGACY_VAL),
+        "config_sha256": sha256(LEGACY_CONFIG),
+        "total_rows": total_rows,
+        "completed_frames": completed,
+        "partial_frames": partial,
+        "missing_conditions": missing_conditions,
+        "unexpected_conditions": unexpected_conditions,
+        "duplicate_rows": duplicate_rows,
+        "csv_successfully_closed": True,
+        "expected_frames": expected_frames,
+        "expected_rows_per_frame": expected_rows_per_frame,
+    }
+    valid = (
+        completed == expected_frames
+        and len(frame_counts) == expected_frames
+        and total_rows == expected_frames * expected_rows_per_frame
+        and partial == 0
+        and missing_conditions == 0
+        and unexpected_conditions == 0
+        and duplicate_rows == 0
+    )
+    if not valid:
+        payload["status"] = "FAIL"
+        raise RuntimeError(f"Legacy validation completion gate failed: {payload}")
+    temporary = LEGACY_COMPLETE.with_suffix(".json.tmp")
+    temporary.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(LEGACY_COMPLETE)
+    checksum = LEGACY_COMPLETE.with_suffix(".sha256")
+    checksum.write_text(f"{payload['csv_sha256']}  {LEGACY_VAL.name}\n", encoding="utf-8")
+    return payload
+
+
 def wait_for_legacy() -> None:
     blocker = ROOT / "LEGACY_TEST_BLOCKED"
     blocker.parent.mkdir(parents=True, exist_ok=True)
@@ -69,46 +155,94 @@ def wait_for_legacy() -> None:
     )
     payload = read_status(); payload["status"] = "waiting_for_legacy_validation_198"
     payload["legacy_test_blocked"] = True; write_status(payload)
-    while not LEGACY_VAL.is_file():
+    while not (LEGACY_VAL.is_file() and LEGACY_CONFIG.is_file()):
         time.sleep(30)
-    # The legacy child has atomically renamed its final CSV, so it is safe to stop
-    # the paused obsolete controller before it can launch test inference.
+    marker = create_legacy_completion_marker()
+    payload = read_status()
+    payload["legacy_validation_marker"] = marker
+    payload["status"] = "legacy_validation_complete"
+    write_status(payload)
+    # Stop the paused obsolete controller only after the atomic completion marker.
     subprocess.run(["systemctl", "--user", "stop", "tnorm-wait-train.service"], check=False)
+
+
+def build_quality_gate_failure_bundle(summary_path: Path) -> Path:
+    destination = PROJECT_DIR / "outputs/bundles/TNormFilter_canonical_v2_quality_gate_failed.zip"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    roots = [
+        summary_path.parent,
+        ROOT / "split",
+        ROOT / "training/yolo11m_canonical_v2",
+        PROJECT_DIR / "config/canonical_v2_protocol.yaml",
+    ]
+    allowed = {".csv", ".json", ".png", ".yaml", ".yml", ".txt"}
+    with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for root in roots:
+            candidates = [root] if root.is_file() else sorted(root.rglob("*"))
+            for path in candidates:
+                if not path.is_file() or path.suffix.lower() not in allowed:
+                    continue
+                archive.write(path, path.relative_to(PROJECT_DIR))
+    destination.with_suffix(destination.suffix + ".sha256").write_text(
+        f"{sha256(destination)}  {destination.name}\n", encoding="utf-8"
+    )
+    return destination
 
 
 def quality_gate(summary_path: Path) -> None:
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     if not summary["quality_gate"]["passed"]:
+        bundle = build_quality_gate_failure_bundle(summary_path)
         payload = read_status(); payload["status"] = "stopped_baseline_quality_gate"
         payload["canonical_attacks_started"] = False
-        payload["quality_gate"] = summary["quality_gate"]; write_status(payload)
+        payload["quality_gate"] = summary["quality_gate"]
+        payload["quality_gate_failure_bundle"] = str(bundle)
+        write_status(payload)
         raise SystemExit("Canonical v2 stopped: validation quality gate was not reached")
 
 
 def main() -> None:
+    LOCK.parent.mkdir(parents=True, exist_ok=True)
+    lock_handle = LOCK.open("a+", encoding="utf-8")
+    try:
+        fcntl.flock(lock_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError as error:
+        raise SystemExit("Another canonical v2 pipeline owns outputs/locks/canonical_v2.lock") from error
+    lock_handle.seek(0); lock_handle.truncate()
+    lock_handle.write(f"pid={os.getpid()}\nstarted_at={now()}\n")
+    lock_handle.flush()
     wait_for_legacy()
     stage("legacy_nms_g_pilot", [str(PYTHON), "prepare_deadline_validation.py"], [PROJECT_DIR / "outputs/final_practice/deadline/pilot/pilot_gate.json", PROJECT_DIR / "outputs/final_practice/audit/legacy_recovery_recalculation.json"])
     stage("legacy_statistics", [str(PYTHON), "analyze_final_practice.py", "--input", str(LEGACY_VAL), "--output", "outputs/final_practice/09_statistics_val", "--bootstrap", "2000"], [PROJECT_DIR / "outputs/final_practice/09_statistics_val/model_comparison_m0_m4.csv"])
     stage("legacy_bundle", [str(PYTHON), "build_legacy_baseline.py"], [PROJECT_DIR / "outputs/bundles/TNormFilter_legacy_baseline.zip", PROJECT_DIR / "outputs/bundles/TNormFilter_legacy_baseline.zip.sha256"])
-    stage("current_baseline_rescue", [str(PYTHON), "baseline_rescue_audit.py"], [ROOT / "baseline_rescue_current/baseline_rescue_summary.json", ROOT / "baseline_rescue_current/threshold_selection.json"])
+    legacy_threshold = ROOT / "legacy_threshold_calibration"
+    stage("legacy_threshold_calibration", [str(PYTHON), "baseline_rescue_audit.py", "--output", str(legacy_threshold)], [legacy_threshold / "baseline_rescue_summary.json", legacy_threshold / "threshold_selection.json"])
     stage("split_v2", [str(PYTHON), "create_split_v2.py"], [ROOT / "split/split_v2_manifest.csv", ROOT / "split/split_v2_summary.json", ROOT / "split/split_v2_hash.txt", PROJECT_DIR / "data/yolo_osdar23_v2/data.yaml"])
     stage("train_v2", [str(PYTHON), "train_canonical_v2.py"], [ROOT / "training/yolo11m_canonical_v2/weights/best.pt", ROOT / "training/yolo11m_canonical_v2/TRAINING_COMPLETE"])
     checkpoint = ROOT / "training/yolo11m_canonical_v2/weights/best.pt"
     v2_audit = ROOT / "baseline_rescue_v2"
-    stage("v2_clean_and_threshold", [str(PYTHON), "baseline_rescue_audit.py", "--model", str(checkpoint), "--data", "data/yolo_osdar23_v2/data.yaml", "--output", str(v2_audit)], [v2_audit / "baseline_rescue_summary.json", v2_audit / "threshold_selection.json"])
+    stage("canonical_v2_threshold_calibration", [str(PYTHON), "baseline_rescue_audit.py", "--model", str(checkpoint), "--data", "data/yolo_osdar23_v2/data.yaml", "--output", str(v2_audit), "--splits", "train,val"], [v2_audit / "baseline_rescue_summary.json", v2_audit / "threshold_selection.json"])
     quality_gate(v2_audit / "baseline_rescue_summary.json")
+    clean_test = v2_audit / "test_evaluation"
+    stage("canonical_v2_clean_test", [str(PYTHON), "baseline_rescue_audit.py", "--model", str(checkpoint), "--data", "data/yolo_osdar23_v2/data.yaml", "--output", str(clean_test), "--splits", "test", "--frozen-thresholds", str(v2_audit / "threshold_selection.json")], [clean_test / "baseline_rescue_summary.json", clean_test / "clean_metrics_train_val_test.csv"])
+    provenance_before = ROOT / "config/provenance_before_attacks.json"
+    stage("verify_provenance_before_attacks", [str(PYTHON), "verify_canonical_provenance.py", "--checkpoint", str(checkpoint), "--thresholds", str(v2_audit / "threshold_selection.json"), "--clean-test-summary", str(clean_test / "baseline_rescue_summary.json"), "--output", str(provenance_before)], [provenance_before])
     normalization = ROOT / "normalization_v2"
     stage("normalization_v2", [str(PYTHON), "-m", "revision_q1.collect_normalization", "--model", str(checkpoint), "--data", "data/yolo_osdar23_v2/data.yaml", "--output", str(normalization), "--workers", "0"], [normalization / "normalization/layer_channel_statistics.pt", normalization / "normalization/normalization_manifest.json"])
     confidence = json.loads((v2_audit / "threshold_selection.json").read_text(encoding="utf-8"))["safety"]["confidence"]
     val_matrix = ROOT / "raw/canonical_validation.csv"
-    common = ["--model", str(checkpoint), "--checkpoint-name", "canonical_v2", "--data", "data/yolo_osdar23_v2/data.yaml", "--workers", "1", "--revision-stats", str(normalization / "normalization/layer_channel_statistics.pt"), "--normalizations", "N1_quantile", "--confidence", str(confidence), "--seeds", "42,123,999", "--defenses", "none,tnorm,bilateral,median", "--nms-max-time-img", "10"]
+    common = ["--model", str(checkpoint), "--checkpoint-name", "canonical_v2", "--data", "data/yolo_osdar23_v2/data.yaml", "--manifest", "data/yolo_osdar23_v2/manifest.csv", "--workers", "1", "--revision-stats", str(normalization / "normalization/layer_channel_statistics.pt"), "--normalizations", "N1_quantile", "--confidence", str(confidence), "--seeds", "42,123,999", "--defenses", "none,tnorm,bilateral,median", "--nms-max-time-img", "10"]
     attacks = PROTOCOL["validation_attacks"]
     stage("canonical_validation", [str(PYTHON), "run_final_matrix.py", "--split", "val", "--output", str(val_matrix), *common, "--fgsm-eps", ",".join(map(str, attacks["fgsm_epsilon_px"])), "--pgd-eps", ",".join(map(str, attacks["pgd20_epsilon_px"])), "--pgd-steps", "20", "--adaptive-pgd-eps", ",".join(map(str, attacks["adaptive_pgd20_epsilon_px"])), "--adaptive-pgd-steps", "20"], [val_matrix, val_matrix.with_suffix(".json")])
+    provenance_validation = ROOT / "config/provenance_after_validation.json"
+    stage("verify_validation_provenance", [str(PYTHON), "verify_canonical_provenance.py", "--checkpoint", str(checkpoint), "--thresholds", str(v2_audit / "threshold_selection.json"), "--clean-test-summary", str(clean_test / "baseline_rescue_summary.json"), "--matrix-config", str(val_matrix.with_suffix(".json")), "--output", str(provenance_validation)], [provenance_validation])
     budgets = ROOT / "config/canonical_budget_selection.json"
     stage("freeze_budgets", [str(PYTHON), "deadline_select_budgets.py", "--strict-absolute", "--input", str(val_matrix), "--output", str(budgets)], [budgets, budgets.with_suffix(".csv")])
     frozen = json.loads(budgets.read_text(encoding="utf-8"))["selected"]
     test_matrix = ROOT / "raw/canonical_test.csv"
     stage("canonical_test", [str(PYTHON), "run_final_matrix.py", "--split", "test", "--output", str(test_matrix), *common, "--fgsm-eps", ",".join(map(str, frozen["fgsm_epsilon_px"])), "--pgd-eps", ",".join(map(str, frozen["pgd_epsilon_px"])), "--pgd-steps", "20", "--adaptive-pgd-eps", ",".join(map(str, frozen["adaptive_pgd_epsilon_px"])), "--adaptive-pgd-steps", "20"], [test_matrix, test_matrix.with_suffix(".json")])
+    provenance_final = ROOT / "config/provenance_final.json"
+    stage("verify_final_provenance", [str(PYTHON), "verify_canonical_provenance.py", "--checkpoint", str(checkpoint), "--thresholds", str(v2_audit / "threshold_selection.json"), "--clean-test-summary", str(clean_test / "baseline_rescue_summary.json"), "--matrix-config", str(val_matrix.with_suffix(".json")), "--matrix-config", str(test_matrix.with_suffix(".json")), "--output", str(provenance_final)], [provenance_final])
     analysis = ROOT / "analysis_test"
     stage("canonical_statistics", [str(PYTHON), "-m", "revision_q1.analyze", "--input", str(test_matrix), "--output", str(analysis), "--normalization", "N1_quantile", "--split", "test", "--bootstrap", "5000"], [analysis / "tables/12_multiple_comparison_corrections.csv", analysis / "tables/13_scene_macro_loso.csv"])
     stage("canonical_bundle", [str(PYTHON), "finalize_canonical_v2.py"], [PROJECT_DIR / "outputs/bundles/TNormFilter_canonical_final.zip", PROJECT_DIR / "outputs/bundles/TNormFilter_canonical_final.zip.sha256"])

@@ -45,6 +45,10 @@
   v2 is frozen at 10/5/5 scenes; never treat numbered subsequences as independent.
 - The current-split legacy test is prohibited. Preserve validation as a legacy
   baseline, then use `tnorm-canonical-v2.service` and its quality/floor gates.
+- Calibrate canonical confidence only after v2 training on v2 validation; the
+  calibration, clean test and attack configs must share one checkpoint SHA-256.
+- Start canonical v2 only from the audited atomic legacy completion marker and
+  hold `outputs/locks/canonical_v2.lock` for the entire pipeline.
 
 ## Notes
 

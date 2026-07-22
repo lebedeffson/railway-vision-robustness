@@ -158,3 +158,20 @@ from `yolo11m.pt`, and starts canonical attacks only when validation Recall is a
 least 0.35 and mAP50 at least 0.25. Canonical attack budgets must additionally
 pass a strict absolute (<50%) validation floor gate; no clean-detectable fallback
 is allowed for the article experiment.
+
+Canonical v2 threshold handling is model-specific. The frozen order is split,
+one v2 training, train/validation clean evaluation, validation-only F1/F2 sweep,
+quality gate, one post-gate clean test evaluation with frozen thresholds, then
+canonical attacks. The legacy checkpoint sweep is isolated under
+`legacy_threshold_calibration` and is never reused. Threshold selection, clean
+test and both matrix configs carry the exact v2 checkpoint SHA-256 and fail on
+any mismatch. The service waits for `legacy_validation.complete.json`, which is
+written only after the 198x450-row CSV has no partial frames, missing conditions
+or duplicate condition keys, and holds `outputs/locks/canonical_v2.lock`.
+
+The v2 manifest explicitly records raw `subsequence_id` and independent
+`grouped_scene_id`; `sequence_id` is an alias of the latter. Its summary includes
+per-class object and grouped-scene counts, small/medium/large counts and each
+scene's frame/object share. Some rare classes occur in only one training or
+validation grouped scene, so class-specific claims must report that limitation
+even though all six classes occur in every split.

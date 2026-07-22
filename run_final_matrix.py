@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 import csv
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -336,6 +337,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-images", type=int)
     parser.add_argument("--quick", action="store_true")
     return parser.parse_args()
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def apply_deadline_defaults(args: argparse.Namespace) -> None:
@@ -732,6 +741,7 @@ def main() -> None:
     partial_path.replace(args.output)
     config = {
         "model": str(args.model.resolve()), "data": str(args.data), "manifest": str(args.manifest),
+        "checkpoint_sha256": sha256(args.model),
         "split": args.split, "conditions": conditions(args), "seeds": args.seeds,
         "checkpoint_name": args.checkpoint_name,
         "revision_stats": (

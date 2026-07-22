@@ -21,6 +21,7 @@ OUTPUT = PROJECT_DIR / "outputs/canonical_v2/split"
 SEED = 20260722
 TARGET_COUNTS = {"train": 10, "val": 5, "test": 5}
 SMALL_AREA = 0.001
+MEDIUM_AREA = 0.01
 
 
 def label_path(image: Path) -> Path:
@@ -29,29 +30,30 @@ def label_path(image: Path) -> Path:
     return Path(*parts).with_suffix(".txt")
 
 
-def frame_objects(path: Path) -> tuple[Counter[int], int, int]:
-    classes: Counter[int] = Counter(); small = total = 0
+def frame_objects(path: Path) -> tuple[Counter[int], Counter[str], int]:
+    classes: Counter[int] = Counter(); sizes: Counter[str] = Counter(); total = 0
     if not path.is_file():
-        return classes, small, total
+        return classes, sizes, total
     for line in path.read_text(encoding="utf-8").splitlines():
         fields = line.split()
         if len(fields) < 5:
             continue
         class_id = int(fields[0]); area = float(fields[3]) * float(fields[4])
-        classes[class_id] += 1; total += 1; small += int(area < SMALL_AREA)
-    return classes, small, total
+        size = "small" if area < SMALL_AREA else "medium" if area < MEDIUM_AREA else "large"
+        classes[class_id] += 1; sizes[size] += 1; total += 1
+    return classes, sizes, total
 
 
 def group_statistics(manifest: pd.DataFrame) -> dict[str, dict]:
     result: dict[str, dict] = {}
     for sequence_id, rows in manifest.groupby("sequence_id", sort=True):
-        classes: Counter[int] = Counter(); small = objects = 0
+        classes: Counter[int] = Counter(); sizes: Counter[str] = Counter(); objects = 0
         for image_name in rows["output_image"]:
-            counts, small_count, total = frame_objects(label_path(Path(image_name)))
-            classes.update(counts); small += small_count; objects += total
+            counts, size_counts, total = frame_objects(label_path(Path(image_name)))
+            classes.update(counts); sizes.update(size_counts); objects += total
         result[str(sequence_id)] = {
             "frames": len(rows), "objects": objects, "classes": classes,
-            "small_fraction": small / max(objects, 1),
+            "sizes": sizes, "small_fraction": sizes["small"] / max(objects, 1),
         }
     return result
 
@@ -140,6 +142,8 @@ def main() -> None:
         image_method = link(source_image, target_image); link(source_label, target_label)
         rows.append({
             **row._asdict(), "original_split": row.split, "split": target_split,
+            "subsequence_id": str(row.sequence),
+            "grouped_scene_id": str(row.sequence_id),
             "output_image": str(target_image), "output_label": str(target_label),
             "transfer_method": image_method,
         })
@@ -158,11 +162,35 @@ def main() -> None:
     }
     class_ids = sorted({class_id for value in stats.values() for class_id in value["classes"]})
     class_counts = {}
+    class_scene_counts = {}
+    size_object_counts = {}
+    scene_contributions = {}
     missing_classes = {}
     for split_name, groups in split.items():
         counts = Counter()
+        sizes: Counter[str] = Counter()
         for group in groups: counts.update(stats[group]["classes"])
+        for group in groups: sizes.update(stats[group]["sizes"])
         class_counts[split_name] = {str(class_id): counts[class_id] for class_id in class_ids}
+        class_scene_counts[split_name] = {
+            str(class_id): sum(stats[group]["classes"][class_id] > 0 for group in groups)
+            for class_id in class_ids
+        }
+        size_object_counts[split_name] = {
+            name: int(sizes[name]) for name in ("small", "medium", "large")
+        }
+        split_frames = sum(stats[group]["frames"] for group in groups)
+        split_objects = sum(stats[group]["objects"] for group in groups)
+        scene_contributions[split_name] = [
+            {
+                "grouped_scene_id": group,
+                "frames": stats[group]["frames"],
+                "frame_fraction": stats[group]["frames"] / max(split_frames, 1),
+                "objects": stats[group]["objects"],
+                "object_fraction": stats[group]["objects"] / max(split_objects, 1),
+            }
+            for group in groups
+        ]
         missing_classes[split_name] = [class_id for class_id in class_ids if counts[class_id] == 0]
     summary = {
         "status": (
@@ -175,8 +203,18 @@ def main() -> None:
         "frame_counts": output_manifest.groupby("split").size().to_dict(),
         "object_counts": output_manifest.groupby("split")["annotations"].sum().to_dict(),
         "split_sequences": split, "intersections": intersections,
-        "class_object_counts": class_counts, "missing_classes": missing_classes,
+        "grouping_contract": {
+            "independent_unit": "grouped_scene_id",
+            "sequence_id_aliases_grouped_scene_id": True,
+            "raw_unit": "subsequence_id",
+        },
+        "class_object_counts": class_counts,
+        "class_grouped_scene_counts": class_scene_counts,
+        "size_object_counts": size_object_counts,
+        "scene_contributions": scene_contributions,
+        "missing_classes": missing_classes,
         "small_object_area_ratio": SMALL_AREA,
+        "medium_object_area_ratio": MEDIUM_AREA,
         "day_night_weather": "not_used_metadata_unavailable_in_frozen_manifest",
     }
     (OUTPUT / "split_v2_summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")

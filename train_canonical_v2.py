@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 
 import torch
@@ -14,6 +15,36 @@ OUTPUT = PROJECT_DIR / "outputs/canonical_v2/training"
 NAME = "yolo11m_canonical_v2"
 
 
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def record_selection(best: Path, config: dict) -> None:
+    checkpoint_hash = sha256(best)
+    marker = best.parent.parent / "TRAINING_COMPLETE"
+    marker.write_text(
+        f"best={best.resolve()}\nsha256={checkpoint_hash}\n",
+        encoding="utf-8",
+    )
+    selection = {
+        "selected_checkpoint": str(best.resolve()),
+        "checkpoint_sha256": checkpoint_hash,
+        "selection_split": "val_v2", "test_used": False,
+        "configuration_A": config,
+        "configuration_B": {
+            "status": "rejected_before_training_by_resource_feasibility",
+            "reason": config["rejected_configuration_B"],
+        },
+    }
+    (best.parent.parent / "checkpoint_selection.json").write_text(
+        json.dumps(selection, indent=2) + "\n", encoding="utf-8"
+    )
+
+
 def main() -> None:
     protocol = yaml.safe_load(PROTOCOL.read_text(encoding="utf-8"))
     config = protocol["model"]
@@ -21,6 +52,7 @@ def main() -> None:
     best = weights / "best.pt"; last = weights / "last.pt"
     marker = OUTPUT / NAME / "TRAINING_COMPLETE"
     if marker.is_file() and best.is_file():
+        record_selection(best, config)
         print(best); return
     if not torch.cuda.is_available():
         raise RuntimeError("Canonical v2 training requires CUDA")
@@ -42,19 +74,7 @@ def main() -> None:
         )
     if not best.is_file():
         raise FileNotFoundError(best)
-    marker.write_text(f"best={best}\n", encoding="utf-8")
-    selection = {
-        "selected_checkpoint": str(best.resolve()),
-        "selection_split": "val_v2", "test_used": False,
-        "configuration_A": config,
-        "configuration_B": {
-            "status": "rejected_before_training_by_resource_feasibility",
-            "reason": config["rejected_configuration_B"],
-        },
-    }
-    (OUTPUT / NAME / "checkpoint_selection.json").write_text(
-        json.dumps(selection, indent=2) + "\n", encoding="utf-8"
-    )
+    record_selection(best, config)
     print(best)
 
 
