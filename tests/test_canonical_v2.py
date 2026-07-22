@@ -80,6 +80,13 @@ class CanonicalV2Test(unittest.TestCase):
         validation = (ROOT / "article/validate_final_article.py").read_text(encoding="utf-8")
         self.assertIn("delta_mae_signs_valid", validation)
 
+    def test_legacy_smoke_failure_cannot_relax_canonical_gate(self) -> None:
+        source = (ROOT / "finalize_legacy_smoke.py").read_text(encoding="utf-8")
+        self.assertIn('ALLOWED_LEGACY_FAILURES = {"membership_saturation_below_20_percent"}', source)
+        self.assertIn('"canonical_pilot_gate_affected": False', source)
+        canonical = (ROOT / "canonical_v2_pilot_gate.py").read_text(encoding="utf-8")
+        self.assertIn('"membership_saturation_below_20_percent": saturation_max < 0.20', canonical)
+
     def test_split_summary_reports_class_scene_size_and_scene_contributions(self) -> None:
         summary = json.loads(
             (ROOT / "outputs/canonical_v2/split/split_v2_summary.json").read_text()

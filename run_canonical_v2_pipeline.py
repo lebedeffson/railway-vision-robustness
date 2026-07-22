@@ -212,7 +212,7 @@ def main() -> None:
     lock_handle.write(f"pid={os.getpid()}\nstarted_at={now()}\n")
     lock_handle.flush()
     wait_for_legacy()
-    stage("legacy_nms_g_pilot", [str(PYTHON), "prepare_deadline_validation.py"], [PROJECT_DIR / "outputs/final_practice/deadline/pilot/pilot_gate.json", PROJECT_DIR / "outputs/final_practice/audit/legacy_recovery_recalculation.json"])
+    stage("legacy_nms_g_pilot", [str(PYTHON), "finalize_legacy_smoke.py"], [PROJECT_DIR / "outputs/final_practice/deadline/pilot/legacy_smoke_disposition.json", PROJECT_DIR / "outputs/final_practice/audit/legacy_recovery_recalculation.json"])
     stage("legacy_nms_contract", [str(PYTHON), "finalize_legacy_nms_audit.py"], [PROJECT_DIR / "outputs/final_practice/audit/nms_timeout_recheck.csv", PROJECT_DIR / "outputs/final_practice/audit/nms_audit_summary.json"])
     stage("legacy_statistics", [str(PYTHON), "analyze_final_practice.py", "--input", str(LEGACY_VAL), "--output", "outputs/final_practice/09_statistics_val", "--bootstrap", "2000"], [PROJECT_DIR / "outputs/final_practice/09_statistics_val/model_comparison_m0_m4.csv"])
     stage("legacy_bundle", [str(PYTHON), "build_legacy_baseline.py"], [PROJECT_DIR / "outputs/bundles/TNormFilter_legacy_baseline.zip", PROJECT_DIR / "outputs/bundles/TNormFilter_legacy_baseline.zip.sha256"])

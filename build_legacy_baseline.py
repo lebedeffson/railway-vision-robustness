@@ -39,6 +39,7 @@ def main() -> None:
         PROJECT_DIR / "outputs/final_practice/audit/nms_timeout_recheck.csv",
         PROJECT_DIR / "outputs/final_practice/audit/legacy_recovery_recalculation.json",
         PROJECT_DIR / "outputs/final_practice/deadline/pilot/pilot_gate.json",
+        PROJECT_DIR / "outputs/final_practice/deadline/pilot/legacy_smoke_disposition.json",
     ]
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
@@ -56,6 +57,7 @@ def main() -> None:
             (PROJECT_DIR / "outputs/final_practice/audit/nms_timeout_cases.csv", "audit/nms_timeout_cases.csv"),
             (PROJECT_DIR / "outputs/final_practice/audit/legacy_recovery_recalculation.json", "audit/legacy_recovery_recalculation.json"),
             (PROJECT_DIR / "outputs/final_practice/deadline/pilot/pilot_gate.json", "audit/canonical_smoke_pilot_gate.json"),
+            (PROJECT_DIR / "outputs/final_practice/deadline/pilot/legacy_smoke_disposition.json", "audit/legacy_smoke_disposition.json"),
             (PROJECT_DIR / "outputs/final_practice/interim_audit/go_no_go.json", "audit/interim_go_no_go.json"),
             (PROJECT_DIR / "outputs/final_practice/legacy_validation.complete.json", "audit/legacy_validation.complete.json"),
             (PROJECT_DIR / "outputs/final_practice/audit/split_audit.json", "split/split_audit.json"),

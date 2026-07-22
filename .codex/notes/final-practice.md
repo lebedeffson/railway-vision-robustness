@@ -197,3 +197,10 @@ ZIP. The canonical analysis config defines D3 as Product/Lukasiewicz added to
 D2 and R3 as Product/Lukasiewicz recovery plus raw G and C_def added to R2.
 Article output is generated from a frozen internal DOCX reference; the template
 is hash-checked before and after filling and is never overwritten.
+
+The completed three-scene legacy smoke pilot retains a FAIL because N1 P4 has
+20.63% values below 0.01, narrowly exceeding the frozen 20% saturation warning.
+All critical attack, gradient, formula, leakage, finite-value and model checks
+passed. This result is archived as a legacy limitation and does not gate the
+separately trained/fitted five-scene canonical v2 pilot; the latter keeps the
+strict saturation gate and is the only gate allowed to open canonical test.
