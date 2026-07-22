@@ -593,8 +593,13 @@ def preliminary_analysis(data: pd.DataFrame) -> tuple[dict[str, Any], dict[str, 
         base_mae = mean_absolute_error(y, predictions[baseline])
         ext_mae = mean_absolute_error(y, predictions[extended])
         summaries[f"{extended}_vs_{baseline}"] = {
-            "delta_mae": base_mae - ext_mae,
-            "relative_mae_reduction": (base_mae - ext_mae) / base_mae if base_mae else math.nan,
+            "delta_mae": ext_mae - base_mae,
+            "relative_mae_reduction": (
+                (base_mae - ext_mae) / base_mae * 100.0
+                if base_mae else math.nan
+            ),
+            "delta_mae_definition": "MAE_new_minus_MAE_baseline",
+            "relative_mae_reduction_unit": "percent",
             "delta_r2": r2_score(y, predictions[extended]) - r2_score(y, predictions[baseline]),
             "delta_spearman": spearmanr(y, predictions[extended]).statistic - spearmanr(y, predictions[baseline]).statistic,
             "sequences": len(pd.unique(groups)), "interpretation": "QA_only_not_final",
@@ -769,7 +774,7 @@ def main() -> None:
         f"- Checkpoint: `{checkpoint['checkpoint']}`; SHA-256 `{checkpoint['sha256']}`.",
         "", "## Integrity", "",
         f"- Matrix status: {matrix['status']}; duplicates={matrix['duplicate_rows']}; inf={sum(matrix['inf_counts'].values())}; partial={matrix['partial_frames']}.",
-        f"- Active legacy grid has {ACTIVE_ROWS_PER_FRAME} rows/frame. The future deadline test grid has 114 rows/frame.",
+        f"- Active legacy grid has {ACTIVE_ROWS_PER_FRAME} rows/frame. The canonical deadline grid size is frozen only after validation floor-budget selection.",
         f"- NMS warnings mapped to snapshot: {nms['warning_count_in_snapshot_window']} across {nms['affected_frames']} frames.",
         "", "## Scientific QA", "",
         "- Existing normalization is clean-validation, separate per layer and per channel.",

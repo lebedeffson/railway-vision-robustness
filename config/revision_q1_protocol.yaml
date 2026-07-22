@@ -82,15 +82,15 @@ damage_models:
   D0: [epsilon, attack, perturbation_l1, perturbation_l2, perturbation_linf]
   D1: [epsilon, attack, perturbation_l1, perturbation_l2, perturbation_linf, cosine]
   D2: [epsilon, attack, perturbation_l1, perturbation_l2, perturbation_linf, cosine, l1_distance, normalized_l2, mse, pearson, entropy_shift, gradient_l2]
-  D3: [epsilon, attack, perturbation_l1, perturbation_l2, perturbation_linf, cosine, l1_distance, normalized_l2, mse, pearson, entropy_shift, gradient_l2, product, godel, lukasiewicz]
-  D4: [epsilon, attack, perturbation_l1, perturbation_l2, perturbation_linf, cosine, l1_distance, normalized_l2, mse, pearson, entropy_shift, gradient_l2, product, godel, lukasiewicz, c_sp_object, c_dir, c_atk_object]
+  D3: [epsilon, attack, perturbation_l1, perturbation_l2, perturbation_linf, cosine, l1_distance, normalized_l2, mse, pearson, entropy_shift, gradient_l2, product, lukasiewicz]
+  D4: [epsilon, attack, perturbation_l1, perturbation_l2, perturbation_linf, cosine, l1_distance, normalized_l2, mse, pearson, entropy_shift, gradient_l2, product, lukasiewicz, c_sp_object, c_dir, c_atk_object]
 
 recovery_models:
   R0: [epsilon, attack, defense, f1_attack]
   R1: [epsilon, attack, defense, f1_attack, cosine_recovery]
   R2: [epsilon, attack, defense, f1_attack, cosine_recovery, l1_recovery, normalized_l2_recovery, mse_recovery, pearson_recovery, entropy_recovery]
-  R3: [epsilon, attack, defense, f1_attack, cosine_recovery, l1_recovery, normalized_l2_recovery, mse_recovery, pearson_recovery, entropy_recovery, product_recovery, godel_recovery, lukasiewicz_recovery]
-  R4: [epsilon, attack, defense, f1_attack, cosine_recovery, l1_recovery, normalized_l2_recovery, mse_recovery, pearson_recovery, entropy_recovery, product_recovery, godel_recovery, lukasiewicz_recovery, p_clean_preservation, a_attacked_similarity, r_restored_similarity, g_recovery, c_def]
+  R3: [epsilon, attack, defense, f1_attack, cosine_recovery, l1_recovery, normalized_l2_recovery, mse_recovery, pearson_recovery, entropy_recovery, product_recovery, lukasiewicz_recovery]
+  R4: [epsilon, attack, defense, f1_attack, cosine_recovery, l1_recovery, normalized_l2_recovery, mse_recovery, pearson_recovery, entropy_recovery, product_recovery, lukasiewicz_recovery, p_clean_preservation, a_attacked_similarity, r_restored_similarity, g_recovery, c_def]
 
 algorithms:
   primary: [ridge, elastic_net]
@@ -153,6 +153,15 @@ statistics:
   corrections: [holm_bonferroni, benjamini_hochberg]
   alpha: 0.05
   practical_effect:
-    relative_mae_reduction: 0.05
+    relative_mae_reduction: 5.0
     delta_r2: 0.05
     abs_delta_spearman: 0.05
+  metric_roles:
+    product: primary
+    lukasiewicz: primary
+    godel: supplementary_redundancy_ablation
+  limited_cluster_inference:
+    report_per_scene: true
+    report_macro_average: true
+    leave_one_scene_out: true
+    suppress_strong_generalization_claims_below_sequences: 5

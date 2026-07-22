@@ -21,8 +21,9 @@ PYTHON = PROJECT_DIR / ".venv/bin/python"
 STATUS = ROOT / "pipeline_status.json"
 STAGES = (
     "baseline_snapshot", "matrix_integrity", "nms_timeout_audit",
-    "matrix_integrity_after_nms", "normalization_fit", "pilot_selection",
-    "pilot_matrix", "pilot_gate",
+    "legacy_recovery_recalculation", "matrix_integrity_after_nms",
+    "normalization_fit", "pilot_selection",
+    "pilot_matrix", "pilot_gate", "canonical_budget_selection",
 )
 
 
@@ -160,6 +161,11 @@ def main() -> None:
     nms_status = json.loads((AUDIT / "nms_timeout_audit.json").read_text(encoding="utf-8"))
     if nms_status.get("status") not in {"PASS", "RERUN_FAILED_EXCLUDED"}:
         raise RuntimeError(f"Unexpected NMS audit status: {nms_status.get('status')}")
+    run_stage(
+        "legacy_recovery_recalculation", [
+            str(PYTHON), "recalculate_legacy_recovery.py",
+        ], [AUDIT / "legacy_recovery_recalculation.json"],
+    )
     post_nms = AUDIT / "post_nms"
     run_stage(
         "matrix_integrity_after_nms", [
@@ -183,6 +189,10 @@ def main() -> None:
         [ROOT / "config/pilot_manifest.csv", ROOT / "config/pilot_data.yaml"],
     )
     pilot = ROOT / "pilot/raw/pilot_matrix.csv"
+    protocol = yaml.safe_load(
+        (PROJECT_DIR / "config/deadline_protocol.yaml").read_text(encoding="utf-8")
+    )
+    pilot_attacks = protocol["pilot"]["attacks"]
     run_stage(
         "pilot_matrix", [
             str(PYTHON), "run_final_matrix.py",
@@ -190,8 +200,15 @@ def main() -> None:
             "--split", "val", "--workers", "0", "--checkpoint-name", "stage2_best",
             "--revision-stats", str(ROOT / "normalization/layer_channel_statistics.pt"),
             "--normalizations", "N1_quantile,N2_robust_sigmoid,N3_zscore_sigmoid",
-            "--fgsm-eps", "1", "--pgd-eps", "0.5", "--pgd-steps", "20",
-            "--adaptive-pgd-eps", "0.5", "--adaptive-pgd-steps", "20",
+            "--fgsm-eps", ",".join(map(str, pilot_attacks["fgsm_epsilon_px"])),
+            "--pgd-eps", ",".join(map(str, pilot_attacks["pgd_epsilon_px"])),
+            "--pgd-steps", ",".join(map(str, pilot_attacks["pgd_steps"])),
+            "--adaptive-pgd-eps", ",".join(
+                map(str, pilot_attacks["adaptive_pgd_epsilon_px"])
+            ),
+            "--adaptive-pgd-steps", ",".join(
+                map(str, pilot_attacks["adaptive_pgd_steps"])
+            ),
             "--seeds", "42,123,999", "--defenses", "none,tnorm,bilateral",
             "--nms-max-time-img", "10", "--output", str(pilot),
         ],
@@ -204,6 +221,13 @@ def main() -> None:
     pilot_gate = json.loads((ROOT / "pilot/pilot_gate.json").read_text(encoding="utf-8"))
     if pilot_gate.get("status") != "PASS":
         raise RuntimeError("Existing pilot gate artifact is not PASS")
+    budget_selection = ROOT / "config/canonical_budget_selection.json"
+    run_stage(
+        "canonical_budget_selection", [
+            str(PYTHON), "deadline_select_budgets.py", "--input", str(pilot),
+            "--output", str(budget_selection),
+        ], [budget_selection, budget_selection.with_suffix(".csv")],
+    )
     cache_plan = {
         "stage2_test": "single_pass_canonical_matrix_with_N1_metrics",
         "normalization_variants": "same_pilot_attacks_and_feature_tensors_no_repeated_inference",

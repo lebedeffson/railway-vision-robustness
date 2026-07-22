@@ -251,13 +251,14 @@ def paired_model_bootstrap(
         for indices, multiplicity in plan:
             left = metric_values(target[indices], baseline_prediction[indices])
             right = metric_values(target[indices], extended_prediction[indices])
-            samples["delta_mae"].extend([left["mae"] - right["mae"]] * multiplicity)
+            samples["delta_mae"].extend([right["mae"] - left["mae"]] * multiplicity)
             samples["delta_r2"].extend([right["r2"] - left["r2"]] * multiplicity)
             samples["delta_spearman"].extend([
                 right["spearman"] - left["spearman"]
             ] * multiplicity)
         observed = {
-            "delta_mae": observed_baseline["mae"] - observed_extended["mae"],
+            # One convention everywhere: new minus baseline. Negative is better.
+            "delta_mae": observed_extended["mae"] - observed_baseline["mae"],
             "delta_r2": observed_extended["r2"] - observed_baseline["r2"],
             "delta_spearman": (
                 observed_extended["spearman"] - observed_baseline["spearman"]
@@ -276,9 +277,12 @@ def paired_model_bootstrap(
                 "ci_high": float(np.percentile(values, 97.5)) if len(values) else math.nan,
                 "p_value": min(1.0, 2 * min(lower, upper)) if len(values) else 1.0,
                 "relative_mae_reduction": (
-                    observed["delta_mae"] / observed_baseline["mae"]
+                    (observed_baseline["mae"] - observed_extended["mae"])
+                    / observed_baseline["mae"] * 100.0
                     if observed_baseline["mae"] else math.nan
                 ),
+                "delta_mae_definition": "MAE_new_minus_MAE_baseline",
+                "relative_mae_reduction_unit": "percent",
                 "bootstrap_iterations": iterations,
                 "sequences": int(pd.Series(sequence_ids).nunique()),
             })
@@ -348,6 +352,11 @@ def correlation_tables(
                     "frames": int(pair["image_path"].nunique()) if "image_path" in pair else len(pair),
                     "sequences": int(pair["sequence_id"].nunique()),
                     "bootstrap_iterations": iterations,
+                    "result_role": (
+                        "supplementary_redundancy_ablation"
+                        if metric_name in {"godel", "godel_recovery"}
+                        else "primary"
+                    ),
                 })
         for tnorm in tnorms:
             for comparison in baseline:
@@ -361,8 +370,73 @@ def correlation_tables(
                 delta_rows.append({
                     "task": task, "endpoint": endpoint, "layer": layer,
                     "tnorm": tnorm, "baseline": comparison, **result,
+                    "result_role": (
+                        "supplementary_redundancy_ablation"
+                        if tnorm in {"godel", "godel_recovery"}
+                        else "primary"
+                    ),
                 })
     return pd.DataFrame(correlation_rows), pd.DataFrame(delta_rows)
+
+
+def scene_macro_loso_table(
+    predictions: pd.DataFrame,
+    target_name: str,
+    comparisons: tuple[tuple[str, str], ...],
+) -> pd.DataFrame:
+    """Expose the three scene-wise LOSO results instead of hiding them in a mean."""
+    rows: list[dict[str, object]] = []
+    sequence_count = int(predictions["sequence_id"].nunique())
+    for baseline, extended in comparisons:
+        scene_rows: list[dict[str, object]] = []
+        for sequence_id, scope in predictions.groupby("sequence_id", sort=True):
+            target = scope[target_name].to_numpy(float)
+            baseline_values = metric_values(
+                target, scope[f"prediction_{baseline}"].to_numpy(float)
+            )
+            extended_values = metric_values(
+                target, scope[f"prediction_{extended}"].to_numpy(float)
+            )
+            row = {
+                "scope": "scene", "sequence_id": str(sequence_id),
+                "comparison": f"{extended}_vs_{baseline}",
+                "frames_or_aggregates": len(scope),
+                "baseline_mae": baseline_values["mae"],
+                "extended_mae": extended_values["mae"],
+                "delta_mae": extended_values["mae"] - baseline_values["mae"],
+                "relative_mae_reduction": (
+                    (baseline_values["mae"] - extended_values["mae"])
+                    / baseline_values["mae"] * 100.0
+                    if baseline_values["mae"] else math.nan
+                ),
+                "delta_r2": extended_values["r2"] - baseline_values["r2"],
+                "delta_spearman": (
+                    extended_values["spearman"] - baseline_values["spearman"]
+                ),
+                "evaluation": "leave_one_scene_out_oof",
+                "inference_warning": "three_independent_scenes_no_strong_generalization_p_value",
+            }
+            scene_rows.append(row)
+            rows.append(row)
+        macro = pd.DataFrame(scene_rows)
+        rows.append({
+            "scope": "macro_average", "sequence_id": "ALL_SCENES_EQUAL_WEIGHT",
+            "comparison": f"{extended}_vs_{baseline}",
+            "frames_or_aggregates": int(macro["frames_or_aggregates"].sum()),
+            **{
+                name: float(macro[name].mean())
+                for name in (
+                    "baseline_mae", "extended_mae", "delta_mae",
+                    "relative_mae_reduction", "delta_r2", "delta_spearman",
+                )
+            },
+            "evaluation": "macro_average_of_leave_one_scene_out_oof",
+            "inference_warning": (
+                "three_independent_scenes_no_strong_generalization_p_value"
+                if sequence_count == 3 else "cluster_count_reported"
+            ),
+        })
+    return pd.DataFrame(rows)
 
 
 def add_corrections(frame: pd.DataFrame, family: str) -> pd.DataFrame:
@@ -427,6 +501,7 @@ def run_analysis(
     all_gains: list[pd.DataFrame] = []
     all_correlations: list[pd.DataFrame] = []
     all_deltas: list[pd.DataFrame] = []
+    all_scene_results: list[pd.DataFrame] = []
     for task in ("damage", "recovery"):
         specifications = model_specifications(protocol, task)
         for endpoint in ENDPOINTS[task]:
@@ -456,6 +531,14 @@ def run_analysis(
                 gains.insert(2, "algorithm", algorithm)
                 gains.insert(3, "normalization", mode)
                 all_gains.append(gains)
+                scene_results = scene_macro_loso_table(
+                    predictions, endpoint, MODEL_COMPARISONS[task]
+                )
+                scene_results.insert(0, "task", task)
+                scene_results.insert(1, "endpoint", endpoint)
+                scene_results.insert(2, "algorithm", algorithm)
+                scene_results.insert(3, "normalization", mode)
+                all_scene_results.append(scene_results)
             correlations, deltas = correlation_tables(
                 data, task, endpoint, iterations, int(protocol["random_seed"])
             )
@@ -477,6 +560,8 @@ def run_analysis(
     deltas.to_csv(tables / "04_tnorm_vs_baseline_bootstrap.csv", index=False)
     gains = add_corrections(pd.concat(all_gains, ignore_index=True), "primary_model_gains")
     gains.to_csv(tables / "12_multiple_comparison_corrections.csv", index=False)
+    scene_results = pd.concat(all_scene_results, ignore_index=True)
+    scene_results.to_csv(tables / "13_scene_macro_loso.csv", index=False)
     return {
         "normalization": mode,
         "rows": len(data),
@@ -485,6 +570,11 @@ def run_analysis(
         "damage_models": len(damage_models),
         "recovery_models": len(recovery_models),
         "model_comparisons": len(gains),
+        "scene_macro_loso_rows": len(scene_results),
+        "inference_warning": (
+            "only_three_independent_scenes"
+            if data["sequence_id"].nunique() == 3 else None
+        ),
     }
 
 

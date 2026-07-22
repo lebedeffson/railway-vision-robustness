@@ -63,10 +63,11 @@ def hypothesis_results(root: Path, protocol: dict) -> dict[str, dict[str, object
             & (gains["algorithm"] == "ridge")
             & (gains["endpoint"] == ENDPOINTS_FOR_HYPOTHESIS[hypothesis])
         ]
-        significant = scope[
-            (scope["holm_corrected_p"] < .05)
-            & (scope["ci_low"] > 0)
-        ]
+        improvement_direction = (
+            ((scope["metric"] == "delta_mae") & (scope["ci_high"] < 0))
+            | ((scope["metric"] != "delta_mae") & (scope["ci_low"] > 0))
+        )
+        significant = scope[(scope["holm_corrected_p"] < .05) & improvement_direction]
         relative_mae = float(scope["relative_mae_reduction"].dropna().max())
         delta_r2 = float(scope.loc[scope["metric"] == "delta_r2", "estimate"].iloc[0])
         delta_spearman = float(
@@ -77,14 +78,21 @@ def hypothesis_results(root: Path, protocol: dict) -> dict[str, dict[str, object
             or delta_r2 >= float(thresholds["delta_r2"])
             or abs(delta_spearman) >= float(thresholds["abs_delta_spearman"])
         )
+        sequence_count = int(scope["sequences"].dropna().min())
+        generalization_confirmed = not significant.empty and sequence_count >= 5
         result[hypothesis] = {
-            "confirmed": not significant.empty,
+            "confirmed": generalization_confirmed,
+            "within_observed_scenes_corrected_signal": not significant.empty,
+            "independent_scenes": sequence_count,
             "practically_noticeable": practical,
             "allowed_claim": (
+                "exploratory direction only; fewer than five independent scenes"
+                if sequence_count < 5
+                else
                 "practically noticeable incremental diagnostic value"
-                if not significant.empty and practical
+                if generalization_confirmed and practical
                 else "statistically reproducible but small incremental diagnostic signal"
-                if not significant.empty
+                if generalization_confirmed
                 else "no sequence-level confirmed advantage over standard metrics"
             ),
         }

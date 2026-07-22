@@ -35,9 +35,12 @@
   reversed val/test counts. Trust `split_manifest.csv`, not the prose count.
 - Legacy feature `product/godel/lukasiewicz` columns are compatibility scores.
   Scientific Q1 claims must use the formal pointwise T-norm implementation.
-- Deadline mode keeps full Q1 masked/deferred; after the validation pilot passes,
-  canonical test inference uses the frozen 114-row minimal grid and is finalized
-  only through `deadline_finalize.py` after the standard delivery bundle.
+- Deadline mode keeps full Q1 masked/deferred. Canonical test budgets must be
+  frozen from the validation pilot's floor-effect audit; test cannot select them.
+- Report `delta_mae = MAE_new - MAE_baseline` and relative MAE reduction in
+  percent, so an improvement has negative delta and positive reduction.
+- With three independent scenes, always report per-scene, equal-weight macro and
+  leave-one-scene-out results; do not turn bootstrap repeats into generality claims.
 
 ## Notes
 

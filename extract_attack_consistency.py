@@ -39,6 +39,7 @@ class AttackResult:
     adversarial: Tensor
     clean_gradient: Tensor
     path_gradient: Tensor
+    clean_attack_loss: float
     attack_loss: float
 
 
@@ -85,12 +86,12 @@ def fgsm(
     adaptive: bool,
 ) -> AttackResult:
     clean = batch["img"].detach()
-    gradient, _ = loss_gradient(model, batch, clean, adaptive)
+    gradient, clean_loss = loss_gradient(model, batch, clean, adaptive)
     adversarial = (
         clean + (epsilon_px / 255.0) * gradient.sign()
     ).clamp(0.0, 1.0).detach()
     final_loss = float(defended_loss(model, batch, adversarial, adaptive).detach())
-    return AttackResult(adversarial, gradient, gradient, final_loss)
+    return AttackResult(adversarial, gradient, gradient, clean_loss, final_loss)
 
 
 def pgd(
@@ -111,7 +112,7 @@ def pgd(
         -epsilon, epsilon, generator=generator
     )
     adversarial = (clean + random_delta).clamp(0.0, 1.0).detach()
-    clean_gradient, _ = loss_gradient(model, batch, clean, adaptive)
+    clean_gradient, clean_loss = loss_gradient(model, batch, clean, adaptive)
     path_gradient_sum = torch.zeros_like(clean)
     best_adversarial = adversarial.clone()
     best_loss = float(defended_loss(model, batch, adversarial, adaptive).detach())
@@ -128,7 +129,9 @@ def pgd(
             best_adversarial = adversarial.clone()
 
     path_gradient = path_gradient_sum / steps
-    return AttackResult(best_adversarial, clean_gradient, path_gradient, best_loss)
+    return AttackResult(
+        best_adversarial, clean_gradient, path_gradient, clean_loss, best_loss
+    )
 
 
 def object_masks(batch: dict[str, Any], height: int, width: int) -> Tensor:
@@ -350,11 +353,19 @@ def main() -> None:
                     "seed": seed,
                     "selected_best": restart == best,
                     "attack_loss": result.attack_loss,
+                    "attack_loss_clean": result.clean_attack_loss,
+                    "attack_loss_final": result.attack_loss,
                     "attack_objective": "ultralytics_box_cls_dfl",
                     "lambda_box": weights["box"],
                     "lambda_cls": weights["cls"],
                     "lambda_dfl": weights["dfl"],
                 }
+                perturbation = result.adversarial - clean
+                base.update({
+                    "actual_l1": float(perturbation.abs().sum()),
+                    "actual_l2": float(perturbation.norm()),
+                    "actual_linf": float(perturbation.abs().max()),
+                })
                 base.update(consistency_row(
                     clean[0], result, mask, epsilon_px, result.clean_gradient[0], "clean_gradient_"
                 ))

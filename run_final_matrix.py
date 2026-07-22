@@ -243,8 +243,9 @@ def revision_feature_values_from_metrics(
         result[f"{mode}_a_{operator}"] = before
         result[f"{mode}_r_{operator}"] = after
         result[f"{mode}_g_{operator}"] = gain
+        result[f"{mode}_g_{operator}_clipped"] = min(1.0, max(0.0, gain))
         result[f"{mode}_c_def_{operator}"] = defense_consistency(
-            operator_name, preservation, gain
+            operator_name, preservation, min(1.0, max(0.0, gain))
         )
     return result
 
@@ -352,10 +353,20 @@ def apply_deadline_defaults(args: argparse.Namespace) -> None:
         raise RuntimeError("Canonical test matrix is blocked by the deadline pilot gate")
     args.revision_stats = statistics_path
     args.normalizations = ["N1_quantile"]
-    args.fgsm_eps = [1.0, 4.0]
-    args.pgd_eps = [0.25, 1.0]
+    budget_path = DEADLINE_ROOT / "config/canonical_budget_selection.json"
+    if not budget_path.is_file():
+        raise RuntimeError(
+            "Canonical test matrix is blocked until validation budgets are frozen"
+        )
+    budget = json.loads(budget_path.read_text(encoding="utf-8"))
+    if budget.get("status") != "PASS":
+        raise RuntimeError("Canonical test matrix is blocked by floor-effect budget gate")
+    args.fgsm_eps = [float(value) for value in budget["selected"]["fgsm_epsilon_px"]]
+    args.pgd_eps = [float(value) for value in budget["selected"]["pgd_epsilon_px"]]
     args.pgd_steps = [20]
-    args.adaptive_pgd_eps = [1.0]
+    args.adaptive_pgd_eps = [
+        float(value) for value in budget["selected"]["adaptive_pgd_epsilon_px"]
+    ]
     args.adaptive_pgd_steps = [20]
     args.seeds = [42, 123, 999]
     args.defenses = ["none", "tnorm", "bilateral", "median"]
@@ -596,6 +607,8 @@ def main() -> None:
                                         - attacked_detection["mean_matched_iou"]
                                     ),
                                     "attack_loss": result.attack_loss,
+                                    "attack_loss_clean": result.clean_attack_loss,
+                                    "attack_loss_final": result.attack_loss,
                                     "lambda_box": loss_weights["box"],
                                     "lambda_cls": loss_weights["cls"],
                                     "lambda_dfl": loss_weights["dfl"],
@@ -650,6 +663,14 @@ def main() -> None:
                                     "perturbation_l1": float(perturbation.abs().sum()),
                                     "perturbation_l2": float(perturbation.norm()),
                                     "perturbation_linf": float(perturbation.abs().max()),
+                                    "actual_l1": float(perturbation.abs().sum()),
+                                    "actual_l2": float(perturbation.norm()),
+                                    "actual_linf": float(perturbation.abs().max()),
+                                    "legacy_metric_family": "legacy_compatibility",
+                                    "canonical_metric_family": (
+                                        "canonical_tnorm"
+                                        if revision_statistics is not None else "not_computed"
+                                    ),
                                     "gradient_l1": float(result.path_gradient.abs().sum()),
                                     "gradient_l2": float(result.path_gradient.norm()),
                                     "gradient_linf": float(result.path_gradient.abs().max()),

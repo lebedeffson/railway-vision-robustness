@@ -15,7 +15,7 @@ class AttackConsistencyTest(unittest.TestCase):
         clean = torch.zeros(3, 8, 8)
         adversarial = torch.full((1, 3, 8, 8), 0.1 / 255.0)
         gradient = torch.ones(1, 3, 8, 8)
-        result = AttackResult(adversarial, gradient, gradient, 1.0)
+        result = AttackResult(adversarial, gradient, gradient, 0.5, 1.0)
         mask = torch.zeros(8, 8, dtype=torch.bool)
         mask[2:6, 2:6] = True
         row = consistency_row(

@@ -121,19 +121,38 @@ def validate_main_matrix() -> None:
         if not path.is_file():
             raise FileNotFoundError(path)
     config = json.loads(MAIN_CONFIG.read_text(encoding="utf-8"))
+    budget_path = ROOT / "config/canonical_budget_selection.json"
+    if not budget_path.is_file():
+        raise FileNotFoundError(budget_path)
+    budget = json.loads(budget_path.read_text(encoding="utf-8"))
+    if budget.get("status") != "PASS":
+        raise RuntimeError("Canonical budget selection did not pass")
     expected = {
         "split": "test",
         "checkpoint_name": "stage2_best",
         "normalizations": ["N1_quantile"],
         "defenses": ["none", "tnorm", "bilateral", "median"],
         "seeds": [42, 123, 999],
-        "adaptive_pgd_eps": [1.0],
+        "adaptive_pgd_eps": budget["selected"]["adaptive_pgd_epsilon_px"],
         "adaptive_pgd_steps": [20],
     }
-    mismatches = {
+    conditions = config.get("conditions", [])
+    actual_fgsm = sorted({float(row[1]) for row in conditions if row[0] == "fgsm"})
+    actual_pgd = sorted({
+        float(row[1]) for row in conditions if row[0] == "pgd" and not row[3]
+    })
+    expected_fgsm = sorted(map(float, budget["selected"]["fgsm_epsilon_px"]))
+    expected_pgd = sorted(map(float, budget["selected"]["pgd_epsilon_px"]))
+    if actual_fgsm != expected_fgsm:
+        mismatches = {"fgsm_eps": {"expected": expected_fgsm, "actual": actual_fgsm}}
+    else:
+        mismatches = {}
+    if actual_pgd != expected_pgd:
+        mismatches["pgd_eps"] = {"expected": expected_pgd, "actual": actual_pgd}
+    mismatches.update({
         key: {"expected": value, "actual": config.get(key)}
         for key, value in expected.items() if config.get(key) != value
-    }
+    })
     if Path(config["model"]).resolve() != STAGE2.resolve():
         mismatches["model"] = {
             "expected": str(STAGE2.resolve()), "actual": config.get("model")
@@ -155,15 +174,39 @@ def select_sensitivity_frames() -> None:
     destination = ROOT / "config"
     destination.mkdir(parents=True, exist_ok=True)
     selected: list[dict[str, Any]] = []
-    for row in load_manifest(MANIFEST):
-        if row["split"] != "test":
-            continue
-        selected.append({
-            "sequence_id": row["sequence_id"],
-            "image_path": row["image_path"],
-            "selection_source": "all_frozen_test_frames",
-        })
+    test_rows = pd.DataFrame([
+        row for row in load_manifest(MANIFEST) if row["split"] == "test"
+    ])
+    grouped = {
+        sequence_id: scope.sort_values("image_path").reset_index(drop=True)
+        for sequence_id, scope in test_rows.groupby("sequence_id", sort=True)
+    }
+    allocations = {name: min(15, len(scope)) for name, scope in grouped.items()}
+    while sum(allocations.values()) < 45:
+        progressed = False
+        for name, scope in grouped.items():
+            if allocations[name] < len(scope):
+                allocations[name] += 1
+                progressed = True
+                if sum(allocations.values()) == 45:
+                    break
+        if not progressed:
+            raise RuntimeError("Test manifest has fewer than 45 unique frames")
+    for sequence_id, scope in grouped.items():
+        count = allocations[sequence_id]
+        indices = np.linspace(0, len(scope) - 1, count).round().astype(int)
+        if len(np.unique(indices)) != count:
+            raise RuntimeError(f"Could not freeze {count} distinct frames for {sequence_id}")
+        for index in indices:
+            row = scope.iloc[int(index)]
+            selected.append({
+                "sequence_id": sequence_id,
+                "image_path": row["image_path"],
+                "selection_source": "deterministic_even_spacing_before_results",
+            })
     frame = pd.DataFrame(selected)
+    if len(frame) != 45 or frame["sequence_id"].nunique() != 3:
+        raise RuntimeError("Stage 1 sensitivity must freeze 45 frames across 3 scenes")
     frame.to_csv(destination / "stage1_sensitivity_manifest.csv", index=False)
     image_list = destination / "stage1_sensitivity_images.txt"
     image_list.write_text("\n".join(frame["image_path"]) + "\n", encoding="utf-8")
@@ -176,10 +219,10 @@ def select_sensitivity_frames() -> None:
     payload = {
         "status": "FROZEN_BEFORE_STAGE1_RESULTS",
         "selection_uses_model_results": False,
-        "selection_source": "all frozen test frames; no result-based subsampling",
+        "selection_source": "45 unique evenly spaced paths, balanced as scene sizes permit",
         "frames": len(frame), "sequences": frame["sequence_id"].nunique(),
         "frames_per_sequence": frame.groupby("sequence_id").size().to_dict(),
-        "interpretation": "full-test exploratory checkpoint sensitivity",
+        "interpretation": "45-frame exploratory checkpoint sensitivity; unequal 10/18/17 scene allocation",
         "manifest_sha256": sha256(destination / "stage1_sensitivity_manifest.csv"),
     }
     (destination / "stage1_sensitivity_selection.json").write_text(
@@ -190,14 +233,23 @@ def select_sensitivity_frames() -> None:
 def make_stage2_sensitivity_subset() -> None:
     selected = pd.read_csv(ROOT / "config/stage1_sensitivity_manifest.csv")
     images = set(selected["image_path"].astype(str))
+    budget = json.loads(
+        (ROOT / "config/canonical_budget_selection.json").read_text(encoding="utf-8")
+    )["selected"]
+    fgsm_epsilon = max(map(float, budget["fgsm_epsilon_px"]))
+    pgd_epsilon = max(map(float, budget["pgd_epsilon_px"]))
+    adaptive_epsilon = max(map(float, budget["adaptive_pgd_epsilon_px"]))
     chunks: list[pd.DataFrame] = []
     for chunk in pd.read_csv(MAIN_MATRIX, chunksize=50_000, low_memory=False):
         scope = chunk[chunk["image_path"].astype(str).isin(images)].copy()
         adaptive = boolean_series(scope["adaptive"])
+        adaptive = boolean_series(scope["adaptive"])
         conditions = (
-            ((scope["attack"] == "fgsm") & np.isclose(scope["epsilon_px"], 1.0))
-            | ((scope["attack"] == "pgd") & np.isclose(scope["epsilon_px"], 1.0)
-               & (scope["steps"] == 20))
+            ((scope["attack"] == "fgsm") & np.isclose(scope["epsilon_px"], fgsm_epsilon))
+            | ((scope["attack"] == "pgd") & (~adaptive)
+               & np.isclose(scope["epsilon_px"], pgd_epsilon) & (scope["steps"] == 20))
+            | ((scope["attack"] == "pgd") & adaptive
+               & np.isclose(scope["epsilon_px"], adaptive_epsilon) & (scope["steps"] == 20))
         )
         scope = scope[
             conditions & scope["defense"].isin(["none", "tnorm"])
@@ -392,6 +444,7 @@ def build_tables() -> None:
     recovery[recovery["model"].isin(["R0", "R1", "R2", "R3"])].to_csv(
         tables / "08_recovery_R0_R3.csv", index=False
     )
+    copy_csv(analysis / "tables/13_scene_macro_loso.csv", tables / "11_scene_macro_loso.csv")
     build_sensitivity_table().to_csv(tables / "09_stage1_sensitivity.csv", index=False)
     nms = json.loads((FINAL_ROOT / "audit/nms_timeout_audit.json").read_text(encoding="utf-8"))
     cases_path = FINAL_ROOT / "audit/nms_timeout_cases.csv"
@@ -508,20 +561,31 @@ def gain_summary(task: str) -> dict[str, Any]:
         }
         for row in scope.itertuples(index=False)
     }
-    significant = any(
-        item["corrected_p"] < .05 and item["ci_low"] > 0 for item in values.values()
+    within_observed_scenes_significant = any(
+        item["corrected_p"] < .05
+        and (
+            item["ci_high"] < 0 if metric == "delta_mae"
+            else item["ci_low"] > 0
+        )
+        for metric, item in values.items()
     )
+    sequence_count = int(scope["sequences"].dropna().min())
+    significant = within_observed_scenes_significant and sequence_count >= 5
     relative = float(scope["relative_mae_reduction"].dropna().iloc[0])
     practical = (
-        relative >= .05 or values.get("delta_r2", {}).get("estimate", -math.inf) >= .05
+        relative >= 5.0 or values.get("delta_r2", {}).get("estimate", -math.inf) >= .05
         or abs(values.get("delta_spearman", {}).get("estimate", 0.0)) >= .05
     )
     return {
         "comparison": "D3_vs_D2" if task == "damage" else "R3_vs_R2",
         "statistically_confirmed": significant,
+        "within_observed_scenes_corrected_signal": within_observed_scenes_significant,
+        "independent_scenes": sequence_count,
         "practically_meaningful": practical,
         "relative_mae_reduction": relative, "metrics": values,
         "allowed_claim": (
+            "exploratory direction within three observed scenes; no strong generalization claim"
+            if sequence_count < 5 else
             "statistically confirmed and practically noticeable incremental signal"
             if significant and practical else
             "statistically reproducible but small incremental diagnostic signal"
@@ -551,6 +615,12 @@ def build_summary() -> None:
             "selected": "N1_quantile", "selection_split": "validation",
             "test_used_for_selection": False,
         },
+        "metric_families": {
+            "legacy": "legacy_compatibility_baseline_not_formal_tnorm_evidence",
+            "canonical": "normalized_pointwise_tnorm_primary_analysis",
+            "primary_tnorms": ["product", "lukasiewicz"],
+            "supplementary_redundant_tnorm": "godel",
+        },
         "H1_damage": gain_summary("damage"),
         "H2_recovery": gain_summary("recovery"),
         "H3_checkpoint_sensitivity": {
@@ -571,6 +641,7 @@ def build_summary() -> None:
         "known_limitations": [
             "The clean detector has low absolute recall and false negatives remain high.",
             "Validation and test each contain only three independent sequences; confidence intervals are correspondingly weak or wide.",
+            "Bootstrap repetitions do not increase the number of independent scenes; p-values are descriptive for the observed scenes.",
             "Stage 1 sensitivity uses two checkpoints of one YOLO11m architecture and is not cross-architecture robustness evidence.",
             "Median is not included in adaptive robustness ranking because BPDA is not implemented.",
             "The failed simple threshold policy is retained as a negative result.",
@@ -581,6 +652,9 @@ def build_summary() -> None:
     )
     report = ROOT / "report"
     report.mkdir(parents=True, exist_ok=True)
+    frozen_budgets = json.loads(
+        (ROOT / "config/canonical_budget_selection.json").read_text(encoding="utf-8")
+    )["selected"]
     (report / "article_methods_draft.md").write_text(
         "# Deadline practice: frozen methods text\n\n"
         "The study uses OSDaR23 with train/validation/test separation by railway sequence. "
@@ -590,12 +664,16 @@ def build_summary() -> None:
         "q01/q99 quantile memberships. Damage and recovery models use GroupKFold by sequence_id. "
         "All confidence intervals and paired model comparisons use 5,000 sequence-cluster bootstrap "
         "replicates and Holm-Bonferroni correction; test data are not used for feature or threshold selection.\n\n"
-        "FGSM uses epsilon 1 and 4/255. PGD uses epsilon 0.25 and 1/255, 20 steps, random starts, "
-        "three restarts and seeds 42, 123 and 999. Adaptive PGD differentiates through Product "
-        "preprocessing at epsilon 1/255. Product is evaluated as preprocessing, not claimed as a "
+        f"FGSM budgets {frozen_budgets['fgsm_epsilon_px']}/255, PGD budgets "
+        f"{frozen_budgets['pgd_epsilon_px']}/255 and adaptive PGD budgets "
+        f"{frozen_budgets['adaptive_pgd_epsilon_px']}/255 were frozen using validation floor checks. "
+        "PGD uses 20 steps, random starts, three restarts and seeds 42, 123 and 999. "
+        "Adaptive PGD differentiates through Product preprocessing. Product is evaluated as "
+        "preprocessing, not claimed as a "
         "universal defense.\n\n"
-        "The primary claim is limited to incremental diagnostic value of Product, Goedel and "
-        "Lukasiewicz features beyond attack parameters, cosine and standard distances. Negative "
+        "The primary claim is limited to incremental diagnostic value of Product and "
+        "Lukasiewicz features beyond attack parameters, cosine and standard distances; Goedel is "
+        "reported only as a supplementary redundancy ablation. Negative "
         "results and the low clean-detector recall are retained explicitly.\n",
         encoding="utf-8",
     )
@@ -628,6 +706,8 @@ def build_bundle() -> None:
             (ROOT / "config/pilot_manifest.csv", "configs/pilot_manifest.csv"),
             (ROOT / "config/stage1_sensitivity_manifest.csv", "configs/stage1_sensitivity_manifest.csv"),
             (ROOT / "pilot/pilot_gate.json", "audit/pilot_gate.json"),
+            (ROOT / "config/canonical_budget_selection.json", "configs/canonical_budget_selection.json"),
+            (FINAL_ROOT / "audit/legacy_recovery_recalculation.json", "audit/legacy_recovery_recalculation.json"),
             (FINAL_ROOT / "audit/matrix_integrity.json", "audit/matrix_integrity.json"),
             (FINAL_ROOT / "audit/nms_timeout_audit.json", "audit/nms_timeout_audit.json"),
             (FINAL_ROOT / "audit/nms_timeout_cases.csv", "audit/nms_timeout_cases.csv"),
@@ -709,6 +789,7 @@ def build_bundle() -> None:
             "TNormFilter_deadline_final/manifest.json",
             "TNormFilter_deadline_final/checksums.sha256",
             "TNormFilter_deadline_final/tables/10_nms_timeout_audit.csv",
+            "TNormFilter_deadline_final/tables/11_scene_macro_loso.csv",
         }
         if required - names:
             raise RuntimeError(f"Deadline ZIP missing {sorted(required - names)}")
@@ -735,14 +816,23 @@ def main() -> None:
         ], [stage1_normalization / "normalization/layer_channel_statistics.pt"],
     )
     stage1_matrix = ROOT / "raw/stage1_sensitivity.csv"
+    selected_budgets = json.loads(
+        (ROOT / "config/canonical_budget_selection.json").read_text(encoding="utf-8")
+    )["selected"]
+    sensitivity_fgsm = str(max(map(float, selected_budgets["fgsm_epsilon_px"])))
+    sensitivity_pgd = str(max(map(float, selected_budgets["pgd_epsilon_px"])))
+    sensitivity_adaptive = str(
+        max(map(float, selected_budgets["adaptive_pgd_epsilon_px"]))
+    )
     run_stage(
         "stage1_sensitivity_matrix", [
             str(PYTHON), "run_final_matrix.py", "--model", str(STAGE1),
             "--data", str(ROOT / "config/stage1_sensitivity_data.yaml"),
             "--split", "test", "--workers", "0", "--checkpoint-name", "stage1_best",
             "--revision-stats", str(stage1_normalization / "normalization/layer_channel_statistics.pt"),
-            "--normalizations", "N1_quantile", "--fgsm-eps", "1", "--pgd-eps", "1",
-            "--pgd-steps", "20", "--adaptive-pgd-eps", "1", "--adaptive-pgd-steps", "20",
+            "--normalizations", "N1_quantile", "--fgsm-eps", sensitivity_fgsm,
+            "--pgd-eps", sensitivity_pgd, "--pgd-steps", "20",
+            "--adaptive-pgd-eps", sensitivity_adaptive, "--adaptive-pgd-steps", "20",
             "--seeds", "42,123,999", "--defenses", "none,tnorm",
             "--nms-max-time-img", "10", "--output", str(stage1_matrix),
         ], [stage1_matrix, stage1_matrix.with_suffix(".json")],
@@ -766,7 +856,7 @@ def main() -> None:
         )
     run_stage(
         "deadline_tables", [str(PYTHON), __file__, "--internal-tables"],
-        [ROOT / "tables/10_nms_timeout_audit.csv"],
+        [ROOT / "tables/10_nms_timeout_audit.csv", ROOT / "tables/11_scene_macro_loso.csv"],
     )
     run_stage(
         "deadline_figures", [str(PYTHON), __file__, "--internal-figures"],

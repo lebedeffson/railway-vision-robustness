@@ -21,29 +21,33 @@ pilot:
   total_frames: 12
   interpretation: smoke_test_only
   attacks:
-    fgsm_epsilon_px: [1]
-    pgd_epsilon_px: [0.5]
+    fgsm_epsilon_px: [0.05, 0.1, 0.25, 0.5]
+    pgd_epsilon_px: [0.025, 0.05, 0.1]
     pgd_steps: [20]
-    adaptive_pgd_epsilon_px: [0.5]
+    adaptive_pgd_epsilon_px: [0.025, 0.05, 0.1]
     adaptive_pgd_steps: [20]
   defenses: [none, tnorm, bilateral]
   normalizations: [N1_quantile, N2_robust_sigmoid, N3_zscore_sigmoid]
 final_matrix:
-  fgsm_epsilon_px: [1, 4]
-  pgd_epsilon_px: [0.25, 1]
+  budget_source: validation_pilot_floor_gate
+  fgsm_epsilon_px: frozen_at_runtime_from_validation
+  pgd_epsilon_px: frozen_at_runtime_from_validation
   pgd_steps: [20]
-  adaptive_pgd_epsilon_px: [1]
+  adaptive_pgd_epsilon_px: frozen_at_runtime_from_validation
   adaptive_pgd_steps: [20]
   seeds: [42, 123, 999]
   defenses: [none, tnorm, bilateral, median]
   normalization: N1_quantile
 stage1_sensitivity:
   split: test
-  frame_scope: all_frozen_test_frames
-  fgsm_epsilon_px: [1]
-  pgd_epsilon_px: [1]
+  frame_scope: deterministic_45_unique_frames_balanced_by_available_scene_size
+  allocation_rule: start_with_up_to_15_per_scene_then_round_robin_remaining
+  total_frames: 45
+  budget_source: maximum_frozen_nonfloor_validation_budget_per_attack
+  fgsm_epsilon_px: frozen_at_runtime_from_validation
+  pgd_epsilon_px: frozen_at_runtime_from_validation
   pgd_steps: [20]
-  adaptive_pgd_epsilon_px: [1]
+  adaptive_pgd_epsilon_px: frozen_at_runtime_from_validation
   adaptive_pgd_steps: [20]
   defenses: [none, tnorm]
   metrics: [cosine, normalized_l2, product, lukasiewicz]
@@ -53,7 +57,8 @@ statistics:
   corrections: [holm_bonferroni, benjamini_hochberg]
   practical_thresholds:
     delta_r2: 0.05
-    relative_mae_reduction: 0.05
+    relative_mae_reduction: 5.0
+    abs_delta_spearman: 0.05
 deferred_extended_analysis:
   - full_spatial_stress
   - full_cross_checkpoint_transfer

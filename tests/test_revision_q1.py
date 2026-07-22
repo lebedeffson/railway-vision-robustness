@@ -14,6 +14,7 @@ from revision_q1.normalization import (
     normalized_quality_recovery,
 )
 from revision_q1.protocol import assert_split_action, load_protocol
+from revision_q1.analyze import paired_model_bootstrap, scene_macro_loso_table
 from revision_q1.spatial import spatial_transform, transform_xywh_boxes
 from revision_q1.statistics import (
     benjamini_hochberg,
@@ -108,6 +109,33 @@ class RevisionQ1Test(unittest.TestCase):
         self.assertTrue(np.all(fdr >= p))
         self.assertTrue(np.all(holm <= 1))
         self.assertTrue(np.all(fdr <= 1))
+
+    def test_delta_mae_and_reduction_have_opposite_improvement_signs(self) -> None:
+        frame = pd.DataFrame({
+            "sequence_id": np.repeat(["a", "b", "c"], 3),
+            "target": np.tile([0.0, 1.0, 2.0], 3),
+            "prediction_D2": np.tile([0.4, 1.4, 2.4], 3),
+            "prediction_D3": np.tile([0.1, 1.1, 2.1], 3),
+        })
+        result = paired_model_bootstrap(
+            frame, "target", (("D2", "D3"),), iterations=50, seed=7
+        )
+        delta = result[result["metric"] == "delta_mae"].iloc[0]
+        self.assertLess(delta["estimate"], 0)
+        self.assertGreater(delta["relative_mae_reduction"], 0)
+        self.assertEqual(delta["relative_mae_reduction_unit"], "percent")
+
+    def test_scene_macro_table_reports_three_loso_scenes(self) -> None:
+        frame = pd.DataFrame({
+            "sequence_id": np.repeat(["a", "b", "c"], 3),
+            "target": np.tile([0.0, 1.0, 2.0], 3),
+            "prediction_D2": np.tile([0.4, 1.4, 2.4], 3),
+            "prediction_D3": np.tile([0.1, 1.1, 2.1], 3),
+        })
+        result = scene_macro_loso_table(frame, "target", (("D2", "D3"),))
+        self.assertEqual((result["scope"] == "scene").sum(), 3)
+        self.assertEqual((result["scope"] == "macro_average").sum(), 1)
+        self.assertTrue(result["inference_warning"].str.contains("three_independent").all())
 
     def test_stage1_stage2_sensitivity_protocol(self) -> None:
         protocol = load_protocol()

@@ -93,13 +93,14 @@ all three validation sequences. Because the split contains only three validation
 sequences, those 12 frames are not independent and must not appear as article
 results.
 
-The validation-gated canonical test run is reduced to FGSM 1/4, PGD 0.25/1 at
-20 steps, and adaptive Product PGD 1 at 20 steps, with three seeds and defenses
-none/Product/bilateral/median. This is 114 layer rows per test image. The final
-deadline stage computes 5000 sequence-cluster bootstraps and a paired Stage 1
-sensitivity run on all frozen test frames using only FGSM 1, PGD 1 and adaptive
-PGD 1 with none/Product. Full spatial stress, transfer, PGD-40, the second
-architecture and the full normalization/filter sweep remain deferred.
+The validation-gated canonical test run uses only attack budgets whose validation
+pilot floor fraction is below 50%. If the clean detector itself has a floor, the
+conditional clean-detectable analysis is frozen with an explicit limitation.
+The final deadline stage computes 5000 sequence-cluster bootstraps and a paired
+Stage 1 sensitivity run on 45 deterministic unique frames, balanced as the
+three scene sizes permit (10/18/17 rather than duplicating the 10-frame scene).
+Full spatial stress, transfer, PGD-40, the second architecture and
+the full normalization/filter sweep remain deferred.
 
 The immutable 129-frame interim audit established that the live 198-frame stage
 is correctly `val`; the dataset manifest has train/val/test counts 1057/198/150,
@@ -118,17 +119,23 @@ masked, and the main service has no `OnSuccess` unit, preventing a second GPU
 pipeline. `freeze_validation_protocol.py` runs the matrix/NMS audit and the
 validation-only pilot gate before canonical test is opened.
 
-After a passing pilot, `run_final_matrix.py` applies the canonical minimal test
-grid only to `outputs/final_practice/unified_diagnostics_raw.csv`: FGSM 1/4,
-PGD 0.25/1 at 20 steps, adaptive Product-PGD 1 at 20 steps, three PGD seeds and
-none/Product/bilateral/median defenses. This is 114 rows per image instead of
-450. N1 statistics are fit on clean validation and all Q1 metrics are emitted in
-the same Stage 2 inference pass.
+After a passing pilot, `deadline_select_budgets.py` freezes the non-floor
+validation budgets and `run_final_matrix.py` applies only that grid to
+`outputs/final_practice/unified_diagnostics_raw.csv`, with three PGD seeds and
+none/Product/bilateral/median defenses. N1 statistics are fit on clean validation
+and all Q1 metrics are emitted in the same Stage 2 inference pass.
 
 `build_final_delivery.py` first preserves the standard practice bundle, then
-calls the resumable `deadline_finalize.py`. The latter runs a full-test,
+calls the resumable `deadline_finalize.py`. The latter runs a 45-frame,
 three-sequence paired Stage 1/Stage 2 sensitivity check, 5000 sequence-cluster
-bootstraps, the ten deadline tables and seven figures, and creates
+bootstraps, per-scene/macro/LOSO summaries, the deadline tables and figures, and creates
 `outputs/bundles/TNormFilter_deadline_final.zip`. Only three independent val and
 test scenes exist, so the pilot is smoke-only, Stage 1 sensitivity is
 exploratory, and confirmatory scene-difficulty strata are deferred.
+
+Model-gain signs are frozen as `delta_mae = MAE_new - MAE_baseline` and
+`relative_mae_reduction = (MAE_baseline - MAE_new) / MAE_baseline * 100`.
+Product and Lukasiewicz are primary canonical metrics; Gödel remains a
+supplementary redundancy ablation because legacy Product/Gödel rho was 0.99199.
+Legacy G is reconstructed from stored A/R without inference, preserved as raw
+and clipped variants, and clipped only inside C_def and visualizations.

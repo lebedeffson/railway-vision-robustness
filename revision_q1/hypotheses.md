@@ -6,9 +6,10 @@ checkpoints, normalization, features, thresholds, folds, or model families.
 ## H1 — feature damage
 
 After accounting for attack type, epsilon, perturbation L1/L2/Linf and standard
-feature distances, Product, Goedel and Lukasiewicz metrics improve prediction of
+feature distances, canonical Product and Lukasiewicz metrics improve prediction of
 `f1_clean - f1_attacked`. Recall damage, confidence drop and false-negative
-increase are secondary endpoints.
+increase are secondary endpoints. Goedel is retained only as a supplementary
+redundancy ablation because the legacy Product/Goedel rank correlation is 0.99199.
 
 ## H2 — feature recovery
 
@@ -33,4 +34,7 @@ fewer than five independent sequences are explicitly exploratory.
 Scientific advantage requires a Holm-corrected p-value below 0.05 and a paired
 sequence-bootstrap 95% interval excluding zero. Practical importance is reported
 separately using the frozen MAE, R2, and Spearman thresholds. Negative outcomes
-are retained.
+are retained. With only three independent validation/test scenes, corrected
+p-values remain descriptive for the observed scenes and cannot support a strong
+generalization claim; scene-wise, macro-average and leave-one-scene-out results
+are mandatory.

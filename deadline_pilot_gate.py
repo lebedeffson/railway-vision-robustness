@@ -38,8 +38,10 @@ def main() -> None:
         f"{prefix}a_product",
         f"{prefix}r_product",
         f"{prefix}g_product",
+        f"{prefix}g_product_clipped",
         f"{prefix}c_def_product",
-        "c_sp_object", "c_dir", "c_atk_object",
+        "c_sp_object", "c_dir", "c_atk_object", "actual_l1", "actual_l2",
+        "actual_linf", "attack_loss_clean", "attack_loss_final", "gradient_l2",
     ]
     missing = sorted(set(required) - set(data))
     numeric = data[[name for name in required if name in data]].replace(
@@ -81,6 +83,28 @@ def main() -> None:
         load_manifest(PROJECT_DIR / "data/yolo_osdar23/manifest.csv")
     )
     protocol = load_protocol()
+    epsilon_respected = False
+    losses_finite = False
+    adaptive_gradient_valid = False
+    raw_g_preserved = False
+    if not missing:
+        epsilon_respected = bool(
+            (data["actual_linf"] <= data["epsilon"] + 1e-6).all()
+            and (data["actual_linf"] >= 0).all()
+        )
+        losses_finite = bool(np.isfinite(data[[
+            "attack_loss_clean", "attack_loss_final"
+        ]].to_numpy(float)).all())
+        adaptive = data["adaptive"].astype(str).str.lower().isin({"true", "1"})
+        adaptive_gradient_valid = bool(
+            adaptive.any() and (data.loc[adaptive, "gradient_l2"] > 0).all()
+        )
+        raw_g = data[f"{prefix}g_product"]
+        clipped_g = data[f"{prefix}g_product_clipped"]
+        raw_g_preserved = bool(
+            ((clipped_g >= 0) & (clipped_g <= 1)).all()
+            and np.allclose(clipped_g, raw_g.clip(0, 1))
+        )
     statistics_output = args.output / "statistics"
     model_error = None
     try:
@@ -113,6 +137,10 @@ def main() -> None:
         "membership_saturation_below_20_percent": not saturation,
         "similarities_in_physical_range": not out_of_range,
         "at_least_one_tnorm_nonconstant": nonconstant_tnorm,
+        "actual_linf_respects_epsilon": epsilon_respected,
+        "attack_losses_are_finite": losses_finite,
+        "adaptive_gradient_is_nonzero": adaptive_gradient_valid,
+        "g_raw_and_g_clipped_are_separate": raw_g_preserved,
         "D0_D3_and_R0_R3_train": models_complete,
         "bootstrap_group_is_sequence_id": protocol["statistical_unit"] == "sequence_id",
     }

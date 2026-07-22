@@ -148,11 +148,13 @@ def main() -> None:
         ])
         paragraph_page(pdf, "5. Defense-side diagnostics", [
             "For P3/P4/P5, P=sim(clean, filtered-clean), A=sim(clean, attacked), R=sim(clean, filtered-attacked), G=(R-A)/(1-A+tau), and C_def=T(P,clip(G,0,1)).",
-            "Product, Goedel, Lukasiewicz, cosine, MSE, MAE, relative L2, mean activation shift and feature entropy are compared for none, Product, bilateral, Gaussian, median and JPEG preprocessing.",
+            "Legacy Product/Goedel/Lukasiewicz columns are compatibility similarities and remain a historical baseline. The canonical analysis uses normalized pointwise Product and Lukasiewicz; Goedel is supplementary because it is rank-redundant with Product.",
+            "G_raw is used in statistical models; G_clipped is used only inside C_def and for visualization. Cosine, MSE, MAE, relative L2, mean activation shift and feature entropy remain baselines.",
         ])
         paragraph_page(pdf, "6. Sequence-level statistics", [
             *model_lines,
             f"The model table has {len(models)} M0-M4 rows. Paired gains use {int(bootstrap['iterations'].max())} sequence bootstrap repetitions with 95% intervals; GroupKFold groups are sequence_id. FDR-adjusted layer/class correlations are stored with the statistics.",
+            "Validation and test each contain only three independent scenes. Bootstrap repetitions do not create additional independent evidence; per-scene, equal-weight macro and leave-one-scene-out results are required and generalization claims remain exploratory.",
         ])
         paragraph_page(pdf, "7. Adaptive PGD", [
             "Adaptive PGD differentiates through image -> Product T-norm preprocessing -> YOLO11m -> detection loss. PGD-20 and PGD-40 are evaluated with random starts, three restarts and three fixed seeds.",
