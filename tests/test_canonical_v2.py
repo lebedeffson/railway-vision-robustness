@@ -46,8 +46,9 @@ class CanonicalV2Test(unittest.TestCase):
         self.assertFalse(protocol["legacy_thresholds_reused_by_canonical_v2"])
         order = protocol["canonical_stage_order"]
         self.assertLess(order.index("train_canonical_v2"), order.index("threshold_sweep_validation_v2"))
-        self.assertLess(order.index("baseline_quality_gate"), order.index("clean_test_v2_once"))
-        self.assertLess(order.index("clean_test_v2_once"), order.index("canonical_validation_attacks"))
+        self.assertLess(order.index("baseline_quality_gate"), order.index("canonical_v2_pilot_gate"))
+        self.assertLess(order.index("canonical_v2_pilot_gate"), order.index("canonical_validation_attacks"))
+        self.assertLess(order.index("freeze_non_floor_budgets"), order.index("clean_test_v2_once"))
 
     def test_canonical_analysis_uses_required_D2_D3_and_R2_R3_contract(self) -> None:
         protocol = yaml.safe_load(
@@ -73,10 +74,18 @@ class CanonicalV2Test(unittest.TestCase):
         mapping = yaml.safe_load(
             (ROOT / "article/result_mapping.yaml").read_text(encoding="utf-8")
         )
-        self.assertEqual(mapping["template"], "article/internal_review_template.md")
+        self.assertEqual(
+            mapping["source_docx"],
+            "/home/lebedeffson/Downloads/TNorm_RZD_article_expanded_internal_review.docx",
+        )
         fill = (ROOT / "article/fill_article_results.py").read_text(encoding="utf-8")
-        self.assertIn("template_sha256_before", fill)
-        self.assertIn("template_sha256_after", fill)
+        self.assertIn("source_docx_sha256_before", fill)
+        self.assertIn("source_docx_sha256_after", fill)
+        self.assertEqual(
+            mapping["output_supplementary_pdf"],
+            "outputs/article/TNorm_RZD_supplementary.pdf",
+        )
+        self.assertIn("supplementary_pdf_sha256", fill)
         validation = (ROOT / "article/validate_final_article.py").read_text(encoding="utf-8")
         self.assertIn("delta_mae_signs_valid", validation)
 
@@ -101,11 +110,13 @@ class CanonicalV2Test(unittest.TestCase):
         source = (ROOT / "run_canonical_v2_pipeline.py").read_text(encoding="utf-8")
         calibration = source.index('stage("canonical_v2_threshold_calibration"')
         gate = source.index("quality_gate(v2_audit")
-        clean_test = source.index('stage("canonical_v2_clean_test"')
         attacks = source.index('stage("canonical_validation"')
+        freeze = source.index('stage("freeze_budgets"')
+        clean_test = source.index('stage("canonical_v2_clean_test"')
         self.assertLess(calibration, gate)
-        self.assertLess(gate, clean_test)
-        self.assertLess(clean_test, attacks)
+        self.assertLess(gate, attacks)
+        self.assertLess(attacks, freeze)
+        self.assertLess(freeze, clean_test)
         calibration_command = source[calibration:gate]
         self.assertIn('"--splits", "train,val"', calibration_command)
         self.assertNotIn('"--splits", "test"', calibration_command)

@@ -54,8 +54,12 @@
 - Do not treat quantile/histogram diagnostic sampling as normalization fitting:
   fit statistics stay exact on clean validation, while diagnostics may use the
   deterministic bounded sample to avoid `torch.quantile` allocation failure.
-- Final article generation must preserve `article/internal_review_template.docx`;
+- Final article generation must preserve the read-only expanded source DOCX;
   only generated files under `outputs/article` may be filled or converted.
+- Canonical v2 clean test is opened only after validation pilot, normalization
+  selection and non-floor attack budgets are frozen; validation attacks are not test.
+- Final article content comes from the read-only expanded DOCX in `Downloads`;
+  canonical outputs are `TNorm_RZD_article_final.{docx,pdf}` plus supplementary PDF.
 
 ## Notes
 

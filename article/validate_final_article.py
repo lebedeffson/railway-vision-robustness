@@ -21,12 +21,16 @@ def sha256(path: Path) -> str:
 
 
 def main() -> None:
-    docx = ARTICLE / "TNormFilter_canonical_final.docx"
-    pdf = ARTICLE / "TNormFilter_canonical_final.pdf"
+    docx = ARTICLE / "TNorm_RZD_article_final.docx"
+    pdf = ARTICLE / "TNorm_RZD_article_final.pdf"
+    supplementary = ARTICLE / "TNorm_RZD_supplementary.pdf"
     resolved = json.loads((ARTICLE / "result_mapping_resolved.json").read_text(encoding="utf-8"))
     plain = subprocess.check_output(["pandoc", str(docx), "-t", "plain"], text=True)
     pdf_plain = subprocess.check_output(["pdftotext", str(pdf), "-"], text=True)
-    quality = json.loads((ROOT / "baseline_rescue_v2/baseline_rescue_summary.json").read_text(encoding="utf-8"))
+    supplementary_plain = subprocess.check_output(
+        ["pdftotext", str(supplementary), "-"], text=True
+    )
+    quality = json.loads((ROOT / "baseline_rescue_v2/quality_gate.json").read_text(encoding="utf-8"))
     provenance = json.loads((ROOT / "config/provenance_final.json").read_text(encoding="utf-8"))
     checkpoint_hashes = set()
     for path in [ROOT / "calibration/threshold_selection.json", ROOT / "raw/canonical_validation.json", ROOT / "raw/canonical_test.json"]:
@@ -48,8 +52,13 @@ def main() -> None:
     ]
     checks = {
         "docx_exists": docx.is_file(), "pdf_exists": pdf.is_file(),
-        "no_forbidden_status_text": not any(value.lower() in plain.lower() or value.lower() in pdf_plain.lower() for value in FORBIDDEN),
-        "quality_gate_passed": bool(quality["quality_gate"]["passed"]),
+        "supplementary_exists": supplementary.is_file(),
+        "no_forbidden_status_text": not any(
+            value.lower() in plain.lower() or value.lower() in pdf_plain.lower()
+            or value.lower() in supplementary_plain.lower()
+            for value in FORBIDDEN
+        ),
+        "quality_gate_passed": bool(quality["passed"]),
         "manifest_hash_matches": (ROOT / "split/split_v2_hash.txt").read_text().split()[0] == "bfd82413e4f92a935e8efb048a2c0edb03a97d932dd2a9303fa6220996b5e5db",
         "checkpoint_hash_consistent": len(checkpoint_hashes) == 1 and None not in checkpoint_hashes,
         "provenance_passed": provenance.get("status") == "PASS",
@@ -57,13 +66,16 @@ def main() -> None:
         "required_figures_present": required_figures,
         "delta_mae_signs_valid": bool(signs_valid),
         "abstract_and_conclusion_numbers_match": all(anchor in plain for anchor in anchors),
-        "template_unchanged": resolved["template_sha256_before"] == resolved["template_sha256_after"],
-        "reference_docx_unchanged": resolved["reference_docx_sha256_before"] == resolved["reference_docx_sha256_after"],
+        "source_docx_unchanged": (
+            resolved["source_docx_sha256_before"] == resolved["source_docx_sha256_after"]
+        ),
     }
     payload = {
         "status": "PASS" if all(checks.values()) else "FAIL", "checks": checks,
         "docx": str(docx), "docx_sha256": sha256(docx),
         "pdf": str(pdf), "pdf_sha256": sha256(pdf),
+        "supplementary": str(supplementary),
+        "supplementary_sha256": sha256(supplementary),
     }
     (ARTICLE / "article_validation.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(payload, indent=2))

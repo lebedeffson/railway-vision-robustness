@@ -5,11 +5,9 @@ import hashlib
 import json
 from pathlib import Path
 
-import numpy as np
 import yaml
 
-from audit_final_practice import label_path, load_manifest
-from revision_q1.scene_difficulty import frame_geometry
+from audit_final_practice import load_manifest
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
@@ -24,20 +22,13 @@ def main() -> None:
     for row in load_manifest(MANIFEST):
         if row["split"] != "val":
             continue
-        geometry = frame_geometry(label_path(Path(row["image_path"])), 0.001)
-        grouped.setdefault(row["sequence_id"], []).append({**row, **geometry})
+        grouped.setdefault(row["sequence_id"], []).append(row)
     if len(grouped) != 5:
         raise RuntimeError(f"Canonical v2 pilot requires five validation scenes, got {len(grouped)}")
     selected: list[dict[str, object]] = []
     for grouped_scene_id, rows in sorted(grouped.items()):
-        ordered = sorted(
-            rows,
-            key=lambda row: (
-                int(row["object_count"]), float(row["small_object_fraction"]),
-                str(row["image_path"]),
-            ),
-        )
-        positions = np.linspace(0, len(ordered) - 1, 3).round().astype(int)
+        ordered = sorted(rows, key=lambda row: str(row["image_path"]))
+        positions = (0, len(ordered) // 2, len(ordered) - 1)
         for rank, position in enumerate(positions):
             row = ordered[int(position)]
             selected.append({
@@ -45,15 +36,14 @@ def main() -> None:
                 "sequence_id": grouped_scene_id,
                 "subsequence_id": row.get("source_sequence", grouped_scene_id),
                 "image_path": row["image_path"],
-                "object_count": row["object_count"],
-                "small_object_fraction": row["small_object_fraction"],
-                "difficulty_rank_within_scene": rank,
-                "selection_source": "clean_validation_geometry_only_before_model_results",
+                "frame_order_rank": rank,
+                "selection_source": "deterministic_even_frame_order_no_model_or_difficulty",
             })
     manifest = OUTPUT / "pilot_manifest.csv"
     with manifest.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(selected[0]))
         writer.writeheader(); writer.writerows(selected)
+    (OUTPUT / "pilot_frames.csv").write_bytes(manifest.read_bytes())
     images = OUTPUT / "pilot_images.txt"
     images.write_text(
         "\n".join(str(row["image_path"]) for row in selected) + "\n",
@@ -67,12 +57,13 @@ def main() -> None:
     )
     digest = hashlib.sha256(manifest.read_bytes()).hexdigest()
     payload = {
-        "status": "FROZEN_BEFORE_CANONICAL_MODEL_RESULTS",
+        "status": "FROZEN_BEFORE_CANONICAL_ATTACK_RESULTS",
         "selection_split": "val_v2",
         "test_used": False,
         "grouped_scenes": 5,
         "frames": len(selected),
         "frames_per_scene": 3,
+        "selection_method": "deterministic_even_frame_order_no_model_or_difficulty",
         "pilot_manifest_sha256": digest,
     }
     (OUTPUT / "pilot_selection.json").write_text(

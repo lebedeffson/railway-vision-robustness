@@ -144,12 +144,17 @@ def required_artifacts() -> list[Path]:
             "per_scene_effects.png", "latency_tradeoff.png",
         ), 1)
     ] + [
-        PROJECT_DIR / "outputs/article/TNormFilter_canonical_final.docx",
-        PROJECT_DIR / "outputs/article/TNormFilter_canonical_final.pdf",
+        PROJECT_DIR / "outputs/article/TNorm_RZD_article_final.docx",
+        PROJECT_DIR / "outputs/article/TNorm_RZD_article_final.pdf",
+        PROJECT_DIR / "outputs/article/TNorm_RZD_supplementary.pdf",
         PROJECT_DIR / "outputs/article/article_validation.json",
         ROOT / "config/provenance_final.json",
         ROOT / "pilot/pilot_gate.json",
         ROOT / "baseline_rescue_v2/baseline_rescue_summary.json",
+        ROOT / "baseline_rescue_v2/quality_gate.json",
+        ROOT / "normalization/normalization_selection.json",
+        ROOT / "config/frozen_attack_budgets.yaml",
+        ROOT / "audit/canonical_matrix_audit.json",
     ]
 
 
@@ -162,8 +167,8 @@ def main() -> None:
     )
     pilot_gate = json.loads((ROOT / "pilot/pilot_gate.json").read_text(encoding="utf-8"))
     quality_gate = json.loads(
-        (ROOT / "baseline_rescue_v2/baseline_rescue_summary.json").read_text(encoding="utf-8")
-    )["quality_gate"]
+        (ROOT / "baseline_rescue_v2/quality_gate.json").read_text(encoding="utf-8")
+    )
     if article_validation.get("status") != "PASS":
         raise RuntimeError("Final article validation did not pass")
     if not pilot_gate.get("pilot_gate_passed") or not quality_gate.get("passed"):
@@ -216,7 +221,7 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="tnorm_canonical_") as directory:
         staging = Path(directory) / "TNormFilter_canonical_final"
         directories = {
-            "audit": PROJECT_DIR / "outputs/final_practice/audit",
+            "audit": ROOT / "audit",
             "calibration": ROOT / "calibration",
             "normalization": ROOT / "normalization",
             "raw": ROOT / "raw",
@@ -269,6 +274,8 @@ def main() -> None:
         (log_dir / "tnorm-canonical-v2.service.log").write_text(log.stdout, encoding="utf-8")
         git_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=PROJECT_DIR, text=True).strip()
         git_status = subprocess.check_output(["git", "status", "--short"], cwd=PROJECT_DIR, text=True)
+        if git_status.strip():
+            raise RuntimeError(f"Worktree must be clean before final bundle:\n{git_status}")
         (staging / "git_info.txt").write_text(
             f"commit={git_commit}\nworktree_status_at_bundle_build=\n{git_status}", encoding="utf-8"
         )
@@ -323,6 +330,25 @@ def main() -> None:
         with zipfile.ZipFile(temporary) as archive:
             if archive.testzip() is not None: raise RuntimeError("Canonical ZIP corrupt")
         temporary.replace(OUTPUT)
+    with tempfile.TemporaryDirectory(prefix="tnorm_canonical_verify_") as directory:
+        extraction = Path(directory)
+        with zipfile.ZipFile(OUTPUT) as archive:
+            archive.extractall(extraction)
+        roots = [path for path in extraction.iterdir() if path.is_dir()]
+        if len(roots) != 1:
+            raise RuntimeError("Canonical ZIP must contain one top-level directory")
+        unpacked = roots[0]
+        checksum_path = unpacked / "checksums.sha256"
+        if not checksum_path.is_file():
+            raise RuntimeError("Canonical ZIP lacks checksums.sha256")
+        failures = []
+        for line in checksum_path.read_text(encoding="utf-8").splitlines():
+            expected, relative = line.split("  ", 1)
+            target = unpacked / relative
+            if not target.is_file() or sha256(target) != expected:
+                failures.append(relative)
+        if failures:
+            raise RuntimeError(f"Canonical ZIP checksum failures: {failures}")
     OUTPUT.with_suffix(".zip.sha256").write_text(f"{sha256(OUTPUT)}  {OUTPUT.name}\n", encoding="utf-8")
     print(json.dumps({"zip": str(OUTPUT), "sha256": sha256(OUTPUT), **results}, indent=2))
 

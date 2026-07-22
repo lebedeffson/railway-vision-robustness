@@ -16,7 +16,6 @@ PROJECT_DIR = Path(__file__).resolve().parent
 ROOT = PROJECT_DIR / "outputs/canonical_v2"
 PILOT = ROOT / "pilot/pilot_metrics.csv"
 NORMALIZATION = ROOT / "tables/02_normalization_ablation.csv"
-MODE = "N1_quantile"
 
 
 def boolean(values: pd.Series) -> pd.Series:
@@ -25,7 +24,14 @@ def boolean(values: pd.Series) -> pd.Series:
 
 def main() -> None:
     data = pd.read_csv(PILOT, low_memory=False)
-    prefix = f"{MODE}_"
+    selection = json.loads(
+        (ROOT / "normalization/normalization_selection.json").read_text(encoding="utf-8")
+    )
+    normalization_manifest = json.loads(
+        (ROOT / "normalization/normalization_manifest.json").read_text(encoding="utf-8")
+    )
+    mode = selection["selected_normalization"]
+    prefix = f"{mode}_"
     required = [
         f"{prefix}cosine_similarity", f"{prefix}normalized_euclidean_distance",
         f"{prefix}mse", f"{prefix}mae", f"{prefix}pearson_correlation",
@@ -48,7 +54,7 @@ def main() -> None:
         column: int(count) for column, count in numeric.isna().sum().items() if count
     }
     normalization = pd.read_csv(NORMALIZATION)
-    n1 = normalization[normalization["normalization"].eq(MODE)]
+    n1 = normalization[normalization["normalization"].eq(mode)]
     saturation_max = float(
         n1[["fraction_below_0.01", "fraction_above_0.99"]].max().max()
     )
@@ -112,8 +118,15 @@ def main() -> None:
         "attack_losses_finite": losses_finite,
         "adaptive_gradient_nonzero": adaptive_gradient,
         "adaptive_full_product_graph_static_check": graph_static,
-        "normalization_fit_clean_validation_only": True,
-        "normalization_separate_P3_P4_P5": set(data["layer"]) == {"P3", "P4", "P5"},
+        "normalization_fit_clean_validation_only": (
+            normalization_manifest.get("fit_split") == "val"
+            and normalization_manifest.get("fit_inputs") == "clean_only"
+            and not normalization_manifest.get("test_used_for_selection", False)
+        ),
+        "normalization_separate_P3_P4_P5": (
+            set(data["layer"]) == {"P3", "P4", "P5"}
+            and set(normalization_manifest.get("layers", [])) == {"P3", "P4", "P5"}
+        ),
         "membership_saturation_below_20_percent": saturation_max < 0.20,
         "canonical_tnorms_nonconstant": tnorm_nonconstant,
         "g_raw_g_clipped_and_c_def_correct": recovery_formula,
@@ -122,6 +135,7 @@ def main() -> None:
     passed = all(checks.values())
     payload = {
         "status": "PASS" if passed else "FAIL",
+        "selected_normalization": mode,
         "pilot_gate_passed": passed,
         "checks": checks,
         "frames": int(data["image_path"].nunique()),
@@ -143,6 +157,17 @@ def main() -> None:
         f"Frames: {payload['frames']}; grouped scenes: {payload['grouped_scenes']}.\n\n"
         + "\n".join(f"- {name}: {value}" for name, value in checks.items()) + "\n",
         encoding="utf-8",
+    )
+    floor.to_csv(ROOT / "pilot/attack_budget_audit.csv", index=False)
+    adaptive_payload = {
+        "status": "PASS" if adaptive_gradient and graph_static else "FAIL",
+        "adaptive_gradient_nonzero": adaptive_gradient,
+        "adaptive_full_product_graph_static_check": graph_static,
+        "forbidden_detach_numpy_no_grad_absent": graph_static,
+        "test_used": False,
+    }
+    (ROOT / "pilot/adaptive_gradient_audit.json").write_text(
+        json.dumps(adaptive_payload, indent=2) + "\n", encoding="utf-8"
     )
     print(json.dumps(payload, indent=2))
     if not passed:

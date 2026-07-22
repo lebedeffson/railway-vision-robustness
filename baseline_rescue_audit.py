@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
+import yaml
 from torch import Tensor
 from PIL import Image, ImageDraw
 from ultralytics import YOLO
@@ -223,6 +224,27 @@ def per_scene_rows(
     ]
 
 
+def threshold_scene_sweep_rows(
+    samples: list[dict[str, Any]], manifest_path: Path,
+    thresholds: list[float],
+) -> list[dict[str, Any]]:
+    lookup = {
+        canonical_path(row["image_path"]): row["sequence_id"]
+        for row in load_manifest(manifest_path) if row["split"] == "val"
+    }
+    grouped: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
+    for sample in samples:
+        grouped[lookup[canonical_path(sample["image_path"])]].append(sample)
+    return [
+        {
+            "split": "val", "grouped_scene_id": scene,
+            **aggregate(values, threshold),
+        }
+        for threshold in thresholds
+        for scene, values in sorted(grouped.items())
+    ]
+
+
 def ultralytics_metrics(
     checkpoint: Path, data: Path, split: str, imgsz: int, output: Path
 ) -> tuple[dict[str, float], list[dict[str, Any]]]:
@@ -268,6 +290,19 @@ def main() -> None:
     args = parser.parse_args()
     if args.manifest is None:
         args.manifest = args.data.parent / "manifest.csv"
+    canonical_v2_test = (
+        args.splits == ("test",)
+        and args.data.resolve() == (PROJECT_DIR / "data/yolo_osdar23_v2/data.yaml").resolve()
+    )
+    if canonical_v2_test:
+        frozen = PROJECT_DIR / "outputs/canonical_v2/config/frozen_attack_budgets.yaml"
+        if not frozen.is_file():
+            raise RuntimeError(
+                "Canonical clean test is blocked until validation attack budgets are frozen"
+            )
+        frozen_payload = yaml.safe_load(frozen.read_text(encoding="utf-8"))
+        if frozen_payload.get("status") != "PASS":
+            raise RuntimeError("Canonical clean test is blocked by the frozen budget gate")
     if args.frozen_thresholds is None and "val" not in args.splits:
         parser.error("Threshold calibration requires validation in --splits")
     if args.frozen_thresholds is not None and "val" in args.splits:
@@ -296,6 +331,9 @@ def main() -> None:
             ["f2", "recall", "confidence"], ascending=[False, False, True]
         ).iloc[0]
         sweep.to_csv(args.output / "threshold_sweep.csv", index=False)
+        pd.DataFrame(threshold_scene_sweep_rows(
+            predictions["val"], args.manifest, sweep["confidence"].astype(float).tolist()
+        )).to_csv(args.output / "threshold_sweep_per_scene.csv", index=False)
         selection = {
             "selection_split": "val", "test_used_for_selection": False,
             "checkpoint_path": str(args.model.resolve()),
@@ -305,6 +343,17 @@ def main() -> None:
         }
         (args.output / "threshold_selection.json").write_text(
             json.dumps(selection, indent=2) + "\n", encoding="utf-8"
+        )
+        (args.output / "checkpoint_hash_verification.json").write_text(
+            json.dumps({
+                "status": "PASS",
+                "checkpoint_path": str(args.model.resolve()),
+                "checkpoint_sha256": model_hash,
+                "selection_split": "val",
+                "test_used_for_selection": False,
+                "verified_for": ["threshold_calibration"],
+            }, indent=2) + "\n",
+            encoding="utf-8",
         )
         figure, axis = plt.subplots(figsize=(7, 6))
         axis.plot(sweep["recall"], sweep["precision"])

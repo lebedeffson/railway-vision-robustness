@@ -295,6 +295,65 @@ def prepare_partial(path: Path, expected_count: int) -> tuple[set[str], list[str
     return completed, fieldnames, len(retained)
 
 
+def condition_key(
+    image_path: str, attack: str, adaptive: bool | str,
+    epsilon_px: float | str, steps: int | str,
+) -> tuple[str, str, str, str, str]:
+    return (
+        image_path, str(attack), str(adaptive).lower(),
+        f"{float(epsilon_px):.12g}", str(int(float(steps))),
+    )
+
+
+def expected_rows_per_condition(
+    args: argparse.Namespace, attack: str, adaptive: bool,
+) -> int:
+    restarts = 1 if attack == "fgsm" else len(args.seeds)
+    defenses = (
+        [name for name in args.defenses if name in {"none", "tnorm"}]
+        if adaptive else args.defenses
+    )
+    return restarts * len(defenses) * 3
+
+
+def prepare_condition_partial(
+    path: Path, args: argparse.Namespace,
+) -> tuple[set[str], set[tuple[str, str, str, str, str]], list[str] | None, int]:
+    if not path.is_file() or path.stat().st_size == 0:
+        return set(), set(), None, 0
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        fieldnames = reader.fieldnames
+        rows = list(reader)
+    required = {"image_path", "attack", "adaptive", "epsilon_px", "steps"}
+    if not fieldnames or not required <= set(fieldnames):
+        raise RuntimeError(f"Invalid condition checkpoint CSV: {path}")
+    grouped: dict[tuple[str, str, str, str, str], list[dict[str, str]]] = {}
+    for row in rows:
+        key = condition_key(
+            row["image_path"], row["attack"], row["adaptive"],
+            row["epsilon_px"], row["steps"],
+        )
+        grouped.setdefault(key, []).append(row)
+    completed_conditions = {
+        key for key, values in grouped.items()
+        if len(values) == expected_rows_per_condition(
+            args, key[1], key[2] in {"true", "1", "yes"},
+        )
+    }
+    retained = [
+        row for key in completed_conditions for row in grouped[key]
+    ]
+    counts = Counter(key[0] for key in completed_conditions)
+    completed_images = {
+        image for image, count in counts.items() if count == len(conditions(args))
+    }
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader(); writer.writerows(retained)
+    return completed_images, completed_conditions, fieldnames, len(retained)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the frozen final experiment matrix")
     parser.add_argument("--model", type=Path, default=MODEL)
@@ -414,15 +473,21 @@ def main() -> None:
         args.defenses, args.max_images = ["none", "tnorm"], 1
     else:
         apply_deadline_defaults(args)
+    if args.data.name == "pilot_data.yaml" and "canonical_v2" in str(args.data):
+        selection_path = args.data.parent / "pilot_selection.json"
+        selection = json.loads(selection_path.read_text(encoding="utf-8"))
+        if selection.get("selection_method") != "deterministic_even_frame_order_no_model_or_difficulty":
+            raise RuntimeError("Canonical pilot selection is stale or result-dependent")
     config_path = args.output.with_suffix(".json")
     if args.output.is_file() and config_path.is_file():
         print(f"Final matrix already complete: {args.output}")
         return
     print(f"Selected checkpoint: {args.model.resolve()}", flush=True)
+    checkpoint_hash = sha256(args.model)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     partial_path = args.output.with_suffix(args.output.suffix + ".tmp")
-    completed_images, fieldnames, total_rows = prepare_partial(
-        partial_path, expected_rows_per_image(args)
+    completed_images, completed_conditions, fieldnames, total_rows = (
+        prepare_condition_partial(partial_path, args)
     )
     if completed_images:
         print(f"Resuming final matrix after {len(completed_images)} complete images")
@@ -459,7 +524,6 @@ def main() -> None:
                 path = str(batch["im_file"][0])
                 if path in completed_images:
                     continue
-                image_rows: list[dict[str, object]] = []
                 sequence_id = exact_sequences.get(
                     canonical_path(path), named_sequences.get(Path(path).name)
                 )
@@ -497,6 +561,12 @@ def main() -> None:
                 mask = object_masks(batch, clean.shape[-2], clean.shape[-1])[0]
 
                 for attack_name, epsilon_px, steps, adaptive in conditions(args):
+                    current_condition = condition_key(
+                        path, attack_name, adaptive, epsilon_px, steps
+                    )
+                    if current_condition in completed_conditions:
+                        continue
+                    condition_rows: list[dict[str, object]] = []
                     seeds = [args.seeds[0]] if attack_name == "fgsm" else args.seeds
                     candidates = []
                     for seed in seeds:
@@ -575,6 +645,7 @@ def main() -> None:
                                 )[0]
                                 row: dict[str, object] = {
                                     "checkpoint_name": args.checkpoint_name,
+                                    "checkpoint_sha256": checkpoint_hash,
                                     "sequence_id": sequence_id,
                                     "grouped_scene_id": frame_metadata["grouped_scene_id"],
                                     "subsequence_id": frame_metadata["subsequence_id"],
@@ -602,6 +673,7 @@ def main() -> None:
                                         args.normalizations[0]
                                         if len(args.normalizations) == 1 else "wide_multi_mode"
                                     ),
+                                    "threshold": args.confidence,
                                     "perturbation_norm": "linf",
                                     "f1_clean": clean_detection["f1"],
                                     "f1_attack": attacked_detection["f1"],
@@ -626,6 +698,8 @@ def main() -> None:
                                     "fn": defended_detection["fn"],
                                     "map50": math.nan,
                                     "map50_95": math.nan,
+                                    "mAP50": math.nan,
+                                    "mAP50-95": math.nan,
                                     "false_negatives": defended_detection["fn"],
                                     "fn_clean": clean_detection["fn"],
                                     "fn_attack": attacked_detection["fn"],
@@ -639,6 +713,11 @@ def main() -> None:
                                     "nms_timeout_attack": attacked_detection["nms_timeout"],
                                     "nms_timeout_defended": defended_detection["nms_timeout"],
                                     "nms_runtime_ms": max(
+                                        float(clean_detection["nms_runtime_ms"]),
+                                        float(attacked_detection["nms_runtime_ms"]),
+                                        float(defended_detection["nms_runtime_ms"]),
+                                    ),
+                                    "runtime_ms": max(
                                         float(clean_detection["nms_runtime_ms"]),
                                         float(attacked_detection["nms_runtime_ms"]),
                                         float(defended_detection["nms_runtime_ms"]),
@@ -761,7 +840,7 @@ def main() -> None:
                                             )],
                                             mode,
                                         ))
-                                        if mode == "N1_quantile":
+                                        if len(args.normalizations) == 1 and mode == args.normalizations[0]:
                                             row.update({
                                                 "canonical_Product": row[f"{mode}_product"],
                                                 "canonical_Lukasiewicz": row[f"{mode}_lukasiewicz"],
@@ -776,25 +855,35 @@ def main() -> None:
                                             })
                                 row.update(clean_attack_values)
                                 row.update(path_attack_values)
-                                image_rows.append(row)
+                                condition_rows.append(row)
+                    expected = expected_rows_per_condition(
+                        args, attack_name, adaptive
+                    )
+                    if len(condition_rows) != expected:
+                        raise RuntimeError(
+                            f"Incomplete condition checkpoint for {path}/"
+                            f"{attack_name}/{epsilon_px}/{steps}/{adaptive}: "
+                            f"{len(condition_rows)} != {expected}"
+                        )
+                    if writer is None:
+                        fieldnames = fieldnames or list(condition_rows[0])
+                        writer = csv.DictWriter(
+                            checkpoint, fieldnames=fieldnames, extrasaction="ignore"
+                        )
+                        if checkpoint.tell() == 0:
+                            writer.writeheader()
+                    writer.writerows(condition_rows)
+                    checkpoint.flush()
+                    total_rows += len(condition_rows)
                 expected = expected_rows_per_image(args)
-                if len(image_rows) != expected:
+                image_total = sum(
+                    expected_rows_per_condition(args, attack, adaptive)
+                    for attack, _epsilon, _steps, adaptive in conditions(args)
+                )
+                if image_total != expected:
                     raise RuntimeError(
-                        f"Incomplete image checkpoint for {path}: {len(image_rows)} != {expected}"
+                        f"Internal expected-row mismatch: {image_total} != {expected}"
                     )
-                if writer is None:
-                    fieldnames = fieldnames or list(image_rows[0])
-                    # A running legacy matrix may resume after a code update that adds
-                    # optional Q1 columns. Preserve its frozen header and rows; fresh Q1
-                    # outputs receive the expanded schema from their first image.
-                    writer = csv.DictWriter(
-                        checkpoint, fieldnames=fieldnames, extrasaction="ignore"
-                    )
-                    if checkpoint.tell() == 0:
-                        writer.writeheader()
-                writer.writerows(image_rows)
-                checkpoint.flush()
-                total_rows += len(image_rows)
     finally:
         hook.close()
 

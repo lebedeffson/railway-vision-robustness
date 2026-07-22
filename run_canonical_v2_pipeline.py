@@ -5,6 +5,7 @@ import csv
 import fcntl
 import hashlib
 import json
+import math
 import os
 import subprocess
 import sys
@@ -191,11 +192,61 @@ def build_quality_gate_failure_bundle(summary_path: Path) -> Path:
 
 def quality_gate(summary_path: Path) -> None:
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
-    if not summary["quality_gate"]["passed"]:
+    output = summary_path.parent
+    clean = output / "clean_metrics_train_val_test.csv"
+    scenes = output / "clean_metrics_per_scene.csv"
+    thresholds = output / "threshold_selection.json"
+    required = [clean, scenes, thresholds, output / "ap_by_class.csv"]
+    missing = [str(path) for path in required if not path.is_file()]
+    if missing:
+        raise RuntimeError(f"Quality gate evidence is incomplete: {missing}")
+    clean_rows = list(csv.DictReader(clean.open(encoding="utf-8")))
+    scene_rows = list(csv.DictReader(scenes.open(encoding="utf-8")))
+    class_rows = list(csv.DictReader((output / "ap_by_class.csv").open(encoding="utf-8")))
+    threshold_payload = json.loads(thresholds.read_text(encoding="utf-8"))
+    validation_scenes = {
+        row["sequence_id"] for row in scene_rows
+        if row.get("split") == "val" and row.get("operating_point") == "standard"
+    }
+    finite = all(
+        math.isfinite(float(row[name]))
+        for row in clean_rows if row.get("split") in {"train", "val"}
+        for name in ("precision", "recall", "f1", "f2", "fn_per_frame", "mAP50", "mAP50-95")
+    )
+    technical_checks = {
+        "five_validation_scenes_evaluated": len(validation_scenes) == 5,
+        "metrics_are_finite": finite,
+        "threshold_fit_on_validation_only": (
+            threshold_payload.get("selection_split") == "val"
+            and not threshold_payload.get("test_used_for_selection", True)
+        ),
+        "checkpoint_hash_matches_summary": (
+            threshold_payload.get("checkpoint_sha256") == summary.get("checkpoint_sha256")
+        ),
+        "class_mapping_is_canonical": {
+            row.get("class_name") for row in class_rows if row.get("split") == "val"
+        } == {"person", "signal", "road_vehicle", "train", "animal", "bicycle"},
+        "metrics_csv_complete": {
+            (row.get("split"), row.get("operating_point")) for row in clean_rows
+        } == {
+            ("train", "standard"), ("train", "safety"),
+            ("val", "standard"), ("val", "safety"),
+        },
+        "test_not_evaluated": "test" not in summary.get("evaluated_splits", []),
+    }
+    gate_record = {
+        **summary["quality_gate"],
+        "technical_checks": technical_checks,
+        "passed": bool(summary["quality_gate"]["passed"] and all(technical_checks.values())),
+    }
+    (output / "quality_gate.json").write_text(
+        json.dumps(gate_record, indent=2) + "\n", encoding="utf-8"
+    )
+    if not gate_record["passed"]:
         bundle = build_quality_gate_failure_bundle(summary_path)
         payload = read_status(); payload["status"] = "stopped_baseline_quality_gate"
         payload["canonical_attacks_started"] = False
-        payload["quality_gate"] = summary["quality_gate"]
+        payload["quality_gate"] = gate_record
         payload["quality_gate_failure_bundle"] = str(bundle)
         write_status(payload)
         raise SystemExit("Canonical v2 stopped: validation quality gate was not reached")
@@ -219,43 +270,49 @@ def main() -> None:
     legacy_threshold = ROOT / "legacy_threshold_calibration"
     stage("legacy_threshold_calibration", [str(PYTHON), "baseline_rescue_audit.py", "--output", str(legacy_threshold), "--splits", "val"], [legacy_threshold / "baseline_rescue_summary.json", legacy_threshold / "threshold_selection.json"])
     stage("split_v2", [str(PYTHON), "create_split_v2.py"], [ROOT / "split/split_v2_manifest.csv", ROOT / "split/split_v2_summary.json", ROOT / "split/split_v2_hash.txt", PROJECT_DIR / "data/yolo_osdar23_v2/data.yaml"])
-    stage("canonical_v2_pilot_selection", [str(PYTHON), "canonical_v2_select_pilot.py"], [ROOT / "pilot/pilot_manifest.csv", ROOT / "pilot/pilot_selection.json", ROOT / "pilot/pilot_data.yaml"])
+    stage("canonical_v2_pilot_selection_unbiased", [str(PYTHON), "canonical_v2_select_pilot.py"], [ROOT / "pilot/pilot_frames.csv", ROOT / "pilot/pilot_selection.json", ROOT / "pilot/pilot_data.yaml"])
     stage("train_v2", [str(PYTHON), "train_canonical_v2.py"], [ROOT / "training/yolo11m_canonical_v2/weights/best.pt", ROOT / "training/yolo11m_canonical_v2/TRAINING_COMPLETE"])
+    stage("finalize_training_provenance", [str(PYTHON), "finalize_canonical_training.py"], [ROOT / "training/checkpoint_selection.csv", ROOT / "training/checkpoint_provenance.json"])
     checkpoint = ROOT / "training/yolo11m_canonical_v2/weights/best.pt"
     v2_audit = ROOT / "baseline_rescue_v2"
-    stage("canonical_v2_threshold_calibration", [str(PYTHON), "baseline_rescue_audit.py", "--model", str(checkpoint), "--data", "data/yolo_osdar23_v2/data.yaml", "--output", str(v2_audit), "--splits", "train,val"], [v2_audit / "baseline_rescue_summary.json", v2_audit / "threshold_selection.json"])
+    stage("canonical_v2_threshold_calibration", [str(PYTHON), "baseline_rescue_audit.py", "--model", str(checkpoint), "--data", "data/yolo_osdar23_v2/data.yaml", "--output", str(v2_audit), "--splits", "train,val"], [v2_audit / "baseline_rescue_summary.json", v2_audit / "threshold_selection.json", v2_audit / "threshold_sweep_per_scene.csv", v2_audit / "checkpoint_hash_verification.json"])
     quality_gate(v2_audit / "baseline_rescue_summary.json")
     normalization = ROOT
     stage("normalization_v2", [str(PYTHON), "-m", "revision_q1.collect_normalization", "--model", str(checkpoint), "--data", "data/yolo_osdar23_v2/data.yaml", "--output", str(normalization), "--workers", "0"], [normalization / "normalization/layer_channel_statistics.pt", normalization / "normalization/normalization_manifest.json"])
+    stage("freeze_normalization", [str(PYTHON), "select_canonical_normalization.py"], [normalization / "normalization/normalization_selection.json", normalization / "normalization/normalization_manifest.json"])
+    normalization_mode = json.loads(
+        (normalization / "normalization/normalization_selection.json").read_text(encoding="utf-8")
+    )["selected_normalization"]
     confidence = json.loads((v2_audit / "threshold_selection.json").read_text(encoding="utf-8"))["safety"]["confidence"]
     pilot_matrix = ROOT / "pilot/pilot_metrics.csv"
-    stage("canonical_v2_pilot_matrix", [str(PYTHON), "run_final_matrix.py", "--model", str(checkpoint), "--checkpoint-name", "canonical_v2", "--data", str(ROOT / "pilot/pilot_data.yaml"), "--manifest", "data/yolo_osdar23_v2/manifest.csv", "--split", "val", "--workers", "0", "--revision-stats", str(normalization / "normalization/layer_channel_statistics.pt"), "--normalizations", "N1_quantile", "--confidence", str(confidence), "--seeds", "42,123,999", "--defenses", "none,tnorm,bilateral,median", "--nms-max-time-img", "10", "--fgsm-eps", "1", "--pgd-eps", "0.25", "--pgd-steps", "20", "--adaptive-pgd-eps", "0.25", "--adaptive-pgd-steps", "20", "--output", str(pilot_matrix)], [pilot_matrix, pilot_matrix.with_suffix(".json")])
-    stage("canonical_v2_pilot_gate", [str(PYTHON), "canonical_v2_pilot_gate.py"], [ROOT / "pilot/pilot_gate.json", ROOT / "pilot/pilot_report.md"])
-    clean_test = v2_audit / "test_evaluation"
-    stage("canonical_v2_clean_test", [str(PYTHON), "baseline_rescue_audit.py", "--model", str(checkpoint), "--data", "data/yolo_osdar23_v2/data.yaml", "--output", str(clean_test), "--splits", "test", "--frozen-thresholds", str(v2_audit / "threshold_selection.json")], [clean_test / "baseline_rescue_summary.json", clean_test / "clean_metrics_train_val_test.csv"])
-    stage("export_canonical_v2_clean", [str(PYTHON), "export_canonical_v2_clean.py"], [ROOT / "calibration/threshold_selection.json", ROOT / "tables/clean_test_metrics.csv", ROOT / "tables/clean_test_per_class.csv", ROOT / "tables/clean_test_per_scene.csv"])
-    provenance_before = ROOT / "config/provenance_before_attacks.json"
-    stage("verify_provenance_before_attacks", [str(PYTHON), "verify_canonical_provenance.py", "--checkpoint", str(checkpoint), "--thresholds", str(v2_audit / "threshold_selection.json"), "--clean-test-summary", str(clean_test / "baseline_rescue_summary.json"), "--output", str(provenance_before)], [provenance_before])
+    stage("canonical_v2_pilot_matrix", [str(PYTHON), "run_final_matrix.py", "--model", str(checkpoint), "--checkpoint-name", "canonical_v2", "--data", str(ROOT / "pilot/pilot_data.yaml"), "--manifest", "data/yolo_osdar23_v2/manifest.csv", "--split", "val", "--workers", "0", "--revision-stats", str(normalization / "normalization/layer_channel_statistics.pt"), "--normalizations", normalization_mode, "--confidence", str(confidence), "--seeds", "42,123,999", "--defenses", "none,tnorm,bilateral,median", "--nms-max-time-img", "10", "--fgsm-eps", "1", "--pgd-eps", "0.25", "--pgd-steps", "20", "--adaptive-pgd-eps", "0.25", "--adaptive-pgd-steps", "20", "--output", str(pilot_matrix)], [pilot_matrix, pilot_matrix.with_suffix(".json")])
+    stage("canonical_v2_pilot_gate", [str(PYTHON), "canonical_v2_pilot_gate.py"], [ROOT / "pilot/pilot_gate.json", ROOT / "pilot/pilot_report.md", ROOT / "pilot/attack_budget_audit.csv", ROOT / "pilot/adaptive_gradient_audit.json"])
     val_matrix = ROOT / "raw/canonical_validation.csv"
-    common = ["--model", str(checkpoint), "--checkpoint-name", "canonical_v2", "--data", "data/yolo_osdar23_v2/data.yaml", "--manifest", "data/yolo_osdar23_v2/manifest.csv", "--workers", "1", "--revision-stats", str(normalization / "normalization/layer_channel_statistics.pt"), "--normalizations", "N1_quantile", "--confidence", str(confidence), "--seeds", "42,123,999", "--defenses", "none,tnorm,bilateral,median", "--nms-max-time-img", "10"]
+    common = ["--model", str(checkpoint), "--checkpoint-name", "canonical_v2", "--data", "data/yolo_osdar23_v2/data.yaml", "--manifest", "data/yolo_osdar23_v2/manifest.csv", "--workers", "1", "--revision-stats", str(normalization / "normalization/layer_channel_statistics.pt"), "--normalizations", normalization_mode, "--confidence", str(confidence), "--seeds", "42,123,999", "--defenses", "none,tnorm,bilateral,median", "--nms-max-time-img", "10"]
     attacks = PROTOCOL["validation_attacks"]
     stage("canonical_validation", [str(PYTHON), "run_final_matrix.py", "--split", "val", "--output", str(val_matrix), *common, "--fgsm-eps", ",".join(map(str, attacks["fgsm_epsilon_px"])), "--pgd-eps", ",".join(map(str, attacks["pgd20_epsilon_px"])), "--pgd-steps", "20", "--adaptive-pgd-eps", ",".join(map(str, attacks["adaptive_pgd20_epsilon_px"])), "--adaptive-pgd-steps", "20"], [val_matrix, val_matrix.with_suffix(".json")])
     provenance_validation = ROOT / "config/provenance_after_validation.json"
-    stage("verify_validation_provenance", [str(PYTHON), "verify_canonical_provenance.py", "--checkpoint", str(checkpoint), "--thresholds", str(v2_audit / "threshold_selection.json"), "--clean-test-summary", str(clean_test / "baseline_rescue_summary.json"), "--matrix-config", str(val_matrix.with_suffix(".json")), "--output", str(provenance_validation)], [provenance_validation])
+    stage("verify_validation_provenance", [str(PYTHON), "verify_canonical_provenance.py", "--checkpoint", str(checkpoint), "--thresholds", str(v2_audit / "threshold_selection.json"), "--matrix-config", str(val_matrix.with_suffix(".json")), "--output", str(provenance_validation)], [provenance_validation])
     budgets = ROOT / "config/canonical_budget_selection.json"
     stage("freeze_budgets", [str(PYTHON), "deadline_select_budgets.py", "--strict-absolute", "--input", str(val_matrix), "--output", str(budgets)], [budgets, budgets.with_suffix(".csv"), ROOT / "config/frozen_attack_budgets.yaml"])
     frozen = json.loads(budgets.read_text(encoding="utf-8"))["selected"]
+    clean_test = v2_audit / "test_evaluation"
+    stage("canonical_v2_clean_test", [str(PYTHON), "baseline_rescue_audit.py", "--model", str(checkpoint), "--data", "data/yolo_osdar23_v2/data.yaml", "--output", str(clean_test), "--splits", "test", "--frozen-thresholds", str(v2_audit / "threshold_selection.json")], [clean_test / "baseline_rescue_summary.json", clean_test / "clean_metrics_train_val_test.csv"])
+    stage("export_canonical_v2_clean", [str(PYTHON), "export_canonical_v2_clean.py"], [ROOT / "calibration/threshold_selection.json", ROOT / "tables/clean_test_metrics.csv", ROOT / "tables/clean_test_per_class.csv", ROOT / "tables/clean_test_per_scene.csv", ROOT / "tables/clean_test_object_sizes.csv"])
+    provenance_before = ROOT / "config/provenance_before_test_attacks.json"
+    stage("verify_provenance_before_test_attacks", [str(PYTHON), "verify_canonical_provenance.py", "--checkpoint", str(checkpoint), "--thresholds", str(v2_audit / "threshold_selection.json"), "--clean-test-summary", str(clean_test / "baseline_rescue_summary.json"), "--matrix-config", str(val_matrix.with_suffix(".json")), "--output", str(provenance_before)], [provenance_before])
     test_matrix = ROOT / "raw/canonical_test.csv"
     stage("canonical_test", [str(PYTHON), "run_final_matrix.py", "--split", "test", "--output", str(test_matrix), *common, "--fgsm-eps", ",".join(map(str, frozen["fgsm_epsilon_px"])), "--pgd-eps", ",".join(map(str, frozen["pgd_epsilon_px"])), "--pgd-steps", "20", "--adaptive-pgd-eps", ",".join(map(str, frozen["adaptive_pgd_epsilon_px"])), "--adaptive-pgd-steps", "20"], [test_matrix, test_matrix.with_suffix(".json")])
     provenance_final = ROOT / "config/provenance_final.json"
     stage("verify_final_provenance", [str(PYTHON), "verify_canonical_provenance.py", "--checkpoint", str(checkpoint), "--thresholds", str(v2_audit / "threshold_selection.json"), "--clean-test-summary", str(clean_test / "baseline_rescue_summary.json"), "--matrix-config", str(val_matrix.with_suffix(".json")), "--matrix-config", str(test_matrix.with_suffix(".json")), "--output", str(provenance_final)], [provenance_final])
     analysis = ROOT / "analysis_test"
-    stage("canonical_statistics", [str(PYTHON), "-m", "revision_q1.analyze", "--protocol", "config/canonical_v2_analysis.yaml", "--input", str(test_matrix), "--output", str(analysis), "--normalization", "N1_quantile", "--split", "test", "--bootstrap", "5000"], [analysis / "tables/12_multiple_comparison_corrections.csv", analysis / "tables/13_scene_macro_loso.csv"])
+    stage("canonical_matrix_audit", [str(PYTHON), "audit_canonical_matrix.py"], [ROOT / "audit/canonical_matrix_audit.json", ROOT / "audit/canonical_nms_audit.csv"])
+    stage("canonical_statistics", [str(PYTHON), "-m", "revision_q1.analyze", "--protocol", "config/canonical_v2_analysis.yaml", "--input", str(test_matrix), "--output", str(analysis), "--normalization", normalization_mode, "--split", "test", "--bootstrap", "5000"], [analysis / "tables/12_multiple_comparison_corrections.csv", analysis / "tables/13_scene_macro_loso.csv"])
     latency = ROOT / "latency"
     stage("canonical_latency", [str(PYTHON), "benchmark_latency.py", "--model", str(checkpoint), "--data", "data/yolo_osdar23_v2/data.yaml", "--revision-stats", str(normalization / "normalization/layer_channel_statistics.pt"), "--output", str(latency), "--warmup", "30", "--repetitions", "100", "--batch", "1"], [latency / "latency_summary.csv", latency / "latency_raw.csv", latency / "environment.json"])
     stage("canonical_outputs", [str(PYTHON), "build_canonical_outputs.py"], [ROOT / "report/output_build.json", ROOT / "tables/15_nms_audit.csv", ROOT / "figures/10_latency_tradeoff.png"])
     article = PROJECT_DIR / "outputs/article"
-    stage("canonical_article_fill", [str(PYTHON), "article/fill_article_results.py"], [article / "TNormFilter_canonical_final.docx", article / "TNormFilter_canonical_final.pdf", article / "result_mapping_resolved.json"])
+    stage("canonical_article_fill", [str(PYTHON), "article/fill_article_results.py"], [article / "TNorm_RZD_article_final.docx", article / "TNorm_RZD_article_final.pdf", article / "TNorm_RZD_supplementary.pdf", article / "result_mapping_resolved.json"])
     stage("canonical_article_validation", [str(PYTHON), "article/validate_final_article.py"], [article / "article_validation.json"])
     stage("canonical_acceptance_tests", [str(PYTHON), "run_canonical_acceptance_tests.py"], [ROOT / "tests/unittest.txt", ROOT / "tests/test_summary.json"])
     stage("canonical_bundle", [str(PYTHON), "finalize_canonical_v2.py"], [PROJECT_DIR / "outputs/bundles/TNormFilter_canonical_final.zip", PROJECT_DIR / "outputs/bundles/TNormFilter_canonical_final.zip.sha256"])

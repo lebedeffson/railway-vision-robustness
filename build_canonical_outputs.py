@@ -21,7 +21,16 @@ RAW = ROOT / "raw/canonical_test.csv"
 ANALYSIS = ROOT / "analysis_test/tables"
 TABLES = ROOT / "tables"
 FIGURES = ROOT / "figures"
-MODE = "N1_quantile"
+
+
+def selected_mode() -> str:
+    payload = json.loads(
+        (ROOT / "normalization/normalization_selection.json").read_text(encoding="utf-8")
+    )
+    mode = payload["selected_normalization"]
+    if mode not in {"N1_quantile", "N2_robust_sigmoid"}:
+        raise RuntimeError(f"Unsupported frozen canonical normalization: {mode}")
+    return mode
 
 
 def save(figure: plt.Figure, name: str) -> None:
@@ -95,7 +104,8 @@ def main() -> None:
     TABLES.mkdir(parents=True, exist_ok=True)
     FIGURES.mkdir(parents=True, exist_ok=True)
     raw = pd.read_csv(RAW, low_memory=False)
-    canonical = add_endpoints(apply_normalization_aliases(raw, MODE))
+    mode = selected_mode()
+    canonical = add_endpoints(apply_normalization_aliases(raw, mode))
     canonical["grouped_scene_id"] = canonical["sequence_id"]
 
     split_summary().to_csv(TABLES / "01_split_v2_summary.csv", index=False)
@@ -149,7 +159,7 @@ def main() -> None:
     shutil.copy2(ANALYSIS / "13_scene_macro_loso.csv", TABLES / "13_loso_results.csv")
     shutil.copy2(ROOT / "latency/latency_summary.csv", TABLES / "14_latency_summary.csv")
     shutil.copy2(
-        PROJECT_DIR / "outputs/final_practice/audit/nms_timeout_recheck.csv",
+        ROOT / "audit/canonical_nms_audit.csv",
         TABLES / "15_nms_audit.csv",
     )
 
@@ -229,6 +239,7 @@ def main() -> None:
     (ROOT / "report/output_build.json").parent.mkdir(parents=True, exist_ok=True)
     (ROOT / "report/output_build.json").write_text(json.dumps({
         "status": "PASS", "tables": 15, "figures": 10,
+        "selected_normalization": mode,
         "independent_test_scenes": int(raw["sequence_id"].nunique()),
         "test_frames": int(raw["image_path"].nunique()),
     }, indent=2) + "\n", encoding="utf-8")

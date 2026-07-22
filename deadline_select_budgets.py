@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -129,6 +130,10 @@ def main() -> None:
     data = pd.read_csv(args.input, low_memory=False)
     table = budget_table(data)
     payload = select_budgets(table, allow_conditional=not args.strict_absolute)
+    payload["validation_matrix_path"] = str(args.input.resolve())
+    payload["validation_matrix_sha256"] = hashlib.sha256(args.input.read_bytes()).hexdigest()
+    payload["tested_budgets"] = table.to_dict(orient="records")
+    payload["selection_rule"] = "absolute floor fraction below 0.5 on validation"
     args.output.parent.mkdir(parents=True, exist_ok=True)
     table.to_csv(args.output.with_suffix(".csv"), index=False)
     args.output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")

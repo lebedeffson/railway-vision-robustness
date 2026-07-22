@@ -206,3 +206,13 @@ separately trained/fitted five-scene canonical v2 pilot; the latter keeps the
 strict saturation gate and is the only gate allowed to open canonical test.
 Legacy threshold calibration is explicitly validation-only (`--splits val`);
 the default all-split evaluator must never be used for that isolated baseline.
+
+The final canonical contract supersedes the earlier post-gate ordering: after
+v2 calibration and quality gate, fit/select N1 or the predeclared N2 fallback on
+clean validation, run the five-scene deterministic frame-order pilot, compute
+the full validation budget sweep, freeze budgets, and only then open clean test
+once. Matrix checkpoints are retained by complete attack condition rather than
+only by complete frame. The final article uses the read-only expanded source
+`/home/lebedeffson/Downloads/TNorm_RZD_article_expanded_internal_review.docx`
+and writes `TNorm_RZD_article_final.docx`, its PDF, and
+`TNorm_RZD_supplementary.pdf` under `outputs/article`.

@@ -15,10 +15,11 @@ canonical_stage_order:
   - threshold_sweep_validation_v2
   - freeze_operating_points
   - baseline_quality_gate
+  - freeze_normalization_validation_v2
   - canonical_v2_pilot_gate
-  - clean_test_v2_once
   - canonical_validation_attacks
   - freeze_non_floor_budgets
+  - clean_test_v2_once
   - canonical_test_attacks
 legacy_thresholds_reused_by_canonical_v2: false
 checkpoint_hash_must_match: [threshold_sweep, clean_test, validation_attacks, test_attacks]
@@ -46,7 +47,7 @@ validation_attacks:
   restarts: 3
   seeds: [42, 123, 999]
 pilot:
-  selection: three_geometry_stratified_frames_per_validation_grouped_scene
+  selection: three_even_frame_order_samples_per_validation_grouped_scene_no_model_or_difficulty
   grouped_scenes: 5
   frames: 15
   fgsm_epsilon_px: [1]
