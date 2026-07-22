@@ -15,6 +15,18 @@ MODES = (
     "N2_robust_sigmoid",
     "N3_zscore_sigmoid",
 )
+DIAGNOSTIC_QUANTILE_SAMPLE_MAX = 1_000_000
+
+
+def diagnostic_sample(
+    values: Tensor, maximum: int = DIAGNOSTIC_QUANTILE_SAMPLE_MAX
+) -> Tensor:
+    """Return a deterministic flat sample safe for torch.quantile/histograms."""
+    flattened = values.detach().float().flatten()
+    if flattened.numel() <= maximum:
+        return flattened
+    stride = math.ceil(flattened.numel() / maximum)
+    return flattened[::stride][:maximum]
 
 
 def fit_channel_statistics(samples: dict[str, Tensor]) -> dict[str, dict[str, Tensor]]:
@@ -78,14 +90,18 @@ def distribution_diagnostics(values: Tensor) -> dict[str, float]:
     flattened = values.detach().float().flatten()
     if flattened.numel() == 0:
         raise ValueError("Cannot diagnose an empty membership tensor")
+    sampled = diagnostic_sample(flattened)
     return {
         "fraction_below_0.01": float((flattened < 0.01).float().mean()),
         "fraction_above_0.99": float((flattened > 0.99).float().mean()),
         "mean_membership": float(flattened.mean()),
         "std_membership": float(flattened.std(unbiased=False)),
-        "q01": float(torch.quantile(flattened, 0.01)),
-        "q50": float(torch.quantile(flattened, 0.50)),
-        "q99": float(torch.quantile(flattened, 0.99)),
+        "q01": float(torch.quantile(sampled, 0.01)),
+        "q50": float(torch.quantile(sampled, 0.50)),
+        "q99": float(torch.quantile(sampled, 0.99)),
+        "observations": int(flattened.numel()),
+        "quantile_sample_count": int(sampled.numel()),
+        "quantiles_approximate": bool(sampled.numel() < flattened.numel()),
     }
 
 

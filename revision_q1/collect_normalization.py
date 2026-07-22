@@ -19,6 +19,7 @@ from extract_feature_consistency import FeatureHook, loader, to_device
 from revision_q1.normalization import (
     LAYERS,
     MODES,
+    diagnostic_sample,
     distribution_diagnostics,
     fit_channel_statistics,
     membership,
@@ -90,7 +91,7 @@ def write_diagnostics(
                 "validation_cv_r2": np.nan,
                 "selected": False,
             })
-            values = normalized.flatten().numpy()
+            values = diagnostic_sample(normalized).numpy()
             axes[layer_index, mode_index].hist(values, bins=50, range=(0, 1), density=True)
             axes[layer_index, mode_index].set_title(f"{layer} {mode}", fontsize=9)
     figure.tight_layout()

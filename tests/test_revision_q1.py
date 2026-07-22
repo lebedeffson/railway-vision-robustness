@@ -9,6 +9,8 @@ import torch
 from audit_final_practice import load_manifest, split_leakage
 from revision_q1.normalization import (
     LAYERS,
+    DIAGNOSTIC_QUANTILE_SAMPLE_MAX,
+    distribution_diagnostics,
     fit_channel_statistics,
     membership,
     normalized_quality_recovery,
@@ -61,6 +63,15 @@ class RevisionQ1Test(unittest.TestCase):
         statistics = fit_channel_statistics(samples)
         self.assertEqual(set(statistics), set(LAYERS))
         self.assertNotEqual(float(statistics["P3"]["mean"].mean()), float(statistics["P5"]["mean"].mean()))
+
+    def test_large_normalization_diagnostics_use_deterministic_quantile_sample(self) -> None:
+        values = torch.linspace(0, 1, DIAGNOSTIC_QUANTILE_SAMPLE_MAX + 17)
+        diagnostics = distribution_diagnostics(values)
+        self.assertEqual(
+            diagnostics["quantile_sample_count"], DIAGNOSTIC_QUANTILE_SAMPLE_MAX
+        )
+        self.assertTrue(diagnostics["quantiles_approximate"])
+        self.assertAlmostEqual(diagnostics["mean_membership"], 0.5, places=5)
 
     def test_bootstrap_clusters_by_sequence(self) -> None:
         groups = np.asarray(["a", "a", "b", "b", "c"])
