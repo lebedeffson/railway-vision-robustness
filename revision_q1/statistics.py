@@ -159,10 +159,17 @@ def cluster_mean_interval(
     for indices, multiplicity in unique_cluster_samples(sequence_ids, iterations, seed):
         samples.extend([float(np.nanmean(values[indices]))] * multiplicity)
     distribution = np.asarray(samples)
+    probability_low = (
+        (np.count_nonzero(distribution <= 0) + 1) / (len(distribution) + 1)
+    )
+    probability_high = (
+        (np.count_nonzero(distribution >= 0) + 1) / (len(distribution) + 1)
+    )
     return {
         "estimate": float(np.nanmean(values)),
         "ci_low": float(np.nanpercentile(distribution, 2.5)),
         "ci_high": float(np.nanpercentile(distribution, 97.5)),
+        "p_value": float(min(1.0, 2 * min(probability_low, probability_high))),
         "sequences": int(pd.Series(sequence_ids).nunique()),
         "bootstrap_iterations": iterations,
     }

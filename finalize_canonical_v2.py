@@ -15,7 +15,8 @@ import numpy as np
 import pandas as pd
 
 from revision_q1.statistics import (
-    cluster_mean_interval, holm_bonferroni, paired_cluster_delta_correlation,
+    benjamini_hochberg, cluster_mean_interval, holm_bonferroni,
+    paired_cluster_delta_correlation,
 )
 
 
@@ -85,8 +86,10 @@ def h3_object_vs_global(data: pd.DataFrame) -> list[dict]:
         )
         rows.append({"hypothesis": "H3", "endpoint": endpoint, **result})
     corrected = holm_bonferroni([row["p_value"] for row in rows])
-    for row, value in zip(rows, corrected, strict=True):
+    fdr = benjamini_hochberg([row["p_value"] for row in rows])
+    for row, value, fdr_value in zip(rows, corrected, fdr, strict=True):
         row["holm_corrected_p"] = float(value)
+        row["bh_fdr_p"] = float(fdr_value)
     return rows
 
 
@@ -104,6 +107,12 @@ def h4_adaptive(data: pd.DataFrame) -> dict:
                 iterations=5000, seed=20260720,
             )
             rows.append({"epsilon_px": float(epsilon), **interval})
+    if rows:
+        holm = holm_bonferroni([row["p_value"] for row in rows])
+        fdr = benjamini_hochberg([row["p_value"] for row in rows])
+        for row, holm_value, fdr_value in zip(rows, holm, fdr, strict=True):
+            row["holm_corrected_p"] = float(holm_value)
+            row["bh_fdr_p"] = float(fdr_value)
     return {"hypothesis": "H4", "comparisons": rows, "status": "available" if rows else "no_shared_frozen_epsilon"}
 
 
