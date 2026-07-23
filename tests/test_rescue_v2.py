@@ -18,6 +18,13 @@ from rescue_v2_common import (  # noqa: E402
     assert_role_allowed,
     load_protocol,
 )
+from audit_small_signal_fn import (  # noqa: E402
+    classify_error,
+    feature_cell_coverage,
+    letterbox_box,
+)
+
+import numpy as np
 
 
 class SmallSignalRescueV2Test(unittest.TestCase):
@@ -104,6 +111,29 @@ class SmallSignalRescueV2Test(unittest.TestCase):
         self.assertLessEqual(
             full["balanced_sampling"]["maximum_frame_weight"], 4.0
         )
+
+    def test_fn_error_classification_priority(self) -> None:
+        box = np.asarray([10.0, 10.0, 20.0, 20.0])
+        correct_low = np.asarray([[10.0, 10.0, 20.0, 20.0, 0.1, 1.0]])
+        wrong_high = np.asarray([[10.0, 10.0, 20.0, 20.0, 0.9, 2.0]])
+        empty = np.empty((0, 6))
+        self.assertEqual(classify_error(box, correct_low, empty, 0.2)[0], "B")
+        self.assertEqual(classify_error(box, empty, wrong_high, 0.2)[0], "D")
+        shifted = np.asarray([[14.0, 14.0, 24.0, 24.0, 0.9, 1.0]])
+        self.assertEqual(classify_error(box, shifted, empty, 0.2)[0], "C")
+        self.assertEqual(classify_error(box, empty, empty, 0.2)[0], "E")
+        tiny = np.asarray([10.0, 10.0, 10.5, 20.0])
+        self.assertEqual(classify_error(tiny, empty, empty, 0.2)[0], "A")
+
+    def test_letterbox_dimensions_and_dynamic_cell_coverage(self) -> None:
+        normalized = np.asarray([0.5, 0.5, 0.1, 0.2])
+        box = letterbox_box(normalized, 1920, 1080, 640)
+        self.assertAlmostEqual(box[2] - box[0], 64.0, places=6)
+        self.assertAlmostEqual(box[3] - box[1], 72.0, places=6)
+        coverage = feature_cell_coverage(box, [8, 16, 32])
+        self.assertEqual(coverage["minimum_stride"], 8)
+        self.assertAlmostEqual(coverage["P3_cells_width"], 8.0)
+        self.assertAlmostEqual(coverage["P3_cells_height"], 9.0)
 
 
 if __name__ == "__main__":
