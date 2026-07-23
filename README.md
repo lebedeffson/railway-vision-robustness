@@ -3,6 +3,8 @@
 > Reproducible railway vision experiments from scene-level quality gates to
 > adversarial and T-norm diagnostics.
 
+[GitHub repository](https://github.com/lebedeffson/railway-vision-robustness)
+
 Исследовательский pipeline для проверки дополнительной диагностической
 ценности канонических T-норм при состязательном повреждении детектора людей в
 железнодорожной среде OSDaR23.
@@ -129,22 +131,24 @@ python -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
 
-Для тестов нужен `pytest`:
+Для тестов нужен `pytest`. Проверки frozen protocol и decision gates не требуют
+локального датасета или весов:
 
 ```bash
 .venv/bin/pip install pytest
 PYTHONPATH="$PWD:$PWD/scripts" \
-  .venv/bin/python -m pytest -q --import-mode=importlib tests
+  .venv/bin/python -m pytest -q --import-mode=importlib \
+  tests/test_person_v4_protocol.py \
+  tests/test_person_v4_expedited.py
 ```
 
-Точечная проверка person v4:
+Полный acceptance suite дополнительно требует локальные OSDaR23-derived
+manifests, frozen checkpoints и evidence outputs, которые намеренно не
+публикуются в Git:
 
 ```bash
 PYTHONPATH="$PWD:$PWD/scripts" \
-  .venv/bin/python -m pytest -q --import-mode=importlib \
-  tests/test_person_v4_protocol.py \
-  tests/test_person_v4_math.py \
-  tests/test_person_v4_expedited.py
+  .venv/bin/python -m pytest -q --import-mode=importlib tests
 ```
 
 ## Структура
