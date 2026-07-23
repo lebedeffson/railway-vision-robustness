@@ -247,21 +247,38 @@ def constrained_folds(
     class_columns = [
         column for column in matrix.columns if column.startswith("class_")
     ]
+    scale_columns = ["frames", "small", "medium", "large", *class_columns]
+    values = matrix[scale_columns].to_numpy(dtype=float)
+    totals = np.maximum(values.sum(axis=0), 1.0)
+    class_values = matrix[class_columns].to_numpy(dtype=float)
+    class_totals = class_values.sum(axis=0)
+    class_scene_totals = (class_values > 0).sum(axis=0)
+    class_offset = len(scale_columns) - len(class_columns)
+    minimum_support = int(config["minimum_train_scenes_per_heldout_class"])
     rng = np.random.default_rng(int(config["seed"]))
     best: tuple[int, float, list[list[str]]] | None = None
     for _ in range(int(config["candidate_partitions"])):
-        shuffled = list(rng.permutation(scenes))
-        folds = [
-            sorted(shuffled[index:index + int(config["scenes_per_fold"])])
-            for index in range(0, len(shuffled), int(config["scenes_per_fold"]))
-        ]
-        folds.sort()
-        violations, imbalance = partition_score(
-            folds,
-            matrix,
-            class_columns,
-            int(config["minimum_train_scenes_per_heldout_class"]),
+        indices = rng.permutation(len(scenes)).reshape(
+            int(config["folds"]), int(config["scenes_per_fold"])
         )
+        held_values = values[indices].sum(axis=1)
+        held_classes = held_values[:, class_offset:]
+        held_support = (class_values[indices] > 0).sum(axis=1)
+        train_classes = class_totals - held_classes
+        train_support = class_scene_totals - held_support
+        evaluated = held_classes > 0
+        violations = int(
+            (
+                evaluated
+                & (
+                    (train_classes <= 0)
+                    | (train_support < minimum_support)
+                )
+            ).sum()
+        )
+        imbalance = float((held_values / totals).std(axis=0).mean())
+        folds = [sorted(scenes[index] for index in row) for row in indices]
+        folds.sort()
         candidate = (violations, imbalance, folds)
         if best is None or candidate[:2] < best[:2]:
             best = candidate
