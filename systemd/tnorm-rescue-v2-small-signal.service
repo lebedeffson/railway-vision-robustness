@@ -1,0 +1,17 @@
+[Unit]
+Description=TNormFilter rescue-v2 small-signal micro matrix
+After=default.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/lebedeffson/Code/андрей/TNormFilter_handoff
+Environment=PYTHONPATH=/home/lebedeffson/Code/андрей/TNormFilter_handoff/scripts
+ExecStart=/home/lebedeffson/Code/андрей/TNormFilter_handoff/.venv/bin/python -u scripts/run_micro_matrix_v2.py --wait-for-m1
+Restart=on-failure
+RestartSec=30
+Nice=5
+MemoryHigh=10G
+MemoryMax=12G
+
+[Install]
+WantedBy=default.target
