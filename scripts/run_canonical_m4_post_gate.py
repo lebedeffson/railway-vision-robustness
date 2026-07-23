@@ -135,26 +135,47 @@ def main() -> None:
     if not gate.get("quality_gate_passed"):
         raise RuntimeError("Post-gate pipeline called after validation FAIL")
     try:
-        status("pre_final_article", "running", started_at=now())
-        prefinal = build_prefinal()
-        status(
-            "pre_final_article", "success", finished_at=now(),
-            output=str(prefinal.resolve()), output_sha256=sha256(prefinal),
-        )
-        checkpoint = str(gate["checkpoint"])
-        status("normalization", "running", started_at=now())
-        run_script(
-            "fit_canonical_m4_normalization.py", "--checkpoint", checkpoint
-        )
-        status("normalization", "success", finished_at=now())
-        status("attack_calibration", "running", started_at=now())
-        run_script("calibrate_canonical_m4_attacks.py")
-        status("attack_calibration", "success", finished_at=now())
-        marker = open_test_once()
-        status(
-            "test_open", "success", finished_at=now(),
-            marker_sha256=sha256(TEST_MARKER), test_open_count=1,
-        )
+        if TEST_MARKER.is_file():
+            required = [
+                OUTPUT_ROOT / "normalization/normalization_manifest.json",
+                OUTPUT_ROOT / "attack_calibration/attack_protocol_lock.json",
+            ]
+            if not all(path.is_file() for path in required):
+                raise RuntimeError(
+                    "Test marker exists without completed validation-only locks"
+                )
+            status("test_open", "success", resumed_after_restart=True)
+        else:
+            status("pre_final_article", "running", started_at=now())
+            prefinal = build_prefinal()
+            status(
+                "pre_final_article", "success", finished_at=now(),
+                output=str(prefinal.resolve()), output_sha256=sha256(prefinal),
+            )
+            checkpoint = str(gate["checkpoint"])
+            normalization_lock = (
+                OUTPUT_ROOT / "normalization/normalization_manifest.json"
+            )
+            if not normalization_lock.is_file():
+                status("normalization", "running", started_at=now())
+                run_script(
+                    "fit_canonical_m4_normalization.py",
+                    "--checkpoint",
+                    checkpoint,
+                )
+                status("normalization", "success", finished_at=now())
+            attack_lock = (
+                OUTPUT_ROOT / "attack_calibration/attack_protocol_lock.json"
+            )
+            if not attack_lock.is_file():
+                status("attack_calibration", "running", started_at=now())
+                run_script("calibrate_canonical_m4_attacks.py")
+                status("attack_calibration", "success", finished_at=now())
+            open_test_once()
+            status(
+                "test_open", "success", finished_at=now(),
+                marker_sha256=sha256(TEST_MARKER), test_open_count=1,
+            )
         status("clean_test", "running", started_at=now())
         run_script("evaluate_canonical_m4_clean_test.py")
         status("clean_test", "success", finished_at=now())

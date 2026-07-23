@@ -193,6 +193,21 @@ class CanonicalM4ProtocolTest(unittest.TestCase):
             current = json.loads(PROTOCOL_LOCK.read_text(encoding="utf-8"))
             self.assertEqual(current["protocol_sha256"], expected["protocol_sha256"])
 
+    def test_service_restart_routes_open_test_directly_to_post_gate(self) -> None:
+        source = (ROOT / "scripts/run_canonical_m4_pre_gate.py").read_text(
+            encoding="utf-8"
+        )
+        marker_check = source.index("if TEST_MARKER.is_file():")
+        sealed_check = source.index('assert_role_allowed("scene_cv")', marker_check)
+        self.assertLess(marker_check, sealed_check)
+        self.assertIn('run_script("run_canonical_m4_post_gate.py")', source)
+
+    def test_three_full_training_seeds_are_frozen(self) -> None:
+        self.assertEqual(
+            self.protocol["full_training"]["seeds"],
+            [20260722, 20260723, 20260724],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

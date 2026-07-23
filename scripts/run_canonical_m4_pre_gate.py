@@ -15,6 +15,7 @@ from canonical_m4_common import (
     PROJECT_DIR,
     PROTOCOL_LOCK,
     QUALITY_GATE,
+    TEST_MARKER,
     assert_role_allowed,
     atomic_json,
     load_protocol,
@@ -276,6 +277,11 @@ def failure_bundle(gate: dict[str, Any]) -> Path:
 
 
 def main() -> None:
+    # After the irreversible test marker, a service restart must resume the
+    # post-gate caches instead of re-entering the sealed pre-gate runner.
+    if TEST_MARKER.is_file():
+        run_script("run_canonical_m4_post_gate.py")
+        return
     assert_role_allowed("scene_cv")
     protocol = load_protocol()
     try:
