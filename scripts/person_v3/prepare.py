@@ -173,8 +173,10 @@ def write_dataset_view(
             "grouped_scene_id": str(tile.grouped_scene_id),
             "source_image": str(Path(tile.source_image).resolve()),
             "tile_id": str(tile.tile_id),
-            "tile_image": str(destination_image.resolve()),
-            "tile_label": str(destination_label.resolve()),
+            # Do not resolve the image symlink: Ultralytics derives the label
+            # path by replacing /images/ with /labels/ in this person-only view.
+            "tile_image": str(destination_image.absolute()),
+            "tile_label": str(destination_label.absolute()),
             "person_GT": sum(bool(line.strip()) for line in payload.splitlines()),
         })
     frame = pd.DataFrame(rows)
@@ -322,4 +324,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

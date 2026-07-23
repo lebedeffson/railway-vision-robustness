@@ -63,6 +63,13 @@ class PersonV3ProtocolTests(unittest.TestCase):
             "highest_threshold_with_recall_at_least_0_50_and_precision_at_least_0_30",
         )
 
+    def test_prepared_lists_reference_person_view_when_present(self) -> None:
+        prepared = Path("outputs/person_v3/dataset/folds/fold_0/train.txt")
+        if prepared.is_file():
+            first = prepared.read_text(encoding="utf-8").splitlines()[0]
+            self.assertIn("/outputs/person_v3/dataset/images/", first)
+            self.assertNotIn("/outputs/canonical_m4/tiling_audit/dataset/", first)
+
 
 if __name__ == "__main__":
     unittest.main()
