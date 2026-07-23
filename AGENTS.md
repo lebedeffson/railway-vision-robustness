@@ -63,6 +63,10 @@
 - Canonical v2 stopped at the frozen validation quality gate: mAP50=0.11896
   and standard-point Recall=0.17310. Do not open test or attacks without a new,
   prospectively frozen rescue protocol.
+- Rescue v1 is frozen on `feat/canonical-v2-rescue-v1`; its CPU audits passed
+  and a separate rescue dataset removes one exact train bbox duplicate without
+  changing split or test labels. Resume at micro-overfit; CUDA invisibility is
+  an infrastructure block, not a scientific gate failure.
 
 ## Notes
 

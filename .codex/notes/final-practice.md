@@ -225,3 +225,15 @@ stopped before normalization, pilot attacks, test evaluation, canonical attacks,
 statistics, latency and article finalization. The diagnostic handoff is
 `outputs/bundles/TNormFilter_baseline_gate_failed.zip`; downstream stages are
 explicitly `skipped`, and the inactive linked service is not enabled at login.
+
+The prospectively committed rescue protocol is `canonical-v2-rescue-v1` on
+`feat/canonical-v2-rescue-v1`. Full split/image/label hashing found 20 independent
+groups, 1405 readable frames, zero cross-split exact or perceptual duplicates,
+zero fatal bbox errors and a consistent six-class mapping. Visual review of 104
+frames confirmed one exact duplicated person annotation in a train frame; the
+separate `data/yolo_osdar23_rescue_v1` removes that one line while retaining the
+frozen split and leaving validation/test labels unchanged. The golden evaluator
+audit passed. The current managed execution environment exposes neither
+`/dev/nvidia*` nor the user D-Bus, so the committed resumable pipeline is
+`blocked_infrastructure` at micro-overfit; this is not a failed scientific gate.
+`systemd/tnorm-rescue-v1.service` is the host-GPU continuation unit.
