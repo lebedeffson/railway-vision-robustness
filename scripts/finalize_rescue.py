@@ -232,6 +232,8 @@ def build_bundle(passed: bool) -> Path:
                 continue
             if OUTPUT_ROOT / "bundles" in path.parents:
                 continue
+            if OUTPUT_ROOT / "micro_overfit/dataset" in path.parents:
+                continue
             candidates.append(path)
     with tempfile.TemporaryDirectory() as directory:
         staging = Path(directory)

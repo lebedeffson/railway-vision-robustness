@@ -30,6 +30,7 @@ def main() -> None:
         files.extend(
             path for path in candidates
             if path.is_file() and path.suffix.lower() in allowed
+            and OUTPUT_ROOT / "micro_overfit/dataset" not in path.parents
         )
     with tempfile.TemporaryDirectory() as directory:
         staging = Path(directory)
