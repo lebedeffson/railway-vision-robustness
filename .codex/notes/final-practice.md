@@ -248,3 +248,15 @@ instrumentation, not evidence of disconnected gradients. Future runs attach
 the logger to `on_train_batch_end`. Under `canonical-v2-rescue-v1`, R0-R4,
 test, attacks and article finalization remain skipped; a new protocol is
 required before any further scientific run.
+
+The prospectively frozen expedited M4 triage stopped the full two-day protocol
+after scene-CV fold 0. Independent global tiling/fusion evaluation on 306
+held-out train frames from two grouped scenes produced mAP50 0.216448,
+mAP50-95 0.075490 and safety Recall 0.179917, below the frozen 0.25/0.35
+go/no-go thresholds. Small/medium/large Recall was
+0.099374/0.232023/0.945455. Evaluator CSV reparse consistency passed, no source
+GT was lost and test remained sealed. The 10-frame held-out scene contained no
+GT objects, so its zero Recall is not treated as a catastrophic scene failure;
+the hard fail is caused by mAP50 and Recall alone. Remaining CV folds, full
+training, official validation, test, attacks and H1-H4 analysis are
+`skipped_by_expedited_triage`.

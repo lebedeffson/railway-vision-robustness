@@ -24,6 +24,10 @@ TRIAGE_ROOT = FULL_ROOT / "expedited/triage"
 PROTOCOL_PATH = PROJECT_DIR / "configs/canonical_v2_m4_expedited_protocol.yaml"
 TEST_MARKER = FULL_ROOT / "final/TEST_OPENED.json"
 FULL_STATUS = FULL_ROOT / "final/pre_gate_pipeline_status.json"
+EXPEDITED_STATUS = FULL_ROOT / "expedited/pipeline_status.json"
+INTERNAL_ARTICLE = (
+    FULL_ROOT / "expedited/TNorm_RZD_article_internal_triage.md"
+)
 
 
 def load_protocol() -> dict[str, Any]:
@@ -64,7 +68,17 @@ def classify(
         reasons.append("lost_ground_truth")
     if not bool(evaluation.get("no_nan_or_inf")):
         reasons.append("nan_or_inf_detected")
-    if per_scene.empty or (per_scene["recall"].astype(float) <= 0.0).any():
+    scene_gt = per_scene["tp"].astype(float) + per_scene["fn"].astype(float)
+    catastrophic = (
+        per_scene.empty
+        or (
+            scene_gt.gt(0)
+            & per_scene["recall"].astype(float).le(
+                float(triage["catastrophic_scene_failure"]["threshold"])
+            )
+        ).any()
+    )
+    if catastrophic:
         reasons.append("catastrophic_scene_failure")
     return ("hard_fail" if reasons else "promising"), reasons
 
@@ -121,6 +135,8 @@ def diagnostic_bundle(report: dict[str, Any]) -> Path:
         PROTOCOL_PATH,
         TRIAGE_ROOT / "early_generalization_report.json",
         TRIAGE_ROOT / "early_generalization_report.md",
+        EXPEDITED_STATUS,
+        INTERNAL_ARTICLE,
         EVALUATION_ROOT / "evaluation_result.json",
         EVALUATION_ROOT / "evaluator_consistency.json",
         EVALUATION_ROOT / "per_scene_metrics.csv",
@@ -140,6 +156,60 @@ def diagnostic_bundle(report: dict[str, Any]) -> Path:
         )
     os.replace(temporary, destination)
     return destination
+
+
+def write_hard_fail_outputs(report: dict[str, Any]) -> None:
+    atomic_json(
+        EXPEDITED_STATUS,
+        {
+            "protocol_id": report["protocol_id"],
+            "status": "stopped_after_fold_0_hard_fail",
+            "updated_at": now(),
+            "test_opened": False,
+            "stages": {
+                "fold_0_training": {"status": "success"},
+                "fold_0_independent_evaluation": {"status": "success"},
+                "early_generalization_triage": {"status": "hard_fail"},
+                "remaining_scene_cv_folds": {
+                    "status": "skipped_by_expedited_triage"
+                },
+                "full_training": {"status": "skipped_by_expedited_triage"},
+                "official_validation": {"status": "skipped_by_expedited_triage"},
+                "clean_test": {"status": "skipped_by_expedited_triage"},
+                "FGSM": {"status": "skipped_by_expedited_triage"},
+                "PGD": {"status": "skipped_by_expedited_triage"},
+                "adaptive_PGD": {"status": "skipped_by_expedited_triage"},
+                "D2_D3": {"status": "skipped_by_expedited_triage"},
+                "R2_R3": {"status": "skipped_by_expedited_triage"},
+                "final_article": {"status": "blocked_negative_internal_only"},
+            },
+        },
+    )
+    INTERNAL_ARTICLE.parent.mkdir(parents=True, exist_ok=True)
+    INTERNAL_ARTICLE.write_text(
+        "\n".join([
+            "# TNormFilter M4: внутренняя отрицательная редакция",
+            "",
+            "M4 overlapping tiling прошёл диагностический micro-overfit, "
+            "что подтвердило техническую обучаемость малых объектов на "
+            "фиксированном micro-наборе. Это не являлось оценкой обобщения.",
+            "",
+            "На независимых train-сценах fold 0 глобальный fused evaluator "
+            f"получил mAP50={report['mAP50']:.6f} и "
+            f"Recall={report['recall']:.6f}. Оба значения ниже заранее "
+            "зафиксированных triage-порогов 0.25 и 0.35.",
+            "",
+            "Следовательно, M4 не подтвердил достаточную переносимость на "
+            "held-out scenes в ускоренном go/no-go. Полный CV остановлен, "
+            "официальный validation и test не открывались, атаки и гипотезы "
+            "H1-H4 не проверялись.",
+            "",
+            "Этот документ является внутренним диагностическим результатом "
+            "и не является финальной журнальной статьёй.",
+            "",
+        ]),
+        encoding="utf-8",
+    )
 
 
 def write_report() -> dict[str, Any]:
@@ -169,7 +239,14 @@ def write_report() -> dict[str, Any]:
     class_rows = []
     for row in per_class.to_dict(orient="records"):
         row["class_name"] = class_names.get(int(row["class_id"]), "unknown")
-        class_rows.append(row)
+        class_rows.append({
+            key: (
+                None
+                if isinstance(value, float) and not math.isfinite(value)
+                else value
+            )
+            for key, value in row.items()
+        })
     report = {
         "status": status,
         "role": "early_computational_go_no_go_not_canonical_validation",
@@ -277,6 +354,7 @@ def main() -> None:
     report = write_report()
     mark_full_protocol_partial(report["status"])
     if report["status"] == "hard_fail":
+        write_hard_fail_outputs(report)
         bundle = diagnostic_bundle(report)
         report["diagnostic_bundle"] = str(bundle.resolve())
         report["diagnostic_bundle_sha256"] = sha256(bundle)
