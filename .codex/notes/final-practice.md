@@ -207,6 +207,24 @@ strict saturation gate and is the only gate allowed to open canonical test.
 Legacy threshold calibration is explicitly validation-only (`--splits val`);
 the default all-split evaluator must never be used for that isolated baseline.
 
+Person-only canonical v3 was frozen before test and evaluated on two
+scene-disjoint development folds. It stopped at the prospective hard-fail rule:
+macro mAP50 0.358828, macro Recall 0.354316, macro small Recall 0.211301 and
+worst-fold Recall 0.201288. Both independent evaluator checks passed, no GT or
+scene was lost, and `outputs/person_v3/test/TEST_OPENED.json` was never created.
+The verified failure bundle is
+`outputs/person_v3/bundles/TNormFilter_person_v3_triage_failed.zip` with SHA-256
+`645b4c60a4311ddd5d24c6f6f017db98767a28d9b1a871ec3bcf950ed4ec84a4`.
+
+Canonical v4 (`canonical-v4-person-dg-nwd-v1`) keeps those folds, initialization,
+tiling, seed and evaluator fixed. A1 adds hybrid NWD-aware task assignment,
+CIoU/NWD localization and QFL; A2 adds scene-round-robin GroupDRO; A3 adds a
+different-scene MixStyle bank, constrained scale-aware zoom and validation-only
+SWAD. A candidate must improve macro mAP50, Recall and small Recall by at least
+0.05, not reduce worst-fold Recall, and reduce FP. Two-fold results are only
+selection evidence; test remains sealed until the unchanged winner passes the
+full five-fold OOF gate.
+
 The final canonical contract supersedes the earlier post-gate ordering: after
 v2 calibration and quality gate, fit/select N1 or the predeclared N2 fallback on
 clean validation, run the five-scene deterministic frame-order pilot, compute

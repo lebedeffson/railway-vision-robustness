@@ -19,7 +19,9 @@ person_v3_baseline:
 data:
   person_v3_protocol_lock: outputs/person_v3/protocol/protocol_lock.json
   folds: outputs/person_v3/protocol/folds.json
-  tile_manifest: outputs/person_v3/audit/tile_person_manifest.csv
+  source_tile_manifest: outputs/canonical_m4/tiling_audit/tile_manifest.csv
+  person_tile_images: outputs/person_v3/dataset/images/development
+  person_tile_labels: outputs/person_v3/dataset/labels/development
   grouped_scene_field: grouped_scene_id
   target_class: person
   test_marker: outputs/person_v3/test/TEST_OPENED.json
@@ -215,3 +217,12 @@ claim_limits:
   no_test_access_before_full_OOF_gate: true
   no_posthoc_threshold_or_method_selection_on_test: true
   additional_independent_scenes_remain_preferred_if_A3_fails: true
+
+method_provenance:
+  GroupDRO: https://openreview.net/forum?id=ryxGuJrFvS
+  NWD: https://arxiv.org/abs/2110.13389
+  GFLv2_QFL: https://openaccess.thecvf.com/content/CVPR2021/html/Li_Generalized_Focal_Loss_V2_Learning_Reliable_Localization_Quality_Estimation_for_CVPR_2021_paper.html
+  MixStyle: https://openreview.net/forum?id=6xHJ37MVxxp
+  SWAD: https://openreview.net/forum?id=zkHlu_3sJYU
+  ScaleMatch: https://openaccess.thecvf.com/content_WACV_2020/html/Yu_Scale_Match_for_Tiny_Person_Detection_WACV_2020_paper.html
+  adaptation_note: NWD assignment is integrated into YOLO11 task-aligned anchor-free assignment as a frozen CIoU/NWD hybrid; it is not represented as the paper's anchor-based RPN implementation.

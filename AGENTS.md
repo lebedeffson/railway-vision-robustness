@@ -70,6 +70,10 @@
 - Canonical v3 development-pool CPU audit is blocked by class-scene support:
   animal occurs in only two development scenes. Do not run C1/C2/P2 training
   until new development-only scenes are frozen under a new protocol.
+- Person-only v3 also stopped before test: two-fold macro mAP50=0.35883,
+  Recall=0.35432 and worst-fold Recall=0.20129. Preserve this hard-fail baseline.
+- Canonical v4 is the frozen A0-A3 DG/NWD matrix. Test and attacks remain blocked
+  unless one candidate clears all two-fold deltas and then the full five-fold OOF gate.
 
 ## Notes
 
