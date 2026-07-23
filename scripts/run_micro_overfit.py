@@ -251,7 +251,18 @@ def main() -> None:
     atomic_json(OUTPUT / "environment.json", environment_snapshot())
     data_yaml, subset_manifest = prepare_subset(protocol)
     if not torch.cuda.is_available():
-        raise RuntimeError("Micro-overfit requires CUDA")
+        block = {
+            "status": "BLOCKED_INFRASTRUCTURE",
+            "stage": "micro_overfit",
+            "reason": "cuda_device_not_visible_to_execution_environment",
+            "torch_cuda_version": torch.version.cuda,
+            "torch_cuda_available": False,
+            "scientific_gate_evaluated": False,
+            "test_evaluated": False,
+            "resume_action": "rerun the same committed pipeline in the host user service",
+        }
+        atomic_json(OUTPUT / "infrastructure_block.json", block)
+        raise SystemExit(75)
     best = train(data_yaml, protocol)
     evaluation = OUTPUT / "evaluation"
     summary = evaluation / "baseline_rescue_summary.json"

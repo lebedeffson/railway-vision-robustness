@@ -63,6 +63,28 @@ def stage(name: str, command: list[str], outputs: list[Path]) -> None:
         missing = [str(path) for path in outputs if not path.is_file()]
         if missing:
             raise RuntimeError(f"Stage {name} missing outputs: {missing}")
+    except subprocess.CalledProcessError as error:
+        payload = read_status()
+        if error.returncode == 75:
+            payload["status"] = "blocked_infrastructure"
+            payload["current_stage"] = None
+            payload["stages"][name].update({
+                "status": "blocked", "finished_at": now(),
+                "error": "cuda_device_not_visible_to_execution_environment",
+            })
+            write_status(payload)
+            raise SystemExit(
+                "Rescue pipeline is resumable but blocked: CUDA is not visible "
+                "to this execution environment"
+            ) from error
+        payload["status"] = "failed"
+        payload["current_stage"] = None
+        payload["stages"][name].update({
+            "status": "failed", "finished_at": now(),
+            "error": f"{type(error).__name__}: {error}",
+        })
+        write_status(payload)
+        raise
     except Exception as error:
         payload = read_status()
         payload["status"] = "failed"
