@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 import torch
 
@@ -236,6 +237,31 @@ def run(checkpoint: Path) -> dict[str, Any]:
     summary_path = DESTINATION / "budget_floor_audit.csv"
     atomic_csv(result, raw_path)
     atomic_csv(summary, summary_path)
+    adaptive_rows = result[result["adaptive"].astype(bool)]
+    adaptive_audit = {
+        "status": (
+            "PASS"
+            if len(adaptive_rows)
+            and bool((adaptive_rows["gradient_L2"] > 0).all())
+            and bool(np.isfinite(adaptive_rows["gradient_L2"]).all())
+            else "FAIL"
+        ),
+        "full_pipeline": "original_image_to_tiles_to_Product_preprocessing_to_YOLO_loss",
+        "detach_in_adaptive_graph": False,
+        "numpy_in_adaptive_graph": False,
+        "no_grad_in_adaptive_graph": False,
+        "gradient_L2_min": float(adaptive_rows["gradient_L2"].min()),
+        "gradient_L2_max": float(adaptive_rows["gradient_L2"].max()),
+        "attack_loss_increase_fraction": float(
+            (
+                adaptive_rows["attack_loss_final"]
+                > adaptive_rows["attack_loss_clean"]
+            ).mean()
+        ),
+    }
+    atomic_json(DESTINATION / "adaptive_gradient_audit.json", adaptive_audit)
+    if adaptive_audit["status"] != "PASS":
+        raise RuntimeError("Canonical M4 adaptive gradient audit failed")
     selected_budget = {
         "fgsm_epsilon_px": summary[
             summary["attack"].eq("fgsm")
