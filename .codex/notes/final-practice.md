@@ -237,3 +237,14 @@ audit passed. The current managed execution environment exposes neither
 `/dev/nvidia*` nor the user D-Bus, so the committed resumable pipeline is
 `blocked_infrastructure` at micro-overfit; this is not a failed scientific gate.
 `systemd/tnorm-rescue-v1.service` is the host-GPU continuation unit.
+
+The frozen rescue-v1 micro-overfit completed 150 epochs but failed its
+prospective 0.90/0.90 gate (mAP50 0.787435, Recall 0.859155). Of 80 false
+negatives, 75 were signals; small/medium/large Recall was
+0.801508/0.993333/1.0. The loss decrease and changed weight norm confirm
+parameter updates. Ultralytics 8.4.102 defines but does not dispatch
+`on_before_zero_grad`, so the all-zero gradient log from this run is invalid
+instrumentation, not evidence of disconnected gradients. Future runs attach
+the logger to `on_train_batch_end`. Under `canonical-v2-rescue-v1`, R0-R4,
+test, attacks and article finalization remain skipped; a new protocol is
+required before any further scientific run.
