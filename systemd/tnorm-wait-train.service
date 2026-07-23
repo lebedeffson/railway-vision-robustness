@@ -1,0 +1,26 @@
+[Unit]
+Description=Low-impact TNorm practice training pipeline
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/lebedeffson/Code/андрей/TNormFilter_handoff
+ExecStart=/home/lebedeffson/Code/андрей/TNormFilter_handoff/.venv/bin/python wait_and_train.py
+Restart=on-failure
+RestartSec=900
+Nice=10
+CPUWeight=50
+IOWeight=50
+CPUQuota=200%
+MemoryHigh=10G
+MemoryMax=11G
+OOMPolicy=stop
+OOMScoreAdjust=300
+TasksMax=256
+Environment=OMP_NUM_THREADS=4
+Environment=MKL_NUM_THREADS=4
+Environment=OPENBLAS_NUM_THREADS=4
+Environment=TNORM_EPOCH_COOLDOWN_SECONDS=0
+
+[Install]
+WantedBy=default.target

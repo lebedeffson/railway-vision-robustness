@@ -1,0 +1,65 @@
+protocol_id: tnormfilter_canonical_v2
+frozen_before_test: true
+dataset: data/yolo_osdar23_v2/data.yaml
+raw_subsequences: 43
+independent_grouped_scenes: 20
+split_scenes: {train: 10, val: 5, test: 5}
+statistical_unit: sequence_id
+checkpoint_selection: validation_only
+confidence_selection: validation_only
+attack_operating_point: safety_maximum_F2
+canonical_stage_order:
+  - split_v2_frozen
+  - train_canonical_v2
+  - evaluate_train_and_validation_v2
+  - threshold_sweep_validation_v2
+  - freeze_operating_points
+  - baseline_quality_gate
+  - freeze_normalization_validation_v2
+  - canonical_v2_pilot_gate
+  - canonical_validation_attacks
+  - freeze_non_floor_budgets
+  - clean_test_v2_once
+  - canonical_test_attacks
+legacy_thresholds_reused_by_canonical_v2: false
+checkpoint_hash_must_match: [threshold_sweep, clean_test, validation_attacks, test_attacks]
+model:
+  architecture: YOLO11m
+  initialization: yolo11m.pt
+  imgsz: 1280
+  batch: 1
+  epochs: 100
+  patience: 25
+  seed: 20260722
+  rejected_configuration_B: higher_resolution_not_safe_on_8GiB_with_YOLO11m
+quality_gate: {recall_min: 0.35, map50_min: 0.25}
+quality_gate_failure_action: block_canonical_attacks_and_build_diagnostic_bundle
+automatic_rescue_training: false
+hypotheses:
+  H1: canonical_D3_improves_damage_over_D2
+  H2: canonical_R3_improves_recovery_over_R2
+  H3: object_C_atk_is_more_informative_than_global_for_recall_and_FN
+  H4: adaptive_PGD_reduces_Product_effect_more_than_non_adaptive_PGD
+validation_attacks:
+  fgsm_epsilon_px: [0.5, 1, 2]
+  pgd20_epsilon_px: [0.1, 0.25, 0.5, 1]
+  adaptive_pgd20_epsilon_px: [0.25, 0.5]
+  restarts: 3
+  seeds: [42, 123, 999]
+pilot:
+  selection: three_even_frame_order_samples_per_validation_grouped_scene_no_model_or_difficulty
+  grouped_scenes: 5
+  frames: 15
+  fgsm_epsilon_px: [1]
+  pgd20_epsilon_px: [0.25]
+  adaptive_pgd20_epsilon_px: [0.25]
+  defenses: [none, tnorm, bilateral, median]
+  gate_required_before_test: true
+defenses: [none, tnorm, bilateral, median]
+primary_tnorms: [product, lukasiewicz]
+supplementary_tnorms: [godel]
+practical_effect:
+  relative_mae_reduction_percent: 5.0
+  delta_r2: 0.05
+  abs_delta_spearman: 0.05
+deferred: [spatial_stress, full_transfer, second_architecture, cw, pgd40, cka, xai]

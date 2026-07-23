@@ -1,0 +1,86 @@
+protocol_id: canonical-v4-person-dg-nwd-expedited-v1
+protocol_type: prospective_computational_budget_amendment
+parent_protocol: canonical-v4-person-dg-nwd-v1
+parent_protocol_path: configs/canonical_v4_person_dg_nwd.yaml
+parent_protocol_sha256: f0c126c833ab7685285bfdb31cf8c02401cd0a72e12ad10273c500bb786fbe2b
+parent_commit: cd45bfe3a83da20025df4f283d2dd18037c9b6b1
+created_before_A1_fold0_final_evaluation: true
+reason: reduce_compute_without_posthoc_hyperparameter_selection
+
+sealed_scope:
+  test_marker: outputs/person_v3/test/TEST_OPENED.json
+  test_sealed: true
+  attacks_blocked_until_full_OOF_gate: true
+  parent_results_are_immutable: true
+
+unchanged_training:
+  source: configs/canonical_v4_person_dg_nwd.yaml
+  initialization: yolo11m.pt
+  seed: 20260723
+  input_size: 640
+  batch: 1
+  epochs:
+    stage1: 5
+    stage2: 15
+  folds: [0, 1, 2, 3, 4]
+  tiling_unchanged: true
+  evaluator_unchanged: true
+  loss_coefficients_unchanged: true
+  thresholds_not_selected_on_test: true
+
+fold_evaluation:
+  IoU: 0.50
+  confidence_sweep: [0.001, 0.500, 0.001]
+  single_fold_threshold_rule: maximum_F1_on_that_development_fold
+  two_fold_threshold_rule: maximum_pooled_F1_on_folds_0_and_1
+  tie_break_order: [maximum_recall, minimum_threshold]
+  same_rule_for_A0_A1_A3: true
+
+execution_tree:
+  first_observation: A1_fold_0
+  A2: skipped_by_expedited_amendment
+  candidates_in_order: [A1, A3]
+  fold0:
+    require_all:
+      delta_mAP50_min: 0.05
+      delta_recall_min: 0.05
+      delta_small_recall_min: 0.05
+      evaluator_consistency: PASS
+      lost_GT: 0
+      missing_scenes: 0
+      NaN_Inf: 0
+    fail_action:
+      candidate_fold1: skipped_by_expedited_elimination
+      next_candidate: start_fold0
+  two_fold:
+    require_all:
+      macro_mAP50_min: 0.45
+      macro_recall_min: 0.45
+      delta_macro_small_recall_min: 0.05
+      worst_fold_recall_min: 0.25
+      evaluator_consistency: PASS
+      lost_GT: 0
+      missing_scenes: 0
+      NaN_Inf: 0
+    pass_action:
+      current_candidate: winner
+      later_candidates: skipped_by_early_accept
+      winner_remaining_folds: [2, 3, 4]
+    fail_action:
+      next_candidate: start_fold0
+
+full_OOF_gate:
+  source: configs/canonical_v4_person_dg_nwd.yaml
+  run_only_for_first_two_fold_winner: true
+  test_remains_sealed_until_pass: true
+
+reporting:
+  output_root: outputs/person_v4_expedited
+  required:
+    - protocol_lock.json
+    - decision_trace.json
+    - fold0_comparisons.csv
+    - two_fold_comparisons.csv
+    - skipped_stages.json
+    - expedited_selection.json
+  claim_limit: expedited_selection_is_development_only

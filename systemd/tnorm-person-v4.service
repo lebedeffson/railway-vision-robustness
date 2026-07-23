@@ -1,0 +1,22 @@
+[Unit]
+Description=TNormFilter canonical v4 person DG/NWD triage
+After=graphical-session.target
+ConditionPathExists=/home/lebedeffson/Code/андрей/TNormFilter_handoff/outputs/person_v4/protocol/protocol_lock.json
+ConditionPathExists=!/home/lebedeffson/Code/андрей/TNormFilter_handoff/outputs/person_v3/test/TEST_OPENED.json
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/lebedeffson/Code/андрей/TNormFilter_handoff
+ExecStart=/home/lebedeffson/Code/андрей/TNormFilter_handoff/.venv/bin/python -u scripts/person_v4/run_pipeline.py
+Restart=on-failure
+RestartSec=30
+Nice=5
+IOSchedulingClass=idle
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/home/lebedeffson/Code/андрей/TNormFilter_handoff:/home/lebedeffson/Code/андрей/TNormFilter_handoff/scripts
+Environment=CUDA_VISIBLE_DEVICES=0
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,228 @@
+protocol_id: canonical-v4-person-dg-nwd-v1
+parent_protocol: canonical-v3-person-safety-v1
+parent_commit: 72e50328672333e0f4c083ba853e47ac47ced04e
+frozen_before_gpu: true
+
+person_v3_baseline:
+  status: hard_fail
+  bundle: outputs/person_v3/bundles/TNormFilter_person_v3_triage_failed.zip
+  bundle_sha256: 645b4c60a4311ddd5d24c6f6f017db98767a28d9b1a871ec3bcf950ed4ec84a4
+  folds: [0, 1]
+  pooled_threshold: 0.070
+  macro_mAP50: 0.3588280906704746
+  macro_recall: 0.35431568446602985
+  macro_F1: 0.3837008650441486
+  macro_small_recall: 0.21130054736371762
+  worst_fold_recall: 0.20128824476650564
+  false_positives: 652
+
+data:
+  person_v3_protocol_lock: outputs/person_v3/protocol/protocol_lock.json
+  folds: outputs/person_v3/protocol/folds.json
+  source_tile_manifest: outputs/canonical_m4/tiling_audit/tile_manifest.csv
+  person_tile_images: outputs/person_v3/dataset/images/development
+  person_tile_labels: outputs/person_v3/dataset/labels/development
+  grouped_scene_field: grouped_scene_id
+  target_class: person
+  test_marker: outputs/person_v3/test/TEST_OPENED.json
+  test_sealed: true
+  test_labels_must_not_be_read: true
+
+matrix:
+  execution_order: [A0, A1, A2, A3]
+  A0:
+    role: frozen_person_v3_ERM_baseline
+    train: false
+  A1:
+    nwd_assignment: true
+    hybrid_nwd_ciou_loss: true
+    quality_focal_loss: true
+    group_dro: false
+    mixstyle: false
+    scale_aware_augmentation: false
+    swad: false
+  A2:
+    nwd_assignment: true
+    hybrid_nwd_ciou_loss: true
+    quality_focal_loss: true
+    group_dro: true
+    mixstyle: false
+    scale_aware_augmentation: false
+    swad: false
+  A3:
+    nwd_assignment: true
+    hybrid_nwd_ciou_loss: true
+    quality_focal_loss: true
+    group_dro: true
+    mixstyle: true
+    scale_aware_augmentation: true
+    swad: true
+
+training:
+  triage_folds: [0, 1]
+  initialization: yolo11m.pt
+  initialization_sha256: d5ffc1a674953a08e11a8d21e022781b1b23a19b730afc309290bd9fb5305b95
+  seed: 20260723
+  input_size: 640
+  batch: 1
+  nominal_batch_size: 8
+  workers: 2
+  optimizer: AdamW
+  weight_decay: 0.0005
+  amp: false
+  deterministic: true
+  stages:
+    stage1:
+      epochs: 5
+      freeze_layers: 10
+      backbone_lr: 0.0
+      head_lr: 0.0003
+    stage2:
+      epochs: 15
+      freeze_layers: 0
+      backbone_lr: 0.0001
+      head_lr: 0.0003
+  common_augmentations:
+    hsv_h: 0.0
+    hsv_s: 0.0
+    hsv_v: 0.0
+    degrees: 0.0
+    translate: 0.0
+    scale: 0.0
+    shear: 0.0
+    perspective: 0.0
+    flipud: 0.0
+    fliplr: 0.0
+    mosaic: 0.0
+    mixup: 0.0
+    cutmix: 0.0
+    copy_paste: 0.0
+    erasing: 0.0
+
+nwd:
+  gaussian_box_vector: [center_x, center_y, width_over_2, height_over_2]
+  constant_rule: median_sqrt_area_of_person_boxes_after_letterbox_on_fold_train_only
+  constant_min_px: 1.0
+  assignment_candidate_min_similarity: 0.50
+  area_alpha:
+    function: sigmoid_log_area
+    reference_area_px2: 256.0
+    temperature: 1.0
+  loss:
+    hybrid: (1-alpha)*CIoU_loss+alpha*(1-NWD)
+  assignment:
+    hybrid_similarity: (1-alpha)*clamped_CIoU+alpha*NWD
+    candidate_rule: anchor_center_inside_GT_or_small_object_NWD_above_threshold
+
+quality_focal_loss:
+  beta: 2.0
+  quality_target:
+    IoU_weight: 0.50
+    NWD_weight: 0.50
+  background_target: 0.0
+
+group_dro:
+  group: grouped_scene_id
+  sampler: deterministic_scene_round_robin
+  minimum_distinct_scenes_per_optimizer_step: 2
+  nominal_batch_size_for_accumulation: 8
+  eta: 0.01
+  initial_weight: uniform
+  update: exponentiated_gradient
+  normalize_objective_for_uniform_scene_sampling: true
+  log_every_batch: true
+
+mixstyle:
+  probability: 0.50
+  beta_alpha: 0.10
+  backbone_layer_indices: [1, 3]
+  source: different_grouped_scene_only
+  batch1_policy: per_scene_style_bank
+  bank_entries_per_scene: 1
+  epsilon: 1.0e-6
+
+scale_aware_augmentation:
+  probability: 0.50
+  zoom_min: 1.00
+  zoom_max: 1.25
+  target_selection: smallest_person_box
+  require_all_boxes_fully_visible: true
+  minimum_box_after_transform_px: 4.0
+  fallback_if_constraints_fail: identity
+  photometric:
+    hsv_s: 0.20
+    hsv_v: 0.20
+    fliplr: 0.50
+
+swad:
+  source: stage2_EMA_epoch_trajectory
+  checkpoint_frequency_epochs: 1
+  validation_loss: val_box_plus_cls_plus_dfl
+  start_tolerance_relative: 0.02
+  end_degradation_relative: 0.05
+  end_patience_epochs: 3
+  minimum_averaged_checkpoints: 3
+  fallback: average_best_three_validation_loss_epochs
+  test_may_select_interval: false
+
+evaluation:
+  iou_threshold: 0.50
+  confidence_min: 0.001
+  confidence_max: 0.500
+  confidence_step: 0.001
+  threshold_rule: maximum_pooled_F1_on_same_two_development_folds
+  independent_evaluator_tolerance: 0.0001
+  calibration:
+    expected_calibration_error_bins: 15
+    quality_match_iou: 0.50
+  required:
+    evaluator_consistency: PASS
+    lost_GT: 0
+    missing_scenes: 0
+    NaN_Inf: 0
+
+selection:
+  reference: A0
+  require_all:
+    absolute_macro_mAP50_gain_min: 0.05
+    absolute_macro_recall_gain_min: 0.05
+    absolute_macro_small_recall_gain_min: 0.05
+    worst_fold_recall_must_not_decrease: true
+    false_positives_must_decrease: true
+  fold0_recall_target: [0.30, 0.35]
+  winner_rule:
+    - eligible_only
+    - maximize_worst_fold_recall
+    - maximize_macro_small_recall
+    - maximize_macro_mAP50
+    - minimize_false_positives
+
+continuation:
+  no_eligible_candidate:
+    remaining_folds: blocked
+    test: blocked
+    attacks: blocked
+    hypotheses_H1_H4: not_tested
+  eligible_candidate:
+    remaining_folds: run_winner_without_changes
+    OOF_gate:
+      mAP50_min: 0.50
+      safety_recall_min: 0.50
+      F1_min: 0.50
+      worst_fold_recall_min: 0.30
+    test_remains_sealed_until_OOF_pass: true
+
+claim_limits:
+  no_positive_claim_from_two_fold_triage: true
+  no_test_access_before_full_OOF_gate: true
+  no_posthoc_threshold_or_method_selection_on_test: true
+  additional_independent_scenes_remain_preferred_if_A3_fails: true
+
+method_provenance:
+  GroupDRO: https://openreview.net/forum?id=ryxGuJrFvS
+  NWD: https://arxiv.org/abs/2110.13389
+  GFLv2_QFL: https://openaccess.thecvf.com/content/CVPR2021/html/Li_Generalized_Focal_Loss_V2_Learning_Reliable_Localization_Quality_Estimation_for_CVPR_2021_paper.html
+  MixStyle: https://openreview.net/forum?id=6xHJ37MVxxp
+  SWAD: https://openreview.net/forum?id=zkHlu_3sJYU
+  ScaleMatch: https://openaccess.thecvf.com/content_WACV_2020/html/Yu_Scale_Match_for_Tiny_Person_Detection_WACV_2020_paper.html
+  adaptation_note: NWD assignment is integrated into YOLO11 task-aligned anchor-free assignment as a frozen CIoU/NWD hybrid; it is not represented as the paper's anchor-based RPN implementation.

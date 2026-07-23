@@ -1,0 +1,167 @@
+protocol_id: tnormfilter_revision_q1_v1
+frozen_from_commit: dca58cf
+frozen_at: '2026-07-22T00:25:00+03:00'
+output_root: outputs/final_practice/revision_q1
+primary_checkpoint: outputs/training/yolo11m_baseline_stage2/weights/best.pt
+sensitivity_checkpoint: outputs/training/yolo11m_baseline_stage1/weights/best.pt
+checkpoint_selection_metric: validation_mAP50-95
+statistical_unit: sequence_id
+random_seed: 20260720
+bootstrap_iterations: 5000
+epsilon_num: 1.0e-8
+
+split_policy:
+  fit_normalization: val_clean_only
+  fit_scene_thresholds: val_only
+  select_features: val_only
+  select_models: val_only
+  tune_thresholds: val_only
+  test_role: final_locked_evaluation
+  forbidden_test_actions:
+    - fit_normalization
+    - select_normalization
+    - fit_scene_thresholds
+    - select_features
+    - select_models
+    - tune_thresholds
+
+hypotheses:
+  H1:
+    task: damage
+    primary_endpoint: delta_f1_damage
+    secondary_endpoints:
+      - delta_recall_damage
+      - delta_confidence
+      - false_negatives_increase
+  H2:
+    task: recovery
+    primary_endpoint: delta_f1_recovery
+    secondary_endpoints:
+      - delta_recall_recovery
+      - false_negatives_reduction
+      - normalized_quality_recovery
+  H3:
+    task: checkpoint_sensitivity
+    checkpoints: [stage2_best, stage1_best]
+  H4:
+    task: scene_difficulty
+    strata: [object_count_tertile, small_object_fraction_tertile]
+
+normalization:
+  fit_split: val
+  fit_inputs: clean_only
+  per_layer: true
+  per_channel: true
+  sample_positions_per_image: 256
+  saturation_warning_fraction: 0.20
+  primary_selection_rule:
+    order:
+      - reject_if_saturation_above_threshold
+      - maximize_validation_group_cv_r2_D3
+      - minimize_validation_group_cv_mae_D3
+    default_if_tied: N1_quantile
+  variants:
+    existing_normalization:
+      kind: quantile
+      q_low: 0.05
+      q_high: 0.95
+    N1_quantile:
+      kind: quantile
+      q_low: 0.01
+      q_high: 0.99
+    N2_robust_sigmoid:
+      kind: robust_sigmoid
+      center: median
+      scale: MAD
+    N3_zscore_sigmoid:
+      kind: zscore_sigmoid
+      center: mean
+      scale: std
+
+damage_models:
+  D0: [epsilon, attack, perturbation_l1, perturbation_l2, perturbation_linf]
+  D1: [epsilon, attack, perturbation_l1, perturbation_l2, perturbation_linf, cosine]
+  D2: [epsilon, attack, perturbation_l1, perturbation_l2, perturbation_linf, cosine, l1_distance, normalized_l2, mse, pearson, entropy_shift, gradient_l2]
+  D3: [epsilon, attack, perturbation_l1, perturbation_l2, perturbation_linf, cosine, l1_distance, normalized_l2, mse, pearson, entropy_shift, gradient_l2, product, lukasiewicz]
+  D4: [epsilon, attack, perturbation_l1, perturbation_l2, perturbation_linf, cosine, l1_distance, normalized_l2, mse, pearson, entropy_shift, gradient_l2, product, lukasiewicz, c_sp_object, c_dir, c_atk_object]
+
+recovery_models:
+  R0: [epsilon, attack, defense, f1_attack]
+  R1: [epsilon, attack, defense, f1_attack, cosine_recovery]
+  R2: [epsilon, attack, defense, f1_attack, cosine_recovery, l1_recovery, normalized_l2_recovery, mse_recovery, pearson_recovery, entropy_recovery]
+  R3: [epsilon, attack, defense, f1_attack, cosine_recovery, l1_recovery, normalized_l2_recovery, mse_recovery, pearson_recovery, entropy_recovery, product_recovery, lukasiewicz_recovery]
+  R4: [epsilon, attack, defense, f1_attack, cosine_recovery, l1_recovery, normalized_l2_recovery, mse_recovery, pearson_recovery, entropy_recovery, product_recovery, lukasiewicz_recovery, p_clean_preservation, a_attacked_similarity, r_restored_similarity, g_recovery, c_def]
+
+algorithms:
+  primary: [ridge, elastic_net]
+  supplementary: [random_forest, gradient_boosting]
+
+attacks:
+  seeds: [42, 123, 999]
+  restarts: 3
+  random_start: true
+  fgsm:
+    epsilon_px: [0.5, 1, 2, 4, 8]
+  pgd:
+    epsilon_px: [0.1, 0.25, 0.5, 1, 2]
+    steps: [20, 40]
+    step_size_rule: epsilon_over_4
+  adaptive_pgd:
+    epsilon_px: [0.25, 0.5, 1]
+    steps: [20, 40]
+    defense: tnorm
+  floor_effect:
+    map50_threshold: 0.01
+    primary_metrics_when_triggered: [recall, f1, false_negatives_per_frame]
+
+sensitivity:
+  checkpoint: stage1_best
+  fgsm_epsilon_px: [1, 4]
+  pgd_epsilon_px: [0.25, 1]
+  pgd_steps: [20]
+  adaptive_pgd_epsilon_px: [1]
+  adaptive_pgd_steps: [20, 40]
+  defenses: [none, tnorm, median, bilateral]
+
+spatial_stress:
+  rotations_degrees: [-5, -2, 2, 5]
+  scales: [0.95, 1.05]
+  interpolation: bilinear
+  padding: reflection
+  scenarios: [rotation_only, scale_only, rotation_fgsm, scale_fgsm]
+  fgsm_epsilon_px: 1
+
+transfer:
+  name: cross-checkpoint_transfer
+  directions:
+    - [stage1_best, stage2_best]
+    - [stage2_best, stage1_best]
+  epsilon_px: [1]
+  attacks: [fgsm, pgd]
+
+scene_difficulty:
+  object_count_thresholds: validation_tertiles
+  small_object_fraction_thresholds: validation_tertiles
+  small_object_area_ratio: 0.001
+  exploratory_min_sequences: 5
+
+statistics:
+  group_folds: 3
+  correlations: [pearson, spearman]
+  model_metrics: [mae, r2, spearman]
+  primary_comparisons: [D3_vs_D2, D4_vs_D2, R3_vs_R2, R4_vs_R2]
+  corrections: [holm_bonferroni, benjamini_hochberg]
+  alpha: 0.05
+  practical_effect:
+    relative_mae_reduction: 5.0
+    delta_r2: 0.05
+    abs_delta_spearman: 0.05
+  metric_roles:
+    product: primary
+    lukasiewicz: primary
+    godel: supplementary_redundancy_ablation
+  limited_cluster_inference:
+    report_per_scene: true
+    report_macro_average: true
+    leave_one_scene_out: true
+    suppress_strong_generalization_claims_below_sequences: 5

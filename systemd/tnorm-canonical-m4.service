@@ -1,0 +1,19 @@
+[Unit]
+Description=TNormFilter canonical M4 full protocol
+After=default.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/lebedeffson/Code/андрей/TNormFilter_handoff
+ExecStart=/home/lebedeffson/Code/андрей/TNormFilter_handoff/.venv/bin/python -u scripts/run_canonical_m4_pre_gate.py
+Restart=on-failure
+RestartSec=30
+Nice=5
+IOSchedulingClass=idle
+Environment=PYTHONUNBUFFERED=1
+Environment=CUDA_VISIBLE_DEVICES=0
+StandardOutput=append:/home/lebedeffson/Code/андрей/TNormFilter_handoff/outputs/canonical_m4/logs/pipeline.log
+StandardError=append:/home/lebedeffson/Code/андрей/TNormFilter_handoff/outputs/canonical_m4/logs/pipeline.log
+
+[Install]
+WantedBy=default.target

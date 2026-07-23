@@ -1,0 +1,73 @@
+protocol_id: tnormfilter_deadline_v1
+created_at: '2026-07-22T12:20:00+03:00'
+primary_checkpoint: outputs/training/yolo11m_baseline_stage2/weights/best.pt
+sensitivity_checkpoint: outputs/training/yolo11m_baseline_stage1/weights/best.pt
+output_root: outputs/final_practice/deadline
+statistical_unit: sequence_id
+random_seed: 20260720
+final_bootstrap_iterations: 5000
+pilot_bootstrap_iterations: 200
+normalization:
+  primary: N1_quantile
+  fit_split: val
+  fit_inputs: clean_only
+  per_layer: true
+  per_channel: true
+  saturation_limit: 0.20
+pilot:
+  requested_independent_sequences: 12
+  available_validation_sequences: 3
+  frames_per_sequence: 4
+  total_frames: 12
+  interpretation: smoke_test_only
+  attacks:
+    fgsm_epsilon_px: [0.05, 0.1, 0.25, 0.5]
+    pgd_epsilon_px: [0.025, 0.05, 0.1]
+    pgd_steps: [20]
+    adaptive_pgd_epsilon_px: [0.025, 0.05, 0.1]
+    adaptive_pgd_steps: [20]
+  defenses: [none, tnorm, bilateral]
+  normalizations: [N1_quantile, N2_robust_sigmoid, N3_zscore_sigmoid]
+final_matrix:
+  budget_source: validation_pilot_floor_gate
+  fgsm_epsilon_px: frozen_at_runtime_from_validation
+  pgd_epsilon_px: frozen_at_runtime_from_validation
+  pgd_steps: [20]
+  adaptive_pgd_epsilon_px: frozen_at_runtime_from_validation
+  adaptive_pgd_steps: [20]
+  seeds: [42, 123, 999]
+  defenses: [none, tnorm, bilateral, median]
+  normalization: N1_quantile
+stage1_sensitivity:
+  split: test
+  frame_scope: deterministic_45_unique_frames_balanced_by_available_scene_size
+  allocation_rule: start_with_up_to_15_per_scene_then_round_robin_remaining
+  total_frames: 45
+  budget_source: maximum_frozen_nonfloor_validation_budget_per_attack
+  fgsm_epsilon_px: frozen_at_runtime_from_validation
+  pgd_epsilon_px: frozen_at_runtime_from_validation
+  pgd_steps: [20]
+  adaptive_pgd_epsilon_px: frozen_at_runtime_from_validation
+  adaptive_pgd_steps: [20]
+  defenses: [none, tnorm]
+  metrics: [cosine, normalized_l2, product, lukasiewicz]
+statistics:
+  damage_models: [D0, D1, D2, D3]
+  recovery_models: [R0, R1, R2, R3]
+  corrections: [holm_bonferroni, benjamini_hochberg]
+  practical_thresholds:
+    delta_r2: 0.05
+    relative_mae_reduction: 5.0
+    abs_delta_spearman: 0.05
+deferred_extended_analysis:
+  - full_spatial_stress
+  - full_cross_checkpoint_transfer
+  - second_architecture
+  - full_normalization_attack_sweep
+  - full_stage1_robustness_matrix
+  - cka
+  - xai
+  - cw
+  - pgd_40
+  - black_box_transfer
+  - full_filter_robustness_ranking

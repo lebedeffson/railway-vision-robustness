@@ -1,0 +1,20 @@
+{
+  "status": "PASS",
+  "protocol_id": "canonical-v2-small-signal-rescue-v2",
+  "selection_sha256": "ce6462c392978322933225797428908dceaeeede3d9d04f50a31ac0d20352c78",
+  "selected_candidate": "M4",
+  "selection_role": "technical_learnability_sanity_check_only",
+  "micro_metrics_are_not_validation_metrics": true,
+  "m4": {
+    "mAP50": 0.9975356961658332,
+    "recall": 0.9947183098591549,
+    "small_recall": 0.9921568627450981,
+    "medium_recall": 0.9963636363636363,
+    "large_recall": 1.0,
+    "checkpoint_sha256": "ad2790f08563402108e2e87a22157a0139e2f64237a046fd529930b69ffd4f18",
+    "result_sha256": "8513e4c4164a382c4923e9df222b0071382c2591fbefccfc43c367dd6a600900",
+    "eligible_for_full_training_without_deployable_roi": true
+  },
+  "test_opened": false,
+  "attacks_run": false
+}

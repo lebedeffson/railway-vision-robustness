@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.py[cod]
+data/
+outputs/
+
+# Local runtime/provenance artifacts. Keep them on the experiment host, but do
+# not publish them in the source repository.
+/project.zip
+/yolo11m.pt
+/yolo26n.pt
+/images.jpg
+/article/internal_review_template.docx

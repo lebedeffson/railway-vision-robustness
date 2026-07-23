@@ -1,0 +1,18 @@
+policy_id: canonical-v2-rescue-v1-candidate-execution
+frozen_before_candidate_training: true
+checkpoint_interval_epochs: 5
+checkpoint_interval_reason: bounded_75GB_free_workspace
+r3_small_object_recall_improvement_min: 0.02
+r4_material_class_imbalance_ratio_min: 10.0
+r4_material_scene_frame_ratio_min: 3.0
+pretrained_coco_mapping:
+  person: [0]
+  bicycle: [1]
+  road_vehicle: [2, 3, 5, 7]
+  train: [6]
+  animal: [14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+  signal: []
+multi_seed_gate:
+  require_selected_checkpoint_pass: true
+  require_median_map50_pass: true
+  require_median_safety_recall_pass: true

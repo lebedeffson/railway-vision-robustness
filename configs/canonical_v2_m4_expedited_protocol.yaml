@@ -1,0 +1,61 @@
+protocol_id: canonical-v2-m4-expedited-v1
+parent_protocol: canonical-v2-m4-full-v1
+purpose: deadline_go_no_go_after_frozen_fold_0
+test_sealed: true
+attacks_blocked_until_official_validation_pass: true
+
+source_fold:
+  fold: 0
+  seed: 20260722
+  held_out_grouped_scenes:
+    - 4_station_pedestrian_bridge_4
+    - 19_vegetation_curve_19
+  role: computational_triage_only
+  publish_as_canonical_result: false
+
+early_triage:
+  map50_min: 0.25
+  recall_min: 0.35
+  recall_field: safety_recall
+  require_evaluator_consistency: true
+  require_no_missing_scene: true
+  require_lost_gt_zero: true
+  require_finite_metrics: true
+  catastrophic_scene_failure:
+    definition: any_held_out_scene_recall_equals_zero
+    threshold: 0.0
+  hard_fail_action: stop_and_build_diagnostic_bundle
+  promising_action: run_one_fixed_full_seed_then_official_validation
+
+expedited_full_training:
+  seed: 20260722
+  recipe_source: configs/canonical_v2_m4_full_protocol.yaml
+  remaining_scene_cv_folds: skipped_by_expedited_triage
+  additional_seeds: skipped_by_expedited_triage
+  checkpoint_selection: best_checkpoint_from_the_single_fixed_seed
+
+official_validation_gate:
+  map50_min: 0.25
+  safety_recall_min: 0.35
+  threshold_rules:
+    standard: maximum_F1
+    safety: maximum_F2
+  test_may_select: false
+
+pass_only_reduced_test_amendment:
+  enabled_only_after_official_validation_pass: true
+  attacks:
+    FGSM: one_largest_validation_non_floor_budget
+    PGD20: one_largest_validation_non_floor_budget
+    adaptive_Product_PGD20: one_largest_validation_non_floor_budget
+  defenses:
+    - none
+    - Product_preprocessing
+    - median
+  feature_layers: [P3, P4, P5]
+  models: [D2, D3, R2, R3]
+  statistics:
+    group: grouped_scene_id
+    per_scene: true
+    cluster_bootstrap: true
+

@@ -1,0 +1,14 @@
+source_docx: /home/lebedeffson/Downloads/TNorm_RZD_article_expanded_internal_review.docx
+source_docx_sha256: 166940efc5f41934ce4513006c15af3e35332b520eb71d4f02781efb63c5f802
+output_docx: outputs/article/TNorm_RZD_article_final.docx
+output_pdf: outputs/article/TNorm_RZD_article_final.pdf
+output_supplementary_pdf: outputs/article/TNorm_RZD_supplementary.pdf
+placeholders:
+  TBD_SPLIT: outputs/canonical_v2/tables/01_split_v2_summary.csv
+  TBD_THRESHOLD: outputs/canonical_v2/calibration/threshold_selection.json
+  TBD_CLEAN: outputs/canonical_v2/tables/03_clean_test_metrics.csv
+  TBD_DAMAGE: outputs/canonical_v2/tables/08_damage_D2_D3.csv
+  TBD_RECOVERY: outputs/canonical_v2/tables/09_recovery_R2_R3.csv
+  TBD_OBJECT: outputs/canonical_v2/tables/10_object_global_comparison.csv
+  TBD_ADAPTIVE: outputs/canonical_v2/tables/11_adaptive_comparison.csv
+  TBD_LATENCY: outputs/canonical_v2/tables/14_latency_summary.csv
