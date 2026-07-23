@@ -35,6 +35,18 @@ fn_audit:
   operating_point: safety
   iou_match_threshold: 0.50
   pixel_size_bins: [0, 4, 8, 16, 32, .inf]
+  pixel_size_measure: minimum_bbox_side_after_letterbox
+  audited_imgsz: [640, 960, 1280]
+  automatic_classification_priority:
+    - A_if_minimum_side_below_1px_at_640
+    - B_if_correct_class_iou_at_least_0_5_below_operating_confidence
+    - D_if_wrong_class_iou_at_least_0_5_above_operating_confidence
+    - C_if_correct_class_prediction_above_operating_confidence_but_unmatched
+    - E_otherwise
+  manual_override:
+    allowed_categories: [F, G]
+    requires_gallery_review: true
+    requires_reason: true
   error_types:
     A: object_disappears_after_resize
     B: correct_localization_below_confidence

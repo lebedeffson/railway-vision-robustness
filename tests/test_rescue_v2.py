@@ -86,6 +86,12 @@ class SmallSignalRescueV2Test(unittest.TestCase):
         self.assertEqual(audit["feature_strides_source"], "loaded_model")
         self.assertTrue(audit["hardcoded_feature_strides_forbidden"])
         self.assertEqual(audit["pixel_size_bins"][:5], [0, 4, 8, 16, 32])
+        self.assertEqual(
+            audit["pixel_size_measure"],
+            "minimum_bbox_side_after_letterbox",
+        )
+        self.assertEqual(audit["audited_imgsz"], [640, 960, 1280])
+        self.assertEqual(audit["manual_override"]["allowed_categories"], ["F", "G"])
 
     def test_full_training_is_limited_and_validation_only(self) -> None:
         full = self.protocol["full_training"]
