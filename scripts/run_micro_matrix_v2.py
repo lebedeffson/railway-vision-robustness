@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import time
 from pathlib import Path
@@ -23,12 +24,29 @@ def load_result(candidate: str) -> dict[str, Any] | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def candidate_process_running(candidate: str) -> bool:
+    expected = f"--candidate\x00{candidate}".encode()
+    own_pid = os.getpid()
+    for command_line in Path("/proc").glob("[0-9]*/cmdline"):
+        if int(command_line.parent.name) == own_pid:
+            continue
+        try:
+            value = command_line.read_bytes()
+        except (FileNotFoundError, PermissionError, ProcessLookupError):
+            continue
+        if b"run_micro_candidate_v2.py" in value and expected in value:
+            return True
+    return False
+
+
 def wait_for_candidate(candidate: str, timeout_seconds: int) -> dict[str, Any]:
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
         result = load_result(candidate)
         if result is not None:
             return result
+        if not candidate_process_running(candidate):
+            return run_candidate(candidate)
         time.sleep(10)
     raise TimeoutError(f"Timed out waiting for {candidate}")
 

@@ -29,7 +29,7 @@ from run_micro_view_candidate_v2 import (  # noqa: E402
     crop_windows,
     tile_windows,
 )
-from run_micro_matrix_v2 import summarize  # noqa: E402
+from run_micro_matrix_v2 import candidate_process_running, summarize  # noqa: E402
 
 import numpy as np
 
@@ -217,6 +217,9 @@ class SmallSignalRescueV2Test(unittest.TestCase):
         self.assertEqual(summary["selected_candidates"], ["M2", "M4"])
         self.assertIn("M3", summary["passing_candidates"])
         self.assertNotIn("M3", summary["full_training_eligible_candidates"])
+
+    def test_process_probe_does_not_match_matrix_process(self) -> None:
+        self.assertFalse(candidate_process_running("not_a_real_candidate"))
 
 
 if __name__ == "__main__":
