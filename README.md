@@ -1,4 +1,7 @@
-# TNormFilter
+# Railway Vision Robustness
+
+> Reproducible railway vision experiments from scene-level quality gates to
+> adversarial and T-norm diagnostics.
 
 Исследовательский pipeline для проверки дополнительной диагностической
 ценности канонических T-норм при состязательном повреждении детектора людей в
@@ -32,6 +35,12 @@ test и запуска атак.
 
 ## Данные и статистическая единица
 
+Эксперименты используют открытый набор
+[OSDaR23 — Open Sensor Data for Rail 2023](https://data.fid-move.de/dataset/osdar23).
+Описание состава данных и процедуры сбора приведено в
+[статье OSDaR23](https://arxiv.org/abs/2305.03001) и на странице
+[Data Factory — Digitale Schiene Deutschland](https://digitale-schiene-deutschland.de/en/projects/DataFactory).
+
 - Development pool: прежние train + validation, 15 независимых grouped scenes.
 - Sealed test: 5 grouped scenes.
 - Целевой класс canonical v3/v4: `person`.
@@ -40,7 +49,26 @@ test и запуска атак.
 
 Исходные аннотации не перезаписываются. Person-only dataset является
 производным представлением: люди — целевые объекты, кадры без людей —
-отрицательный фон.
+отрицательный фон. Сам датасет не включён в Git-репозиторий; перед загрузкой
+необходимо ознакомиться с условиями распространения на официальной странице.
+
+## Датасет OSDaR23
+
+В экспериментах используется **Open Sensor Data for Rail 2023 (OSDaR23)** —
+открытый мультимодальный железнодорожный набор с синхронизированными RGB/IR
+камерами, LiDAR, radar, IMU/GNSS и аннотациями ASAM OpenLABEL.
+
+- Официальный каталог и загрузка:
+  [data.fid-move.de/dataset/osdar23](https://data.fid-move.de/dataset/osdar23)
+- Страница проекта Digitale Schiene Deutschland:
+  [Data Factory / OSDaR23](https://digitale-schiene-deutschland.de/en/projects/DataFactory)
+- Описание набора:
+  [OSDaR23: Open Sensor Data for Rail 2023](https://arxiv.org/abs/2305.03001)
+
+Датасет, преобразованные изображения и локальные manifests **не включаются в
+Git-репозиторий**. Для воспроизведения необходимо отдельно получить OSDaR23,
+принять условия его распространения и построить локальное представление
+скриптами проекта. Каталог `data/` исключён через `.gitignore`.
 
 ## Замороженные протоколы
 
