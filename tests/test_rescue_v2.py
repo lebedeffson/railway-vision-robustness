@@ -160,6 +160,17 @@ class SmallSignalRescueV2Test(unittest.TestCase):
             self.assertEqual(arguments[key], 0.0)
         self.assertEqual(arguments["imgsz"], 960)
         self.assertEqual(arguments["seed"], 20260722)
+        self.assertFalse(arguments["amp"])
+
+    def test_numeric_stability_amendment_does_not_relax_gate(self) -> None:
+        amendment = ROOT / self.protocol["protocol_amendments"][0]
+        payload = yaml.safe_load(amendment.read_text(encoding="utf-8"))
+        self.assertTrue(payload["recorded_before_corrected_run"])
+        self.assertFalse(payload["change"]["amp"]["to"])
+        self.assertIn("micro_gate", payload["unchanged"])
+        self.assertFalse(self.protocol["micro_gate"]["nan_or_inf_allowed"])
+        for candidate in ("M1", "M2", "M3", "M4"):
+            self.assertFalse(self.protocol["micro_candidates"][candidate]["amp"])
 
     def test_m0_is_registered_without_retraining(self) -> None:
         source = (ROOT / "scripts/run_micro_candidate_v2.py").read_text()

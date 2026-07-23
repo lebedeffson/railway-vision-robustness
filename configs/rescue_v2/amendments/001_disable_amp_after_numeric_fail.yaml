@@ -1,0 +1,29 @@
+amendment_id: rescue-v2-001-disable-amp-after-numeric-fail
+recorded_before_corrected_run: true
+date: 2026-07-23
+scope: [M1, M2, M3, M4]
+reason:
+  candidate: M1
+  original_status: FAIL
+  failed_gate: finite_gradients
+  observation: one non-finite AMP-scaled gradient norm in epoch 1; all 149 later epochs were finite
+  metrics_were_not_used_to_change_scientific_thresholds: true
+change:
+  amp:
+    from: true
+    to: false
+unchanged:
+  - micro_dataset
+  - seed
+  - epochs
+  - imgsz
+  - augmentations
+  - ground_truth
+  - micro_gate
+  - candidate_order
+  - test_seal
+disposition:
+  original_M1: preserve_under_outputs/rescue_v2/rejected_runs
+  corrected_M1: rerun_from_pretrained_weights
+test_opened: false
+attacks_run: false

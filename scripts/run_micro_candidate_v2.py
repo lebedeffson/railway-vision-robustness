@@ -88,7 +88,7 @@ def training_arguments(
         "lrf": 0.1,
         "weight_decay": 5e-4,
         "pretrained": True,
-        "amp": True,
+        "amp": bool(config["amp"]),
         "cos_lr": True,
         "freeze": 0,
         "seed": int(config["seed"]),

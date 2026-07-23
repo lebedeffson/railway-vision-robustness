@@ -8,6 +8,8 @@ split_manifest_sha256: bfd82413e4f92a935e8efb048a2c0edb03a97d932dd2a9303fa622099
 dataset: data/yolo_osdar23_rescue_v1/data.yaml
 dataset_manifest: data/yolo_osdar23_rescue_v1/manifest.csv
 output_root: outputs/rescue_v2
+protocol_amendments:
+  - configs/rescue_v2/amendments/001_disable_amp_after_numeric_fail.yaml
 
 scientific_boundaries:
   test_sealed: true
@@ -95,6 +97,7 @@ micro_candidates:
     model: yolo11m.pt
     imgsz: 960
     batch: 1
+    amp: false
     epochs: 150
     augmentations: minimal
     mosaic: 0.0
@@ -106,6 +109,7 @@ micro_candidates:
     model: yolo11m.pt
     imgsz: 1280
     batch: 1
+    amp: false
     epochs: 150
     augmentations: minimal
     mosaic: 0.0
@@ -117,6 +121,7 @@ micro_candidates:
     model: yolo11m.pt
     imgsz: 640
     batch: 1
+    amp: false
     epochs: 150
     target_class: signal
     target_small_area_ratio_max: 0.001
@@ -140,6 +145,7 @@ micro_candidates:
     model: yolo11m.pt
     imgsz: 640
     batch: 1
+    amp: false
     epochs: 150
     grid: [2, 2]
     overlap_fraction: 0.25
