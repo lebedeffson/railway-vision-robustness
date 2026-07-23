@@ -167,6 +167,30 @@ class RescueV1Test(unittest.TestCase):
         for name in ("mosaic", "mixup", "translate", "scale", "perspective"):
             self.assertEqual(contract[name], 0.0)
 
+    def test_micro_manifest_paths_map_train_and_val_aliases(self) -> None:
+        from baseline_rescue_audit import manifest_scene_lookup
+        import pandas as pd
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = root / "manifest.csv"
+            pd.DataFrame([{
+                "split": "train",
+                "frame_id": "1",
+                "output_image": str(root / "source.png"),
+                "sequence_id": "scene-a",
+                "micro_train_image": str(root / "micro/train/frame.png"),
+                "micro_val_image": str(root / "micro/val/frame.png"),
+            }]).to_csv(manifest, index=False)
+            train = manifest_scene_lookup(manifest, "train")
+            val = manifest_scene_lookup(manifest, "val")
+            self.assertEqual(
+                train[str((root / "micro/train/frame.png").resolve())], "scene-a"
+            )
+            self.assertEqual(
+                val[str((root / "micro/val/frame.png").resolve())], "scene-a"
+            )
+
     def test_no_tbd_finalization_when_gate_failed(self) -> None:
         self._assert_role_blocked("finalization")
 

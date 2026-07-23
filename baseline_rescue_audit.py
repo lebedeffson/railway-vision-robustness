@@ -225,10 +225,7 @@ def per_scene_rows(
     samples: list[dict[str, Any]], split: str, confidence: float,
     operating_point: str, manifest_path: Path,
 ) -> list[dict[str, Any]]:
-    lookup = {
-        canonical_path(row["image_path"]): row["sequence_id"]
-        for row in load_manifest(manifest_path) if row["split"] == split
-    }
+    lookup = manifest_scene_lookup(manifest_path, split)
     grouped: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
     for sample in samples:
         path = canonical_path(sample["image_path"])
@@ -245,17 +242,39 @@ def per_scene_rows(
     ]
 
 
+def manifest_scene_lookup(manifest_path: Path, split: str) -> dict[str, str]:
+    """Resolve both ordinary split paths and explicit micro-overfit aliases."""
+    lookup: dict[str, str] = {}
+    micro_column = f"micro_{split}_image"
+    for row in load_manifest(manifest_path):
+        candidates: list[str] = []
+        micro_path = (row.get(micro_column) or "").strip()
+        if micro_path:
+            candidates.append(micro_path)
+        if row["split"] == split:
+            candidates.append(row["image_path"])
+        for candidate in candidates:
+            path = canonical_path(candidate)
+            previous = lookup.get(path)
+            if previous is not None and previous != row["sequence_id"]:
+                raise RuntimeError(
+                    f"Manifest path maps to multiple scenes: {path}"
+                )
+            lookup[path] = row["sequence_id"]
+    return lookup
+
+
 def threshold_scene_sweep_rows(
     samples: list[dict[str, Any]], manifest_path: Path,
     thresholds: list[float],
 ) -> list[dict[str, Any]]:
-    lookup = {
-        canonical_path(row["image_path"]): row["sequence_id"]
-        for row in load_manifest(manifest_path) if row["split"] == "val"
-    }
+    lookup = manifest_scene_lookup(manifest_path, "val")
     grouped: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
     for sample in samples:
-        grouped[lookup[canonical_path(sample["image_path"])]].append(sample)
+        path = canonical_path(sample["image_path"])
+        if path not in lookup:
+            raise RuntimeError(f"Clean evaluation frame missing from manifest: {path}")
+        grouped[lookup[path]].append(sample)
     return [
         {
             "split": "val", "grouped_scene_id": scene,
