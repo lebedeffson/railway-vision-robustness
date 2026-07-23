@@ -1,0 +1,206 @@
+protocol_id: canonical-v2-small-signal-rescue-v2
+frozen_before_computation: true
+parent_commit: 4001c169c9dd368b8aef70abdcf004b885f237c2
+parent_checkpoint: outputs/rescue/micro_overfit/training/micro_overfit/weights/best.pt
+parent_checkpoint_sha256: 51576d0d7189a050d1344ff0cf6c24f82b2a16ed2eba2ec87f996e58c5f7b0ca
+split_manifest: outputs/canonical_v2/split/split_v2_manifest.csv
+split_manifest_sha256: bfd82413e4f92a935e8efb048a2c0edb03a97d932dd2a9303fa6220996b5e5db
+dataset: data/yolo_osdar23_rescue_v1/data.yaml
+dataset_manifest: data/yolo_osdar23_rescue_v1/manifest.csv
+output_root: outputs/rescue_v2
+
+scientific_boundaries:
+  test_sealed: true
+  attacks_blocked: true
+  article_finalization_blocked: true
+  test_open_marker: outputs/rescue_v2/final/TEST_OPENED.json
+  micro_set_may_change: false
+  split_may_change: false
+  external_data_allowed: false
+  ignore_small_ground_truth_allowed: false
+
+class_names:
+  0: person
+  1: signal
+  2: road_vehicle
+  3: train
+  4: animal
+  5: bicycle
+
+fn_audit:
+  expected_false_negatives: 80
+  source_detections: outputs/rescue/micro_overfit/evaluation/detections_val.csv
+  source_manifest: outputs/rescue/micro_overfit/subset_manifest.csv
+  source_thresholds: outputs/rescue/micro_overfit/evaluation/threshold_selection.json
+  operating_point: safety
+  iou_match_threshold: 0.50
+  pixel_size_bins: [0, 4, 8, 16, 32, .inf]
+  error_types:
+    A: object_disappears_after_resize
+    B: correct_localization_below_confidence
+    C: correct_class_below_iou_0_5
+    D: wrong_class
+    E: no_prediction
+    F: disputed_or_inaccurate_ground_truth
+    G: occluded_or_visually_indistinguishable
+  manual_review_required_for: [F, G]
+  feature_strides_source: loaded_model
+  hardcoded_feature_strides_forbidden: true
+
+micro_dataset:
+  source_manifest: outputs/rescue/micro_overfit/subset_manifest.csv
+  source_selection: outputs/rescue/micro_overfit/subset_selection.json
+  frames: 32
+  seed: 20260722
+  epochs: 150
+  ground_truth_filtering: forbidden
+  validation_scene_unit: grouped_scene_id
+  unchanged_frame_and_annotation_hashes_required: true
+
+micro_gate:
+  map50_min: 0.90
+  recall_min: 0.90
+  small_recall_min: 0.90
+  medium_recall_min: 0.95
+  large_recall_min: 0.95
+  loss_must_decrease: true
+  nan_or_inf_allowed: false
+  nonzero_gradient_required: true
+  map_uses_full_confidence_ranking: true
+
+micro_candidates:
+  M0:
+    mode: frozen_reference
+    source_protocol: canonical-v2-rescue-v1
+    imgsz: 640
+    checkpoint: outputs/rescue/micro_overfit/training/micro_overfit/weights/best.pt
+    mAP50: 0.7874349870801033
+    recall: 0.8591549295774648
+    f1: 0.9242424242424242
+    small_recall: 0.8015075376884422
+  M1:
+    mode: full_frame
+    model: yolo11m.pt
+    imgsz: 960
+    batch: 1
+    epochs: 150
+    augmentations: minimal
+    mosaic: 0.0
+    mixup: 0.0
+    random_crop: false
+    seed: 20260722
+  M2:
+    mode: full_frame
+    model: yolo11m.pt
+    imgsz: 1280
+    batch: 1
+    epochs: 150
+    augmentations: minimal
+    mosaic: 0.0
+    mixup: 0.0
+    random_crop: false
+    seed: 20260722
+  M3:
+    mode: object_aware_crops
+    model: yolo11m.pt
+    imgsz: 640
+    batch: 1
+    epochs: 150
+    target_class: signal
+    target_small_area_ratio_max: 0.001
+    context_margin_bbox_multiples: 3.0
+    crop_aspect_ratio: preserve_with_padding
+    keep_all_visible_annotations: true
+    minimum_visible_fraction: 0.50
+    validation_inference: same_crop_pipeline_with_global_merge
+    inter_crop_nms_iou: 0.60
+    augmentations: minimal
+    mosaic: 0.0
+    mixup: 0.0
+    random_crop: false
+    seed: 20260722
+  M4:
+    mode: overlapping_tiling
+    model: yolo11m.pt
+    imgsz: 640
+    batch: 1
+    epochs: 150
+    grid: [2, 2]
+    overlap_fraction: 0.25
+    cover_full_image: true
+    keep_boundary_objects: true
+    minimum_visible_fraction: 0.50
+    restore_global_coordinates: true
+    inter_tile_nms_iou: 0.60
+    augmentations: minimal
+    mosaic: 0.0
+    mixup: 0.0
+    random_crop: false
+    seed: 20260722
+  M5:
+    mode: p2_detection_head
+    enabled_if: no_candidate_in_M1_M2_M3_M4_passes_micro_gate
+    base_model: yolo11m
+    smallest_stride_target: 4
+    tnorm_feature_levels: [P3, P4, P5]
+    p2_used_for_detection_only: true
+    requires_architecture_amendment_before_run: true
+
+micro_selection:
+  order: [M1, M2, M3, M4, M5]
+  maximum_winners: 2
+  rule: simplest_passing_candidate
+  single_seed_cannot_open_test: true
+
+full_training:
+  enabled_only_after_micro_pass: true
+  maximum_candidates: 2
+  seeds: [20260722, 20260723, 20260724]
+  inner_validation:
+    groups: grouped_scene_id
+    folds: 5
+  official_validation_role: final_checkpoint_threshold_and_gate_only
+  staged:
+    head_epochs: 8
+    partially_frozen_backbone: true
+    full_finetune_epochs: 60
+    final_minimal_augmentation_epochs: 10
+    backbone_lr: 0.0001
+    head_lr: 0.0003
+    mosaic_final: 0.0
+    mixup_final: 0.0
+  balanced_sampling:
+    enabled_if_small_signal_is_rare: true
+    factors: [small_signal_presence, small_signal_count, class_rarity, scene_rarity]
+    maximum_frame_weight: 4.0
+    validation_weighted: false
+
+quality_gate:
+  validation_map50_min: 0.25
+  validation_safety_recall_min: 0.35
+  safety_threshold_rule: maximum_F2
+  checkpoint_selection_uses_test: false
+
+post_gate:
+  allow_clean_test: true
+  allow_attacks: true
+  allow_article_finalization: true
+  required_quality_gate_value: true
+
+failure:
+  stop_following_stages: true
+  test_remains_sealed: true
+  attacks_status: skipped
+  article_finalization_status: skipped
+  diagnostic_bundle: outputs/rescue_v2/bundles/TNormFilter_small_signal_rescue_v2_failed.zip
+
+reproducibility:
+  deterministic: true
+  checkpoint_interval_epochs: 10
+  resume_unit: candidate_stage
+  save_environment: true
+  save_resolved_config: true
+  save_dataset_hashes: true
+  save_checkpoint_sha256: true
+  save_predictions: true
+  completion_marker: COMPLETED.json
