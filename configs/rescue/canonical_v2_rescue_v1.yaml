@@ -1,0 +1,162 @@
+protocol_id: canonical-v2-rescue-v1
+parent_commit: 883df8cc4840880eda0022f296a741058db92f85
+split_manifest: outputs/canonical_v2/split/split_v2_manifest.csv
+split_manifest_sha256: bfd82413e4f92a935e8efb048a2c0edb03a97d932dd2a9303fa6220996b5e5db
+dataset: data/yolo_osdar23_v2/data.yaml
+class_names:
+  0: person
+  1: signal
+  2: road_vehicle
+  3: train
+  4: animal
+  5: bicycle
+
+test_sealed: true
+test_open_marker: outputs/rescue/final/TEST_OPENED.json
+failed_run:
+  commit: 883df8cc4840880eda0022f296a741058db92f85
+  checkpoint: outputs/canonical_v2/training/yolo11m_canonical_v2/weights/best.pt
+  checkpoint_sha256: cb57cbe8cf71c4c21f93f82df08a29420b01cd8018f5e573f09096c83e784c94
+  diagnostic_bundle: outputs/bundles/TNormFilter_baseline_gate_failed.zip
+
+quality_gate:
+  validation_map50_min: 0.25
+  validation_safety_recall_min: 0.35
+  validation_scene_recall_min: 0.10
+
+selection:
+  primary_metric: scene_macro_map50
+  secondary_metric: scene_macro_safety_recall
+  tertiary_metric: fn_per_frame
+  tie_breakers:
+    - validation_scene_variance
+    - seed_variance
+    - latency
+  test_usage: forbidden
+  maximum_finalists: 2
+  finalist_seeds: [20260722, 20260723, 20260724]
+  initial_seed: 20260722
+  safety_threshold_rule: maximum_F2
+
+inner_validation:
+  group: grouped_scene_id
+  folds: 5
+  official_validation_role: final_candidate_gate_only
+
+micro_overfit:
+  frames: 32
+  maximum_scenes: 2
+  minimum_classes: 3
+  seed: 20260722
+  imgsz: 640
+  epochs: 150
+  map50_min: 0.90
+  recall_min: 0.90
+  mosaic: 0.0
+  mixup: 0.0
+  translate: 0.0
+  scale: 0.0
+  perspective: 0.0
+  fliplr: 0.0
+  hsv_h: 0.0
+  hsv_s: 0.0
+  hsv_v: 0.0
+
+object_sizes:
+  small_area_ratio_max: 0.001
+  medium_area_ratio_max: 0.01
+
+audit:
+  perceptual_hash_distance_max: 2
+  bbox_roundtrip_tolerance: 1.0e-6
+  letterbox_roundtrip_tolerance_px: 1.0
+  random_seed: 20260722
+  visual_samples:
+    random_train: 100
+    random_validation: 100
+    per_class: 30
+    smallest_objects: 100
+    most_objects: 100
+
+candidates:
+  R0:
+    enabled: true
+    training: none
+    initialization: yolo11m.pt
+    imgsz: 640
+  R1:
+    enabled: true
+    imgsz: 640
+    staged: true
+    head_epochs: 8
+    finetune_epochs: 60
+    freeze_layers: 10
+    lr0_head: 0.0003
+    lr0_finetune: 0.0001
+    augmentations: minimal
+    mosaic: 0.0
+    mixup: 0.0
+  R2:
+    enabled: true
+    imgsz: 960
+    staged: true
+    head_epochs: 8
+    finetune_epochs: 60
+    freeze_layers: 10
+    lr0_head: 0.0003
+    lr0_finetune: 0.0001
+    augmentations: moderate
+    mosaic: 0.1
+    mixup: 0.0
+  R3:
+    enabled_if: R2_small_object_recall_improves
+    imgsz: 1280
+    staged: true
+    head_epochs: 8
+    finetune_epochs: 60
+    freeze_layers: 10
+    lr0_head: 0.0003
+    lr0_finetune: 0.0001
+    augmentations: moderate
+    mosaic: 0.1
+    mixup: 0.0
+  R4:
+    enabled_if: audit_confirms_material_class_or_scene_imbalance
+    base_candidate: best_of_R1_R2_R3
+    sampler_max_frame_weight: 5.0
+  R5:
+    enabled: false
+    reason: sensitivity_only_after_small_object_failure_is_confirmed
+
+training:
+  initialization: yolo11m.pt
+  batch: 1
+  workers: 2
+  optimizer: AdamW
+  weight_decay: 0.0005
+  amp: true
+  deterministic: true
+  patience: 20
+  minimum_epochs_before_early_stop: 15
+  save_period: 1
+  cache: false
+
+reproducibility:
+  deterministic: true
+  save_environment: true
+  save_git_state: true
+  save_dataset_hashes: true
+  save_seeds: true
+  completion_marker: COMPLETED.json
+
+post_gate:
+  allow_clean_test: true
+  allow_attacks: true
+  allow_article_finalization: true
+  required_quality_gate_value: true
+
+on_failure:
+  test_remains_sealed: true
+  attacks_status: skipped
+  final_article_status: skipped
+  bundle: outputs/rescue/bundles/TNormFilter_baseline_rescue_v1_gate_failed.zip
