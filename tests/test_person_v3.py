@@ -6,6 +6,7 @@ from pathlib import Path
 import yaml
 
 from scripts.person_v3.prepare import filtered_person_label
+from scripts.person_v3.common import TEST_MARKER
 
 
 class PersonV3ProtocolTests(unittest.TestCase):
@@ -51,6 +52,15 @@ class PersonV3ProtocolTests(unittest.TestCase):
         self.assertEqual(
             self.protocol["pipeline"]["tiling"],
             "frozen_M4_overlapping_2x2",
+        )
+
+    def test_test_marker_is_absent_before_oof_gate(self) -> None:
+        self.assertFalse(TEST_MARKER.exists())
+
+    def test_oof_safety_threshold_rule_is_frozen(self) -> None:
+        self.assertEqual(
+            self.protocol["evaluation"]["safety_threshold_rule"],
+            "highest_threshold_with_recall_at_least_0_50_and_precision_at_least_0_30",
         )
 
 
