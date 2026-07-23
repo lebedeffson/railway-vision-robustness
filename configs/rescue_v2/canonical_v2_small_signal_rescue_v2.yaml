@@ -121,10 +121,14 @@ micro_candidates:
     target_class: signal
     target_small_area_ratio_max: 0.001
     context_margin_bbox_multiples: 3.0
+    minimum_crop_side_px: 256
+    include_full_frame_view: true
     crop_aspect_ratio: preserve_with_padding
     keep_all_visible_annotations: true
     minimum_visible_fraction: 0.50
     validation_inference: same_crop_pipeline_with_global_merge
+    micro_windows_are_gt_derived_and_frozen_before_training: true
+    eligible_for_full_training_without_deployable_roi: false
     inter_crop_nms_iou: 0.60
     augmentations: minimal
     mosaic: 0.0

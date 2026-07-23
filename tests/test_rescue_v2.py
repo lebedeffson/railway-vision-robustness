@@ -84,6 +84,10 @@ class SmallSignalRescueV2Test(unittest.TestCase):
             self.protocol["micro_candidates"]["M5"]["enabled_if"],
             "no_candidate_in_M1_M2_M3_M4_passes_micro_gate",
         )
+        m3 = self.protocol["micro_candidates"]["M3"]
+        self.assertTrue(m3["micro_windows_are_gt_derived_and_frozen_before_training"])
+        self.assertFalse(m3["eligible_for_full_training_without_deployable_roi"])
+        self.assertGreaterEqual(m3["minimum_crop_side_px"], 256)
 
     def test_fn_audit_contract_covers_all_errors_and_dynamic_strides(self) -> None:
         audit = self.protocol["fn_audit"]
