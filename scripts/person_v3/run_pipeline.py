@@ -44,10 +44,13 @@ def status(stage: str, value: str, **extra: Any) -> None:
 
 
 def run(script: str, *arguments: str) -> None:
+    pythonpath = os.pathsep.join(
+        [str(PROJECT_DIR), str(PROJECT_DIR / "scripts")]
+    )
     subprocess.run(
         [str(PYTHON), "-u", f"scripts/person_v3/{script}", *arguments],
         cwd=PROJECT_DIR,
-        env={**os.environ, "PYTHONPATH": str(PROJECT_DIR)},
+        env={**os.environ, "PYTHONPATH": pythonpath},
         check=True,
     )
 
@@ -371,4 +374,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
