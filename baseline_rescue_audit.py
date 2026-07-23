@@ -103,6 +103,27 @@ def collect_predictions(model: torch.nn.Module, data: Path, split: str, imgsz: i
     return rows
 
 
+def save_detection_rows(
+    samples: list[dict[str, Any]], split: str, destination: Path
+) -> None:
+    rows: list[dict[str, Any]] = []
+    for sample in samples:
+        for box, class_id in zip(sample["gt_boxes"].tolist(), sample["gt_classes"].tolist()):
+            rows.append({
+                "split": split, "image_path": sample["image_path"], "kind": "ground_truth",
+                "class_id": int(class_id), "confidence": math.nan,
+                "x1": box[0], "y1": box[1], "x2": box[2], "y2": box[3],
+            })
+        for prediction in sample["prediction"].tolist():
+            rows.append({
+                "split": split, "image_path": sample["image_path"], "kind": "prediction",
+                "class_id": int(prediction[5]), "confidence": float(prediction[4]),
+                "x1": prediction[0], "y1": prediction[1],
+                "x2": prediction[2], "y2": prediction[3],
+            })
+    pd.DataFrame(rows).to_csv(destination, index=False)
+
+
 def aggregate(samples: list[dict[str, Any]], confidence: float) -> dict[str, float]:
     tp = fp = fn = 0
     image_f1: list[float] = []
@@ -316,6 +337,8 @@ def main() -> None:
         split: collect_predictions(model, args.data, split, args.imgsz)
         for split in args.splits
     }
+    for split, samples in predictions.items():
+        save_detection_rows(samples, split, args.output / f"detections_{split}.csv")
     names = {int(key): str(value) for key, value in yolo.names.items()}
     del model, yolo
     torch.cuda.empty_cache()

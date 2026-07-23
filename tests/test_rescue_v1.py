@@ -170,6 +170,31 @@ class RescueV1Test(unittest.TestCase):
     def test_no_tbd_finalization_when_gate_failed(self) -> None:
         self._assert_role_blocked("finalization")
 
+    def test_rescue_archive_contains_provenance_contract(self) -> None:
+        source = (ROOT / "scripts/finalize_rescue.py").read_text(encoding="utf-8")
+        for required in (
+            '"checksums.sha256"', '"manifest.json"', '"weights_included": False',
+            "configs/rescue", "data/yolo_osdar23_rescue_v1/manifest.csv",
+        ):
+            self.assertIn(required, source)
+        self.assertIn('path.suffix.lower() not in allowed', source)
+
+    def test_candidate_matrix_uses_three_frozen_seeds(self) -> None:
+        self.assertEqual(
+            self.protocol["selection"]["finalist_seeds"],
+            [20260722, 20260723, 20260724],
+        )
+        source = (ROOT / "scripts/run_rescue_pipeline.py").read_text(encoding="utf-8")
+        self.assertIn('for seed in protocol["selection"]["finalist_seeds"]', source)
+        self.assertIn("assert_test_sealed()", source)
+
+    def test_checkpoint_interval_policy_is_frozen_before_training(self) -> None:
+        policy = yaml.safe_load(
+            (ROOT / "configs/rescue/candidate_execution_policy.yaml").read_text()
+        )
+        self.assertTrue(policy["frozen_before_candidate_training"])
+        self.assertEqual(policy["checkpoint_interval_epochs"], 5)
+
 
 if __name__ == "__main__":
     unittest.main()
