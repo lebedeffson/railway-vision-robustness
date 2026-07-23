@@ -5,6 +5,9 @@ import sys
 import unittest
 from pathlib import Path
 
+import torch
+import pandas as pd
+
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -26,6 +29,8 @@ from canonical_m4_tiling import (  # noqa: E402
     restore_global_box,
     validate_scene_folds,
 )
+from canonical_m4_trainer import DifferentialLRDetectionTrainer  # noqa: E402
+from evaluate_canonical_m4 import select_thresholds  # noqa: E402
 from prepare_canonical_m4_tiles import fold_mapping, yolo_lines  # noqa: E402
 
 
@@ -101,6 +106,46 @@ class CanonicalM4ProtocolTest(unittest.TestCase):
         validate_scene_folds(
             scene_by_image, tile_source, {"scene_a": 0, "scene_b": 1}
         )
+
+    def test_differential_lr_groups_preserve_protocol_rates(self) -> None:
+        class TinyModel(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.model = torch.nn.ModuleList([
+                    torch.nn.Sequential(
+                        torch.nn.Conv2d(3, 4, 3),
+                        torch.nn.BatchNorm2d(4),
+                    ),
+                    torch.nn.Conv2d(4, 6, 1),
+                ])
+
+            def forward(self, value):
+                for layer in self.model:
+                    value = layer(value)
+                return value
+
+        trainer = object.__new__(DifferentialLRDetectionTrainer)
+        trainer.backbone_lr = 1e-4
+        trainer.head_lr = 3e-4
+        optimizer = trainer.build_optimizer(
+            TinyModel(), name="AdamW", momentum=0.9, decay=5e-4
+        )
+        by_name = {
+            group["param_group"]: group["lr"]
+            for group in optimizer.param_groups
+        }
+        self.assertEqual(by_name["backbone_weight"], 1e-4)
+        self.assertEqual(by_name["head_weight"], 3e-4)
+
+    def test_threshold_rules_are_frozen_and_deterministic(self) -> None:
+        sweep = pd.DataFrame([
+            {"threshold": 0.1, "f1": 0.8, "f2": 0.7, "recall": 0.7},
+            {"threshold": 0.2, "f1": 0.8, "f2": 0.9, "recall": 0.8},
+            {"threshold": 0.3, "f1": 0.7, "f2": 0.9, "recall": 0.7},
+        ])
+        standard, safety = select_thresholds(sweep)
+        self.assertEqual(float(standard["threshold"]), 0.2)
+        self.assertEqual(float(safety["threshold"]), 0.2)
 
     def test_frozen_scene_folds_cover_each_train_scene_once(self) -> None:
         mapping = fold_mapping(self.protocol)
