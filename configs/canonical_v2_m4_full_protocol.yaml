@@ -1,0 +1,261 @@
+protocol_id: canonical-v2-m4-full-v1
+parent_protocol: canonical-v2-small-signal-rescue-v2
+parent_commit: ee4e55d
+frozen_before_full_training: true
+test_sealed: true
+test_open_marker: outputs/canonical_m4/final/TEST_OPENED.json
+output_root: outputs/canonical_m4
+
+provenance:
+  micro_selection: outputs/rescue_v2/micro_selection.json
+  micro_selection_sha256: ce6462c392978322933225797428908dceaeeede3d9d04f50a31ac0d20352c78
+  m4_micro_result: outputs/rescue_v2/micro/M4/result.json
+  m4_micro_result_sha256: 8513e4c4164a382c4923e9df222b0071382c2591fbefccfc43c367dd6a600900
+  m4_micro_checkpoint: outputs/rescue_v2/micro/M4/training/M4/weights/best.pt
+  m4_micro_checkpoint_sha256: ad2790f08563402108e2e87a22157a0139e2f64237a046fd529930b69ffd4f18
+  micro_role: technical_learnability_sanity_check_only
+  micro_metrics_must_not_be_labeled_validation: true
+
+dataset:
+  yaml: data/yolo_osdar23_rescue_v1/data.yaml
+  yaml_sha256: 1cb683d810a977f3403e89589e19ba2564b3144655faaf6b5c4b164bf15be46d
+  manifest: data/yolo_osdar23_rescue_v1/manifest.csv
+  manifest_sha256: 14ebd490d9c0be7dc4b305031dafa2c329b710c258b8c194b21bd15952330331
+  split_manifest: outputs/canonical_v2/split/split_v2_manifest.csv
+  split_manifest_sha256: bfd82413e4f92a935e8efb048a2c0edb03a97d932dd2a9303fa6220996b5e5db
+  image_width: 4112
+  image_height: 2504
+  grouped_scene_field: grouped_scene_id
+  split_group_counts: {train: 10, val: 5, test: 5}
+  split_frame_counts: {train: 774, val: 311, test: 320}
+
+tiling:
+  tile_width: 2350
+  tile_height: 1431
+  overlap_x: 588
+  overlap_y: 358
+  grid: [2, 2]
+  expected_tiles_per_frame: 4
+  padding_mode: none_for_frozen_4112x2504_inputs
+  border_object_policy: clip_and_keep_if_visible_fraction_at_least_threshold
+  min_visible_fraction: 0.50
+  require_each_ground_truth_in_at_least_one_tile: true
+  train_tile_selection: complete_2x2_coverage_including_empty_tiles
+  inference_full_coverage: true
+  deterministic_order: row_major
+  tile_image_format: jpg
+  tile_jpeg_quality: 95
+
+fusion:
+  method: class_aware_nms
+  iou_threshold: 0.60
+  confidence_prefilter: 0.001
+  per_tile_max_detections: 300
+  global_max_detections: 300
+  deterministic_score_order: confidence_descending_then_geometry
+
+model:
+  architecture: YOLO11m
+  initialization: yolo11m.pt
+  initialization_sha256: d5ffc1a674953a08e11a8d21e022781b1b23a19b730afc309290bd9fb5305b95
+  input_size: 640
+  batch: 1
+  workers: 2
+  optimizer: AdamW
+  weight_decay: 0.0005
+  lrf: 0.10
+  amp: false
+  deterministic: true
+  cache: false
+  save_period: 5
+  patience: 20
+  stage1:
+    epochs: 8
+    freeze_layers: 10
+    backbone_lr: 0.0
+    head_lr: 0.0003
+  stage2:
+    epochs: 60
+    freeze_layers: 0
+    backbone_lr: 0.0001
+    head_lr: 0.0003
+  stage3:
+    epochs: 10
+    freeze_layers: 0
+    backbone_lr: 0.00003
+    head_lr: 0.0001
+  augmentations:
+    hsv_h: 0.0
+    hsv_s: 0.0
+    hsv_v: 0.0
+    degrees: 0.0
+    translate: 0.0
+    scale: 0.0
+    shear: 0.0
+    perspective: 0.0
+    flipud: 0.0
+    fliplr: 0.0
+    mosaic: 0.0
+    mixup: 0.0
+    cutmix: 0.0
+    copy_paste: 0.0
+    erasing: 0.0
+    random_crop: false
+  augmentation_abort_on_invalid_bbox: true
+  augmentation_ignore_rule: none
+
+scene_cv:
+  enabled: true
+  split: train
+  groups: grouped_scene_id
+  folds: 5
+  seed: 20260722
+  configuration_search: false
+  fold_assignment_rule: frozen_greedy_object_count_pairing
+  fold_validation_scenes:
+    0: [4_station_pedestrian_bridge_4, 19_vegetation_curve_19]
+    1: [8_station_altona_8, 18_vegetation_switch_18]
+    2: [5_station_bergedorf_5, 17_signal_bridge_17]
+    3: [12_vegetation_steady_12, 16_under_bridge_16]
+    4: [2_station_berliner_tor_2, 10_station_suelldorf_10]
+
+full_training:
+  split: train
+  official_validation_split: val
+  seeds: [20260722, 20260723, 20260724]
+  ensemble: false
+  balanced_sampling: false
+  maximum_candidates: 1
+
+checkpoint_selection:
+  split: val
+  test_usage: forbidden
+  lexicographic_rule:
+    - maximize_scene_macro_map50
+    - maximize_scene_macro_safety_recall
+    - minimize_fn_per_frame
+    - minimize_validation_scene_variability
+    - minimize_full_pipeline_latency
+  publish_all_seed_results: true
+
+evaluation:
+  confidence_min: 0.001
+  confidence_max: 0.500
+  confidence_step: 0.001
+  iou_match_threshold: 0.50
+  standard_threshold_rule: maximum_F1
+  safety_threshold_rule: maximum_F2
+  size_area_ratio_thresholds: {small: 0.001, medium: 0.01}
+  independent_evaluator_tolerance: 0.0001
+  required_scopes:
+    - aggregate
+    - grouped_scene
+    - class
+    - size
+    - post_tiling_pixel_size
+    - tile_count
+    - tile_border
+
+quality_gate:
+  validation_map50_min: 0.25
+  validation_safety_recall_min: 0.35
+  required_checks:
+    - checkpoint_hash_verified
+    - evaluator_consistency_passed
+    - all_validation_frames_present
+    - no_duplicate_predictions
+    - no_missing_scene
+    - no_nan_or_inf
+  desired_engineering_map50_not_a_gate: 0.70
+
+normalization:
+  fit_split: val
+  fit_inputs: clean_only
+  layers: [P3, P4, P5]
+  primary: N1_quantile
+  fallback: N2_robust_sigmoid
+  saturation_max: 0.20
+  test_may_select: false
+
+attack_calibration:
+  split: val
+  floor_fraction_max_exclusive: 0.50
+  seeds: [42, 123, 999]
+  fgsm_epsilon_px: [0.5, 1.0, 2.0]
+  pgd:
+    epsilon_px: [0.1, 0.25, 0.5, 1.0]
+    steps: 20
+    restarts: 3
+    random_start: true
+  adaptive_product_pgd:
+    epsilon_px: [0.25, 0.5]
+    steps: 20
+    restarts: 3
+    random_start: true
+  lock: outputs/canonical_m4/attack_calibration/attack_protocol_lock.json
+
+test_protocol:
+  open_once: true
+  clean_evaluation: true
+  attacks: [FGSM, PGD, adaptive_Product_PGD]
+  defenses: [none, Product_preprocessing, bilateral, median]
+  supplementary_nonadaptive_defenses: [JPEG]
+  jpeg_excluded_from_white_box_ranking_without_bpda: true
+  feature_layers: [P3, P4, P5]
+  primary_tnorms: [Product, Lukasiewicz]
+  supplementary_tnorms: [Godel]
+
+statistics:
+  group: grouped_scene_id
+  bootstrap_iterations: 5000
+  bootstrap_seed: 20260720
+  paired_bootstrap_samples: true
+  macro_average: equal_scene_weight
+  loso: true
+  correction_primary: Holm
+  correction_supplementary: BH_FDR
+  practical_effect:
+    relative_mae_reduction_percent: 5.0
+    delta_r2: 0.05
+    abs_delta_spearman: 0.05
+  damage:
+    baseline_model: D2
+    extended_model: D3
+    frozen_extension: [Product, Lukasiewicz, C_sp_object, C_dir, C_atk_object]
+  recovery:
+    baseline_model: R2
+    extended_model: R3
+    frozen_extension: [Product_recovery, Lukasiewicz_recovery, G_raw, C_def]
+
+latency:
+  warmup_runs: 30
+  measurement_runs: 100
+  batch_size: 1
+  include:
+    - image_loading
+    - tiling
+    - all_tile_inference
+    - global_coordinate_restoration
+    - fusion
+    - postprocessing
+
+failure_policy:
+  validation_fail_blocks:
+    - test
+    - FGSM
+    - PGD
+    - adaptive_PGD
+    - D2_D3
+    - R2_R3
+    - final_canonical_article
+  bundle: outputs/canonical_m4/bundles/TNormFilter_M4_validation_gate_failed.zip
+  no_posthoc_rescue_without_new_protocol: true
+
+article:
+  source_template: /home/lebedeffson/Downloads/TNorm_RZD_article_expanded_internal_review.docx
+  pre_final: outputs/canonical_m4/article/TNorm_RZD_article_pre_final_validation.docx
+  final_docx: outputs/canonical_m4/article/TNorm_RZD_article_final.docx
+  final_pdf: outputs/canonical_m4/article/TNorm_RZD_article_final.pdf
+  supplementary_pdf: outputs/canonical_m4/article/TNorm_RZD_supplementary.pdf
+  finalization_requires_quality_gate: true
+  finalization_requires_no_tbd: true

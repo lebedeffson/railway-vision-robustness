@@ -1,0 +1,114 @@
+from __future__ import annotations
+
+import json
+import sys
+import unittest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+from canonical_m4_common import (  # noqa: E402
+    PROTOCOL_LOCK,
+    TEST_MARKER,
+    assert_test_sealed,
+    expected_protocol_lock,
+    load_protocol,
+    validate_protocol_schema,
+    verify_frozen_inputs,
+)
+from canonical_m4_tiling import (  # noqa: E402
+    assign_ground_truth_to_tiles,
+    frozen_tiles,
+    fuse_predictions,
+    local_box,
+    restore_global_box,
+    validate_scene_folds,
+)
+
+
+class CanonicalM4ProtocolTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.protocol = load_protocol()
+
+    def test_m4_protocol_schema_and_inputs(self) -> None:
+        self.assertEqual(
+            validate_protocol_schema()["protocol_id"],
+            "canonical-v2-m4-full-v1",
+        )
+        verify_frozen_inputs()
+
+    def test_test_is_sealed_before_gate(self) -> None:
+        self.assertFalse(TEST_MARKER.exists())
+        assert_test_sealed()
+
+    def test_micro_metrics_are_not_labeled_as_validation(self) -> None:
+        snapshot = json.loads(
+            (ROOT / "configs/canonical_v2_m4_micro_selection_snapshot.json")
+            .read_text(encoding="utf-8")
+        )
+        self.assertTrue(snapshot["micro_metrics_are_not_validation_metrics"])
+        self.assertEqual(snapshot["selection_role"], "technical_learnability_sanity_check_only")
+
+    def test_full_image_coverage_and_determinism(self) -> None:
+        first = frozen_tiles(self.protocol)
+        second = frozen_tiles(self.protocol)
+        self.assertEqual(first, second)
+        self.assertEqual(len(first), 4)
+        self.assertEqual(min(tile.left for tile in first), 0)
+        self.assertEqual(min(tile.top for tile in first), 0)
+        self.assertEqual(max(tile.right for tile in first), 4112)
+        self.assertEqual(max(tile.bottom for tile in first), 2504)
+        self.assertLessEqual(first[0].right, first[1].right)
+
+    def test_border_object_is_not_lost_and_class_survives(self) -> None:
+        label = {"class_id": 5, "box": [1740.0, 1050.0, 1800.0, 1100.0]}
+        assigned = assign_ground_truth_to_tiles([label], self.protocol)
+        retained = [row for rows in assigned.values() for row in rows]
+        self.assertTrue(retained)
+        self.assertEqual({row["class_id"] for row in retained}, {5})
+        self.assertTrue(all(row["visible_fraction"] >= 0.50 for row in retained))
+
+    def test_empty_tile_is_supported(self) -> None:
+        assigned = assign_ground_truth_to_tiles([], self.protocol)
+        self.assertEqual(set(assigned), {tile.tile_id for tile in frozen_tiles(self.protocol)})
+        self.assertTrue(all(not rows for rows in assigned.values()))
+
+    def test_global_coordinate_roundtrip(self) -> None:
+        tile = frozen_tiles(self.protocol)[3]
+        global_box = [1800.0, 1200.0, 2000.0, 1400.0]
+        self.assertEqual(restore_global_box(local_box(global_box, tile), tile), global_box)
+
+    def test_overlap_duplicates_are_fused_deterministically(self) -> None:
+        duplicate = [
+            {"class_id": 1, "confidence": 0.9, "box": [100.0, 100.0, 120.0, 120.0]},
+            {"class_id": 1, "confidence": 0.8, "box": [101.0, 101.0, 121.0, 121.0]},
+        ]
+        first = fuse_predictions(duplicate, self.protocol)
+        second = fuse_predictions(list(reversed(duplicate)), self.protocol)
+        self.assertEqual(first, second)
+        self.assertEqual(len(first), 1)
+
+    def test_same_scene_tiles_remain_in_same_fold(self) -> None:
+        scene_by_image = {"image_a": "scene_a", "image_b": "scene_b"}
+        tile_source = {
+            "image_a__tile_0": "image_a",
+            "image_a__tile_1": "image_a",
+            "image_b__tile_0": "image_b",
+        }
+        validate_scene_folds(
+            scene_by_image, tile_source, {"scene_a": 0, "scene_b": 1}
+        )
+
+    def test_lock_payload_is_hash_bound(self) -> None:
+        expected = expected_protocol_lock()
+        self.assertEqual(expected["status"], "LOCKED")
+        self.assertTrue(expected["test_sealed"])
+        if PROTOCOL_LOCK.exists():
+            current = json.loads(PROTOCOL_LOCK.read_text(encoding="utf-8"))
+            self.assertEqual(current["protocol_sha256"], expected["protocol_sha256"])
+
+
+if __name__ == "__main__":
+    unittest.main()

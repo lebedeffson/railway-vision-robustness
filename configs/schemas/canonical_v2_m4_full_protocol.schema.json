@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TNormFilter canonical M4 full protocol",
+  "type": "object",
+  "required": [
+    "protocol_id", "parent_protocol", "parent_commit", "test_sealed",
+    "provenance", "dataset", "tiling", "fusion", "model", "scene_cv",
+    "full_training", "checkpoint_selection", "evaluation", "quality_gate",
+    "normalization", "attack_calibration", "test_protocol", "statistics",
+    "latency", "failure_policy", "article"
+  ],
+  "properties": {
+    "protocol_id": {"const": "canonical-v2-m4-full-v1"},
+    "parent_protocol": {"const": "canonical-v2-small-signal-rescue-v2"},
+    "test_sealed": {"const": true},
+    "tiling": {
+      "type": "object",
+      "required": [
+        "tile_width", "tile_height", "overlap_x", "overlap_y", "grid",
+        "padding_mode", "border_object_policy", "min_visible_fraction",
+        "train_tile_selection", "inference_full_coverage"
+      ]
+    },
+    "fusion": {
+      "type": "object",
+      "required": [
+        "method", "iou_threshold", "confidence_prefilter",
+        "per_tile_max_detections", "global_max_detections"
+      ]
+    },
+    "scene_cv": {
+      "type": "object",
+      "required": ["groups", "folds", "seed", "fold_validation_scenes"]
+    },
+    "full_training": {
+      "type": "object",
+      "required": ["seeds", "ensemble", "maximum_candidates"]
+    },
+    "quality_gate": {
+      "type": "object",
+      "required": [
+        "validation_map50_min", "validation_safety_recall_min",
+        "required_checks"
+      ]
+    },
+    "attack_calibration": {
+      "type": "object",
+      "required": [
+        "split", "floor_fraction_max_exclusive", "seeds",
+        "fgsm_epsilon_px", "pgd", "adaptive_product_pgd", "lock"
+      ]
+    }
+  }
+}
