@@ -30,6 +30,11 @@ from canonical_m4_tiling import (  # noqa: E402
     validate_scene_folds,
 )
 from canonical_m4_trainer import DifferentialLRDetectionTrainer  # noqa: E402
+from canonical_m4_runtime import (  # noqa: E402
+    image_to_tile_batch,
+    prediction_tiles_to_global,
+    tile_geometry,
+)
 from evaluate_canonical_m4 import select_thresholds  # noqa: E402
 from prepare_canonical_m4_tiles import fold_mapping, yolo_lines  # noqa: E402
 
@@ -146,6 +151,30 @@ class CanonicalM4ProtocolTest(unittest.TestCase):
         standard, safety = select_thresholds(sweep)
         self.assertEqual(float(standard["threshold"]), 0.2)
         self.assertEqual(float(safety["threshold"]), 0.2)
+
+    def test_deployable_tile_letterbox_and_inverse_geometry(self) -> None:
+        image = torch.zeros((1, 3, 2504, 4112))
+        batch = image_to_tile_batch(image, self.protocol)
+        self.assertEqual(tuple(batch.shape), (4, 3, 640, 640))
+        scale, _, _, left, top = tile_geometry(self.protocol)
+        local = [100.0, 200.0, 300.0, 400.0]
+        encoded = torch.tensor([[
+            local[0] * scale + left,
+            local[1] * scale + top,
+            local[2] * scale + left,
+            local[3] * scale + top,
+            0.9,
+            1.0,
+        ]])
+        empty = torch.empty((0, 6))
+        restored = prediction_tiles_to_global(
+            [encoded, empty, empty, empty], self.protocol
+        )
+        self.assertEqual(len(restored), 1)
+        self.assertTrue(all(
+            abs(observed - expected) < 1e-4
+            for observed, expected in zip(restored[0]["box"], local)
+        ))
 
     def test_frozen_scene_folds_cover_each_train_scene_once(self) -> None:
         mapping = fold_mapping(self.protocol)

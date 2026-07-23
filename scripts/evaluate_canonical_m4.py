@@ -459,12 +459,35 @@ def evaluate(
         "recall": abs(float(safety["recall"]) - repeated["recall"]),
         "f1": abs(float(safety["f1"]) - repeated["f1"]),
     }
+    training_results_path = (
+        training_root(mode, seed, fold) / "stage3/results.csv"
+    )
+    built_in = {}
+    if training_results_path.is_file():
+        training_results = pd.read_csv(training_results_path)
+        last = training_results.iloc[-1]
+        built_in = {
+            key: float(last[key])
+            for key in (
+                "metrics/precision(B)",
+                "metrics/recall(B)",
+                "metrics/mAP50(B)",
+                "metrics/mAP50-95(B)",
+            )
+            if key in last and np.isfinite(last[key])
+        }
     consistency = {
-        "status": "PASS" if max(differences.values()) <= tolerance else "FAIL",
+        "status": (
+            "PASS"
+            if max(differences.values()) <= tolerance and bool(built_in)
+            else "FAIL"
+        ),
         "primary_evaluator": "project_global_tiling_fusion_in_memory",
         "independent_evaluator": "project_global_tiling_fusion_csv_reparse",
         "ultralytics_training_evaluator_scope":
             "tile_level_diagnostic_not_numerically_equivalent_to_global_fusion",
+        "ultralytics_training_evaluator_completed": bool(built_in),
+        "ultralytics_tile_level_diagnostic": built_in,
         "tolerance": tolerance,
         "absolute_differences": differences,
     }
