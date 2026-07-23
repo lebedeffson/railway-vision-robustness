@@ -1,0 +1,18 @@
+[Unit]
+Description=TNormFilter canonical rescue v1 micro-overfit gate
+After=graphical-session.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/lebedeffson/Code/андрей/TNormFilter_handoff
+Environment=PYTHONPATH=/home/lebedeffson/Code/андрей/TNormFilter_handoff/scripts:/home/lebedeffson/Code/андрей/TNormFilter_handoff
+Environment=MPLCONFIGDIR=/tmp/tnorm-rescue-matplotlib
+ExecStart=/home/lebedeffson/Code/андрей/TNormFilter_handoff/.venv/bin/python -u scripts/run_micro_overfit.py
+Restart=no
+Nice=5
+OOMScoreAdjust=300
+MemoryHigh=10G
+MemoryMax=12G
+
+[Install]
+WantedBy=default.target
