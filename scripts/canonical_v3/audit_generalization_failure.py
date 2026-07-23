@@ -13,6 +13,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import yaml
+from PIL import Image, ImageDraw
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
@@ -360,7 +361,7 @@ def matched_gt(
 def fusion_audit(
     development: pd.DataFrame,
     protocol: dict[str, Any],
-) -> tuple[pd.DataFrame, dict[str, Any]]:
+) -> tuple[pd.DataFrame, dict[str, Any], pd.DataFrame]:
     evaluation = json.loads(
         (M4_EVALUATION / "evaluation_result.json").read_text(encoding="utf-8")
     )
@@ -386,6 +387,7 @@ def fusion_audit(
     )
     nms_lost = 0
     raw_total = fused_total = 0
+    border_errors: list[dict[str, Any]] = []
     for frame in selected.itertuples(index=False):
         image = str(Path(frame.output_image).resolve())
         cache_path = (
@@ -414,6 +416,20 @@ def fusion_audit(
                 y1 < value < y2 for value in boundaries_y
             )
             scopes = ["all", "border" if border else "center"]
+            if border and index not in fused_safety:
+                border_errors.append({
+                    "image_path": image,
+                    "grouped_scene_id": str(frame.grouped_scene_id),
+                    "gt_index": index,
+                    "class_id": int(target["class_id"]),
+                    "x1": float(x1),
+                    "y1": float(y1),
+                    "x2": float(x2),
+                    "y2": float(y2),
+                    "matched_at_model_prefilter": index in raw_prefilter,
+                    "matched_at_safety_threshold": index in raw_safety,
+                    "matched_after_fusion": index in fused_safety,
+                })
             for stage, matched in stages.items():
                 for scope in scopes:
                     for class_id in (-1, int(target["class_id"])):
@@ -432,6 +448,17 @@ def fusion_audit(
         })
     frame = pd.DataFrame(rows)
     all_rows = frame[frame["class_id"].eq(-1)].set_index("stage_scope")
+    prefilter_matched = int(
+        all_rows.loc["restored_global_raw_at_model_prefilter:all", "matched"]
+    )
+    safety_matched = int(
+        all_rows.loc[
+            "restored_global_raw_at_safety_threshold:all", "matched"
+        ]
+    )
+    fused_matched = int(
+        all_rows.loc["fused_at_safety_threshold:all", "matched"]
+    )
     report = {
         "status": "PASS",
         "checkpoint_sha256": evaluation["checkpoint_sha256"],
@@ -442,15 +469,27 @@ def fusion_audit(
         "raw_predictions": raw_total,
         "fused_predictions": fused_total,
         "predictions_removed_by_fusion": raw_total - fused_total,
-        "GT_matched_before_fusion_at_safety": int(
+        "GT_matched_at_model_prefilter": prefilter_matched,
+        "GT_matched_before_fusion_at_safety": safety_matched,
+        "GT_matched_after_fusion_at_safety": fused_matched,
+        "GT_lost_by_safety_threshold": prefilter_matched - safety_matched,
+        "GT_lost_by_fusion_at_safety": int(nms_lost),
+        "border_recall_before_fusion_at_safety": float(
             all_rows.loc[
-                "restored_global_raw_at_safety_threshold:all", "matched"
+                "restored_global_raw_at_safety_threshold:border", "recall"
             ]
         ),
-        "GT_matched_after_fusion_at_safety": int(
-            all_rows.loc["fused_at_safety_threshold:all", "matched"]
+        "border_recall_after_fusion_at_safety": float(
+            all_rows.loc["fused_at_safety_threshold:border", "recall"]
         ),
-        "GT_lost_by_fusion_at_safety": int(nms_lost),
+        "center_recall_before_fusion_at_safety": float(
+            all_rows.loc[
+                "restored_global_raw_at_safety_threshold:center", "recall"
+            ]
+        ),
+        "center_recall_after_fusion_at_safety": float(
+            all_rows.loc["fused_at_safety_threshold:center", "recall"]
+        ),
         "coordinate_restoration_roundtrip_max_abs_error": float(
             json.loads(M4_TILING_AUDIT.read_text(encoding="utf-8"))[
                 "roundtrip_max_abs_error"
@@ -461,7 +500,43 @@ def fusion_audit(
             "tile evaluator duplicates GT across overlapping tiles",
         "test_used": False,
     }
-    return frame, report
+    return frame, report, pd.DataFrame(border_errors)
+
+
+def border_error_gallery(cases: pd.DataFrame, protocol: dict[str, Any]) -> None:
+    destination = AUDIT_ROOT / "border_error_gallery"
+    destination.mkdir(parents=True, exist_ok=True)
+    names = {int(key): value for key, value in protocol["data"]["class_names"].items()}
+    selected = (
+        cases.sort_values(["class_id", "grouped_scene_id", "image_path", "gt_index"])
+        .groupby("class_id", group_keys=False)
+        .head(6)
+        .head(30)
+    )
+    for index, row in enumerate(selected.itertuples(index=False)):
+        with Image.open(row.image_path) as source:
+            image = source.convert("RGB")
+        draw = ImageDraw.Draw(image)
+        draw.rectangle(
+            [row.x1, row.y1, row.x2, row.y2],
+            outline=(255, 0, 0),
+            width=8,
+        )
+        draw.text(
+            (max(0, row.x1), max(0, row.y1 - 24)),
+            (
+                f"FN {names[int(row.class_id)]} "
+                f"prefilter={int(row.matched_at_model_prefilter)} "
+                f"safety={int(row.matched_at_safety_threshold)}"
+            ),
+            fill=(255, 255, 0),
+        )
+        image.thumbnail((1280, 800))
+        image.save(
+            destination
+            / f"{index:02d}_class_{int(row.class_id)}_{Path(row.image_path).stem}.jpg",
+            quality=88,
+        )
 
 
 def diagnostic_bundle(paths: list[Path]) -> Path:
@@ -474,6 +549,10 @@ def diagnostic_bundle(paths: list[Path]) -> Path:
         for path in paths:
             if path.is_file():
                 archive.write(path, path.relative_to(PROJECT_DIR))
+            elif path.is_dir():
+                for child in sorted(path.rglob("*")):
+                    if child.is_file():
+                        archive.write(child, child.relative_to(PROJECT_DIR))
     os.replace(temporary, destination)
     return destination
 
@@ -505,8 +584,12 @@ def main() -> None:
         "test_used": False,
     }
     atomic_json(PROTOCOL_ROOT / "development_folds.json", fold_payload)
-    fusion_rows, fusion_report = fusion_audit(development, protocol)
+    fusion_rows, fusion_report, border_cases = fusion_audit(
+        development, protocol
+    )
     atomic_csv(fusion_rows, AUDIT_ROOT / "fusion_loss_per_class.csv")
+    atomic_csv(border_cases, AUDIT_ROOT / "border_error_cases.csv")
+    border_error_gallery(border_cases, protocol)
     atomic_json(AUDIT_ROOT / "fusion_loss_report.json", fusion_report)
 
     old_train_scenes = set(
@@ -598,6 +681,8 @@ def main() -> None:
         AUDIT_ROOT / "fold_class_support.csv",
         AUDIT_ROOT / "fusion_loss_per_class.csv",
         AUDIT_ROOT / "fusion_loss_report.json",
+        AUDIT_ROOT / "border_error_cases.csv",
+        AUDIT_ROOT / "border_error_gallery",
         AUDIT_ROOT / "generalization_failure_audit.json",
     ]
     if not passed:
