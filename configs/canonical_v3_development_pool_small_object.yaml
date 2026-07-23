@@ -1,0 +1,124 @@
+protocol_id: canonical-v3-development-pool-small-object-v1
+parent_commit: e0e1a9acf240f14f5b7ef7ec90e2239b5dd332cc
+parent_result:
+  status: hard_fail
+  checkpoint_sha256: b3e6bd2414c017c95b69b3f04fbcde7965bef5447292c93cfb9a052f46290777
+  diagnostic_zip_sha256: b48169bb350d8111adb846590290f5cb2addcb4647985054acefc07e4235cb12
+
+data:
+  source_manifest: data/yolo_osdar23_rescue_v1/manifest.csv
+  development_source_splits: [train, val]
+  development_grouped_scenes: 15
+  test_source_split: test
+  test_grouped_scenes: 5
+  test_sealed: true
+  grouped_scene_field: grouped_scene_id
+  class_names:
+    0: person
+    1: signal
+    2: road_vehicle
+    3: train
+    4: animal
+    5: bicycle
+
+cpu_audit:
+  required_before_training: true
+  may_read_test_labels: false
+  constrained_split:
+    folds: 5
+    scenes_per_fold: 3
+    seed: 20260723
+    candidate_partitions: 100000
+    balance_fields:
+      - frame_count
+      - class_object_counts
+      - small_medium_large_counts
+    every_heldout_class_must_exist_in_train: true
+    minimum_train_scenes_per_heldout_class: 2
+  fusion:
+    source: outputs/canonical_m4/scene_cv/fold_0/seed_20260722/evaluation
+    checkpoint_sha256: b3e6bd2414c017c95b69b3f04fbcde7965bef5447292c93cfb9a052f46290777
+    iou_threshold: 0.50
+    stages:
+      - tile_oracle
+      - restored_global_raw_at_model_prefilter
+      - restored_global_raw_at_safety_threshold
+      - fused_at_safety_threshold
+
+candidate_C1:
+  architecture: YOLO11m_P2
+  tiling: fixed_4x4_halo
+  logical_grid: [4, 4]
+  overlap_fraction: 0.25
+  context_halo_fraction: 0.25
+  acceptance: prediction_center_inside_logical_tile
+  fusion_candidates: [class_aware_NMS, WBF]
+
+candidate_C2:
+  architecture: YOLO11m_P2
+  tiling: full_frame_plus_adaptive_multiscale_halo
+  acceptance: edge_aware_center_acceptance
+  fusion_candidates: [class_aware_NMS, WBF]
+
+sampler:
+  enabled: true
+  rare_class_weighting: true
+  small_object_weighting: true
+  scene_balancing: true
+  background_tile_fraction: [0.20, 0.30]
+  maximum_frame_weight: 4.0
+  inference_uses_ground_truth: false
+
+development_triage:
+  folds: [0, 1]
+  seed: 20260723
+  maximum_candidates: 2
+  early_stop_epochs: 20
+  hard_stop_after_epoch: 15
+  hard_fail_all:
+    mAP50_below: 0.20
+    recall_below: 0.25
+    signal_AP50_below: 0.05
+    road_vehicle_TP_equals: 0
+  promising_all:
+    mAP50_min: 0.30
+    recall_min: 0.35
+    small_recall_min: 0.15
+    signal_AP50_min: 0.15
+    road_vehicle_recall_min: 0.10
+    supported_class_zero_TP_forbidden_gt_min: 100
+
+full_cv_gate:
+  folds: 5
+  OOF_mAP50_min: 0.40
+  OOF_recall_min: 0.45
+  small_recall_min: 0.25
+  signal_AP50_min: 0.20
+  road_vehicle_recall_min: 0.20
+  supported_class_zero_recall_forbidden: true
+  folds_passing_legacy_gate_min: 4
+  legacy_fold_map50_min: 0.25
+  legacy_fold_recall_min: 0.35
+
+failure_policy:
+  cpu_audit_failure_blocks:
+    - C1_training
+    - C2_training
+    - P2_training
+    - development_triage
+    - full_CV
+    - test
+    - attacks
+    - article_finalization
+  next_allowed_action: add_development_only_scenes_under_new_protocol
+
+post_pass:
+  train_final_on_all_development_scenes: true
+  threshold_source: out_of_fold_predictions
+  attack_budget_source: out_of_fold_predictions
+  test_open_once: true
+  defenses: [none, Product_preprocessing, median]
+  attacks: [FGSM, PGD20, adaptive_Product_PGD20]
+  models: [D2, D3, R2, R3]
+  feature_layers: [P3, P4, P5]
+
