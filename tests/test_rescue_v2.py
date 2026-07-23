@@ -23,6 +23,7 @@ from audit_small_signal_fn import (  # noqa: E402
     feature_cell_coverage,
     letterbox_box,
 )
+from run_micro_candidate_v2 import register_m0, training_arguments  # noqa: E402
 
 import numpy as np
 
@@ -134,6 +135,28 @@ class SmallSignalRescueV2Test(unittest.TestCase):
         self.assertEqual(coverage["minimum_stride"], 8)
         self.assertAlmostEqual(coverage["P3_cells_width"], 8.0)
         self.assertAlmostEqual(coverage["P3_cells_height"], 9.0)
+
+    def test_full_frame_micro_training_has_no_destructive_augmentations(self) -> None:
+        config = self.protocol["micro_candidates"]["M1"]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            arguments = training_arguments(
+                "M1", config, root / "data.yaml", root
+            )
+        for key in (
+            "mosaic", "mixup", "translate", "scale", "perspective",
+            "degrees", "shear", "fliplr", "flipud", "hsv_h", "hsv_s",
+            "hsv_v", "erasing", "cutmix", "copy_paste",
+        ):
+            self.assertEqual(arguments[key], 0.0)
+        self.assertEqual(arguments["imgsz"], 960)
+        self.assertEqual(arguments["seed"], 20260722)
+
+    def test_m0_is_registered_without_retraining(self) -> None:
+        source = (ROOT / "scripts/run_micro_candidate_v2.py").read_text()
+        self.assertIn('if candidate == "M0":', source)
+        self.assertIn("return register_m0(protocol)", source)
+        self.assertIn('"status": "REFERENCE_FAIL"', source)
 
 
 if __name__ == "__main__":
