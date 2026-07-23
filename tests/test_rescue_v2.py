@@ -24,6 +24,11 @@ from audit_small_signal_fn import (  # noqa: E402
     letterbox_box,
 )
 from run_micro_candidate_v2 import register_m0, training_arguments  # noqa: E402
+from run_micro_view_candidate_v2 import (  # noqa: E402
+    clip_label,
+    crop_windows,
+    tile_windows,
+)
 
 import numpy as np
 
@@ -161,6 +166,30 @@ class SmallSignalRescueV2Test(unittest.TestCase):
         self.assertIn('if candidate == "M0":', source)
         self.assertIn("return register_m0(protocol)", source)
         self.assertIn('"status": "REFERENCE_FAIL"', source)
+
+    def test_object_crop_keeps_context_and_visible_annotations(self) -> None:
+        config = self.protocol["micro_candidates"]["M3"]
+        labels = [
+            {"class_id": 1, "box": [100.0, 100.0, 106.0, 108.0]},
+            {"class_id": 0, "box": [110.0, 110.0, 150.0, 170.0]},
+        ]
+        windows = crop_windows(labels, 1920, 1200, config, target_class_id=1)
+        self.assertEqual(windows[0][:4], (0, 0, 1920, 1200))
+        targeted = windows[1]
+        self.assertGreaterEqual(targeted[2] - targeted[0], 256)
+        self.assertIsNotNone(clip_label(labels[1], targeted[:4], 0.50))
+
+    def test_tiling_covers_image_and_has_expected_overlap(self) -> None:
+        config = self.protocol["micro_candidates"]["M4"]
+        windows = tile_windows(1920, 1200, config)
+        self.assertEqual(len(windows), 4)
+        self.assertEqual(min(window[0] for window in windows), 0)
+        self.assertEqual(min(window[1] for window in windows), 0)
+        self.assertEqual(max(window[2] for window in windows), 1920)
+        self.assertEqual(max(window[3] for window in windows), 1200)
+        first, second = windows[0], windows[1]
+        overlap = (first[2] - second[0]) / (first[2] - first[0])
+        self.assertAlmostEqual(overlap, config["overlap_fraction"], places=2)
 
 
 if __name__ == "__main__":
