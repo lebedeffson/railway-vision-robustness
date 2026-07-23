@@ -643,7 +643,6 @@ def build_bundle(context: dict) -> dict:
         root = Path(directory) / "TNormFilter_canonical_M4_final"
         root.mkdir()
         include = [
-            PROJECT_DIR / "README.md",
             PROJECT_DIR / "AGENTS.md",
             PROJECT_DIR / "configs/canonical_v2_m4_full_protocol.yaml",
             PROJECT_DIR / "configs/schemas/canonical_v2_m4_full_protocol.schema.json",
@@ -700,6 +699,16 @@ def build_bundle(context: dict) -> dict:
         }
         (root / "manifest.json").write_text(
             json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+        )
+        (root / "README.md").write_text(
+            "# TNormFilter canonical M4 final package\n\n"
+            "This package contains the frozen protocol, provenance, scene-level "
+            "validation/test results, canonical diagnostics, statistical models, "
+            "latency measurements, and validated article artifacts. M4 micro-overfit "
+            "is a technical learnability sanity check only. Full weights and the "
+            "OSDaR23 dataset are excluded; their SHA-256 provenance is recorded in "
+            "`manifest.json` and the protocol locks.\n",
+            encoding="utf-8",
         )
         files = sorted(path for path in root.rglob("*") if path.is_file())
         checksum = root / "checksums.sha256"
