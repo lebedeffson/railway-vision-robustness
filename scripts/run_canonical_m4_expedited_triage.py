@@ -89,6 +89,13 @@ def mark_full_protocol_partial(status: str) -> None:
     payload["updated_at"] = now()
     payload["current_stage"] = "expedited_triage"
     payload["expedited_triage_status"] = status
+    payload["stages"]["scene_cv_fold_0"] = {
+        "status": "completed_for_expedited_triage",
+        "evaluation": str(
+            (EVALUATION_ROOT / "evaluation_result.json").resolve()
+        ),
+        "canonical_claim_role": "none",
+    }
     for fold in range(1, 5):
         payload["stages"][f"scene_cv_fold_{fold}"] = {
             "status": "skipped_by_expedited_triage"
@@ -292,4 +299,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
