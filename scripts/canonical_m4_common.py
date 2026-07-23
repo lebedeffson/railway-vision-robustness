@@ -126,6 +126,16 @@ def verify_frozen_inputs() -> dict[str, Any]:
 
 def expected_protocol_lock() -> dict[str, Any]:
     protocol = verify_frozen_inputs()
+    protocol_commit = (
+        json.loads(PROTOCOL_LOCK.read_text(encoding="utf-8"))["protocol_commit"]
+        if PROTOCOL_LOCK.is_file()
+        else git("rev-parse", "HEAD")
+    )
+    if subprocess.run(
+        ["git", "merge-base", "--is-ancestor", protocol_commit, "HEAD"],
+        cwd=PROJECT_DIR,
+    ).returncode != 0:
+        raise RuntimeError("Locked M4 protocol commit is not an ancestor of HEAD")
     return {
         "status": "LOCKED",
         "protocol_id": protocol["protocol_id"],
@@ -134,7 +144,7 @@ def expected_protocol_lock() -> dict[str, Any]:
         "schema_path": str(SCHEMA_PATH.resolve()),
         "schema_sha256": sha256(SCHEMA_PATH),
         "parent_commit": protocol["parent_commit"],
-        "protocol_commit": git("rev-parse", "HEAD"),
+        "protocol_commit": protocol_commit,
         "split_manifest_sha256": protocol["dataset"]["split_manifest_sha256"],
         "dataset_manifest_sha256": protocol["dataset"]["manifest_sha256"],
         "initialization_sha256": protocol["model"]["initialization_sha256"],

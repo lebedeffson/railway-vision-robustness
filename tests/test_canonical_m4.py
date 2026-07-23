@@ -26,6 +26,7 @@ from canonical_m4_tiling import (  # noqa: E402
     restore_global_box,
     validate_scene_folds,
 )
+from prepare_canonical_m4_tiles import fold_mapping, yolo_lines  # noqa: E402
 
 
 class CanonicalM4ProtocolTest(unittest.TestCase):
@@ -100,6 +101,15 @@ class CanonicalM4ProtocolTest(unittest.TestCase):
         validate_scene_folds(
             scene_by_image, tile_source, {"scene_a": 0, "scene_b": 1}
         )
+
+    def test_frozen_scene_folds_cover_each_train_scene_once(self) -> None:
+        mapping = fold_mapping(self.protocol)
+        self.assertEqual(len(mapping), 10)
+        self.assertEqual(set(mapping.values()), set(range(5)))
+        self.assertTrue(all(list(mapping.values()).count(fold) == 2 for fold in range(5)))
+
+    def test_empty_yolo_label_is_supported(self) -> None:
+        self.assertEqual(yolo_lines([], 2350, 1431), "")
 
     def test_lock_payload_is_hash_bound(self) -> None:
         expected = expected_protocol_lock()
