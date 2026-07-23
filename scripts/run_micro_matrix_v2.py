@@ -60,11 +60,25 @@ def run_candidate(candidate: str) -> dict[str, Any]:
         if candidate in {"M1", "M2"}
         else "scripts/run_micro_view_candidate_v2.py"
     )
-    subprocess.run(
-        [str(PYTHON), "-u", script, "--candidate", candidate],
-        cwd=PROJECT_DIR,
-        check=True,
-    )
+    try:
+        subprocess.run(
+            [str(PYTHON), "-u", script, "--candidate", candidate],
+            cwd=PROJECT_DIR,
+            check=True,
+        )
+    except subprocess.CalledProcessError as error:
+        failure = {
+            "candidate": candidate,
+            "status": "EXECUTION_FAILED",
+            "micro_gate_passed": False,
+            "returncode": error.returncode,
+            "error": f"{type(error).__name__}: {error}",
+            "test_evaluated": False,
+        }
+        destination = MICRO / candidate
+        destination.mkdir(parents=True, exist_ok=True)
+        atomic_json(destination / "result.json", failure)
+        return failure
     result = load_result(candidate)
     if result is None:
         raise RuntimeError(f"{candidate} completed without result.json")
@@ -100,6 +114,7 @@ def summarize(results: dict[str, dict[str, Any]], protocol: dict[str, Any]) -> d
                     "small_recall", "medium_recall", "large_recall",
                     "checkpoint_sha256",
                     "eligible_for_full_training_without_deployable_roi",
+                    "error",
                 )
             }
             for candidate in order

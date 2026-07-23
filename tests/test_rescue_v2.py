@@ -221,6 +221,20 @@ class SmallSignalRescueV2Test(unittest.TestCase):
     def test_process_probe_does_not_match_matrix_process(self) -> None:
         self.assertFalse(candidate_process_running("not_a_real_candidate"))
 
+    def test_execution_failure_cannot_be_selected(self) -> None:
+        results = {
+            name: {
+                "status": "EXECUTION_FAILED",
+                "micro_gate_passed": False,
+                "error": "resource failure",
+            }
+            for name in ("M1", "M2", "M3", "M4")
+        }
+        summary = summarize(results, self.protocol)
+        self.assertEqual(summary["status"], "M5_REQUIRED")
+        self.assertTrue(summary["m5_required"])
+        self.assertEqual(summary["selected_candidates"], [])
+
 
 if __name__ == "__main__":
     unittest.main()
