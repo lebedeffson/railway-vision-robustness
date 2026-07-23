@@ -29,6 +29,7 @@ from run_micro_view_candidate_v2 import (  # noqa: E402
     crop_windows,
     tile_windows,
 )
+from run_micro_matrix_v2 import summarize  # noqa: E402
 
 import numpy as np
 
@@ -201,6 +202,21 @@ class SmallSignalRescueV2Test(unittest.TestCase):
         first, second = windows[0], windows[1]
         overlap = (first[2] - second[0]) / (first[2] - first[0])
         self.assertAlmostEqual(overlap, config["overlap_fraction"], places=2)
+
+    def test_micro_selection_prefers_simplest_deployable_pass(self) -> None:
+        results = {
+            name: {
+                "status": "PASS" if name in {"M2", "M3", "M4"} else "FAIL",
+                "micro_gate_passed": name in {"M2", "M3", "M4"},
+                "eligible_for_full_training_without_deployable_roi": name != "M3",
+            }
+            for name in ("M1", "M2", "M3", "M4")
+        }
+        summary = summarize(results, self.protocol)
+        self.assertEqual(summary["status"], "PASS")
+        self.assertEqual(summary["selected_candidates"], ["M2", "M4"])
+        self.assertIn("M3", summary["passing_candidates"])
+        self.assertNotIn("M3", summary["full_training_eligible_candidates"])
 
 
 if __name__ == "__main__":
