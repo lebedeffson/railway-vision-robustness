@@ -298,3 +298,14 @@ Tile-level mAP is not numerically comparable with global mAP because overlapping
 tiles duplicate GT in the tile evaluator. Canonical v3 is
 `BLOCKED_DEVELOPMENT_DATA_SUPPORT`; C1/C2/P2, test and attacks remain blocked
 until additional development-only scenes are introduced under a new protocol.
+
+Before the final A1 fold-0 evaluation was read, the computational-budget
+amendment `canonical-v4-person-dg-nwd-expedited-v1` was frozen. It preserves the
+same initialization, seed, 5+15 epochs, folds, tiling, evaluator and loss
+coefficients. A1 continues to fold 1 only after fold-0 gains of at least 0.05
+in mAP50, Recall and small Recall with all technical checks passing. If A1 is
+eliminated, A2 is skipped and the same gate is applied to the full A3 stack.
+The first candidate passing the two-fold macro gate (mAP50 and Recall at least
+0.45, small-Recall gain at least 0.05, worst-fold Recall at least 0.25) alone
+runs folds 2-4. This selection remains development-only and cannot open test
+before the existing full OOF gate passes.

@@ -16,6 +16,14 @@ PROJECT_DIR = Path(__file__).resolve().parents[2]
 PROTOCOL_PATH = PROJECT_DIR / "configs/canonical_v4_person_dg_nwd.yaml"
 OUTPUT_ROOT = PROJECT_DIR / "outputs/person_v4"
 LOCK_PATH = OUTPUT_ROOT / "protocol/protocol_lock.json"
+EXPEDITED_PROTOCOL_PATH = (
+    PROJECT_DIR
+    / "configs/canonical_v4_person_dg_nwd_expedited.yaml"
+)
+EXPEDITED_OUTPUT_ROOT = PROJECT_DIR / "outputs/person_v4_expedited"
+EXPEDITED_LOCK_PATH = (
+    EXPEDITED_OUTPUT_ROOT / "protocol/protocol_lock.json"
+)
 TEST_MARKER = PROJECT_DIR / "outputs/person_v3/test/TEST_OPENED.json"
 
 
@@ -63,6 +71,23 @@ def assert_test_sealed() -> None:
 
 def assert_locked() -> dict[str, Any]:
     assert_test_sealed()
+    if EXPEDITED_LOCK_PATH.is_file():
+        lock = json.loads(
+            EXPEDITED_LOCK_PATH.read_text(encoding="utf-8")
+        )
+        if lock["protocol_sha256"] != sha256(EXPEDITED_PROTOCOL_PATH):
+            raise RuntimeError(
+                "Canonical v4 expedited protocol changed after lock"
+            )
+        if lock["parent_protocol_sha256"] != sha256(PROTOCOL_PATH):
+            raise RuntimeError(
+                "Canonical v4 parent protocol changed after amendment"
+            )
+        if lock["git_commit"] != git("rev-parse", "HEAD"):
+            raise RuntimeError(
+                "Canonical v4 expedited code differs from its lock"
+            )
+        return lock
     if not LOCK_PATH.is_file():
         raise RuntimeError("Canonical v4 protocol lock is missing")
     lock = json.loads(LOCK_PATH.read_text(encoding="utf-8"))

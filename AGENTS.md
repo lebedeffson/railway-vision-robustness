@@ -74,6 +74,9 @@
   Recall=0.35432 and worst-fold Recall=0.20129. Preserve this hard-fail baseline.
 - Canonical v4 is the frozen A0-A3 DG/NWD matrix. Test and attacks remain blocked
   unless one candidate clears all two-fold deltas and then the full five-fold OOF gate.
+- The prospective `canonical-v4-person-dg-nwd-expedited-v1` amendment stops the
+  full A0-A3 matrix after A1 fold 0 and selects only A1 or A3 through locked
+  fold-0 and two-fold gates. A2 is skipped; test remains sealed until full OOF PASS.
 
 ## Notes
 
