@@ -77,6 +77,8 @@
 - The prospective `canonical-v4-person-dg-nwd-expedited-v1` amendment stops the
   full A0-A3 matrix after A1 fold 0 and selects only A1 or A3 through locked
   fold-0 and two-fold gates. A2 is skipped; test remains sealed until full OOF PASS.
+- `person-v4-train-only-proxy-v1` is a compute filter using only outer-fold-0
+  training scenes. Its PASS permits one external fold, never test or article claims.
 
 ## Notes
 

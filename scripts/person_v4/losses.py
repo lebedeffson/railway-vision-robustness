@@ -61,6 +61,28 @@ def quality_focal_loss(
     ) * modulation
 
 
+def update_group_dro_weights(
+    weights: torch.Tensor,
+    group_index: int,
+    group_loss: float | torch.Tensor,
+    eta: float,
+) -> torch.Tensor:
+    """Apply one deterministic exponentiated-gradient GroupDRO update."""
+    if weights.ndim != 1 or weights.numel() == 0:
+        raise ValueError("GroupDRO weights must be a non-empty vector")
+    if not 0 <= int(group_index) < weights.numel():
+        raise IndexError("GroupDRO group index is outside the weight vector")
+    updated = weights.clone()
+    loss = torch.as_tensor(
+        group_loss, dtype=updated.dtype, device=updated.device
+    ).clamp(max=50)
+    updated[int(group_index)] *= torch.exp(float(eta) * loss)
+    normalizer = updated.sum()
+    if not torch.isfinite(normalizer) or float(normalizer) <= 0:
+        raise FloatingPointError("GroupDRO weight update is not finite")
+    return updated / normalizer
+
+
 class NWDTaskAlignedAssigner(TaskAlignedAssigner):
     """Task-aligned assignment using a frozen CIoU/NWD hybrid metric."""
 
@@ -431,10 +453,14 @@ class PersonDGDetectionLoss(v8DetectionLoss):
             index = self.scene_index[scene]
             with torch.no_grad():
                 unweighted = detached.sum().clamp(max=50)
-                self.group_weights[index] *= torch.exp(
-                    self.group_eta * unweighted
+                self.group_weights.copy_(
+                    update_group_dro_weights(
+                        self.group_weights,
+                        index,
+                        unweighted,
+                        self.group_eta,
+                    )
                 )
-                self.group_weights /= self.group_weights.sum()
                 multiplier = float(
                     len(self.scene_names) * self.group_weights[index]
                 )

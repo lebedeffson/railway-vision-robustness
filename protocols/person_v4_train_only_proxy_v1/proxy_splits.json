@@ -1,0 +1,70 @@
+{
+  "external_fold0_used": false,
+  "protocol_id": "person-v4-train-only-proxy-v1",
+  "selection": {
+    "adjacent_frames_may_not_cross_roles_within_split": true,
+    "heldout_frame_cap": 175,
+    "method": "deterministic_centered_temporal_block",
+    "ordering": [
+      "subsequence_id",
+      "frame_id",
+      "source_image"
+    ],
+    "random_sampling": false,
+    "source_frame_cap_per_scene": 250
+  },
+  "splits": [
+    {
+      "frame_counts": {
+        "heldout:4_station_pedestrian_bridge_4": 175,
+        "source:12_vegetation_steady_12": 98,
+        "source:6_station_klein_flottbek_6": 110,
+        "source:8_station_altona_8": 210,
+        "source:9_station_ruebenkamp_9": 70
+      },
+      "heldout_scene": "4_station_pedestrian_bridge_4",
+      "id": "proxy_0",
+      "source_scenes": [
+        "8_station_altona_8",
+        "12_vegetation_steady_12",
+        "6_station_klein_flottbek_6",
+        "9_station_ruebenkamp_9"
+      ]
+    },
+    {
+      "frame_counts": {
+        "heldout:8_station_altona_8": 175,
+        "source:12_vegetation_steady_12": 98,
+        "source:2_station_berliner_tor_2": 10,
+        "source:4_station_pedestrian_bridge_4": 250,
+        "source:5_station_bergedorf_5": 110
+      },
+      "heldout_scene": "8_station_altona_8",
+      "id": "proxy_1",
+      "source_scenes": [
+        "4_station_pedestrian_bridge_4",
+        "5_station_bergedorf_5",
+        "12_vegetation_steady_12",
+        "2_station_berliner_tor_2"
+      ]
+    },
+    {
+      "frame_counts": {
+        "heldout:12_vegetation_steady_12": 98,
+        "source:4_station_pedestrian_bridge_4": 250,
+        "source:6_station_klein_flottbek_6": 110,
+        "source:8_station_altona_8": 210,
+        "source:9_station_ruebenkamp_9": 70
+      },
+      "heldout_scene": "12_vegetation_steady_12",
+      "id": "proxy_2",
+      "source_scenes": [
+        "4_station_pedestrian_bridge_4",
+        "8_station_altona_8",
+        "6_station_klein_flottbek_6",
+        "9_station_ruebenkamp_9"
+      ]
+    }
+  ],
+  "test_used": false
+}

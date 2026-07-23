@@ -309,3 +309,15 @@ The first candidate passing the two-fold macro gate (mAP50 and Recall at least
 0.45, small-Recall gain at least 0.05, worst-fold Recall at least 0.25) alone
 runs folds 2-4. This selection remains development-only and cannot open test
 before the existing full OOF gate passes.
+
+The prospective `person-v4-train-only-proxy-v1` protocol is independent of the
+active A3 fold and is frozen only as a cheap compute filter. Its three proxy
+splits use four source scenes and one held-out scene drawn exclusively from the
+12-scene training portion of outer fold 0. The three outer-fold-0 held-out
+scenes, official validation and test images/labels are forbidden. A0 and A3 use
+the same initialization, seed, tiling, fusion and evaluator for 12 epochs.
+Proxy PASS requires paired median gains of 0.03 mAP50, 0.03 Recall and 0.05
+small Recall, non-negative worst-split Recall delta, at least two improved
+splits and all technical checks. It permits only an external scene fold and is
+never article evidence. Synthetic four-domain results are implementation
+evidence only.

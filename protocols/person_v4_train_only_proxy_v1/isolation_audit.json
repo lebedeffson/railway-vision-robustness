@@ -1,0 +1,27 @@
+{
+  "heldout_scenes_per_split": 1,
+  "input_hashes": {
+    "development_manifest": "b07be14110e0eb068de0aaa055759b2ac0123d531948200fa39e636638a7fcba",
+    "initialization": "d5ffc1a674953a08e11a8d21e022781b1b23a19b730afc309290bd9fb5305b95",
+    "outer_folds": "ff5a6268c394d396c05440b8d309cf5256f998b6c371c66bc52ac9c9bccb14bf",
+    "tile_manifest": "3821295bdf84524d71aecf786921cfda5b1ea3d76968e9a04e3a6161f071721c"
+  },
+  "official_validation_opened": false,
+  "outer_fold": 0,
+  "outer_fold0_heldout_images_opened": false,
+  "outer_fold0_heldout_labels_opened": false,
+  "outer_fold0_heldout_scenes": [
+    "10_station_suelldorf_10",
+    "18_vegetation_switch_18",
+    "3_fire_site_3"
+  ],
+  "protocol_id": "person-v4-train-only-proxy-v1",
+  "proxy_split_count": 3,
+  "selected_frames_without_tiles": 0,
+  "selected_row_count": 2044,
+  "selected_scene_count": 7,
+  "selected_tile_count": 8176,
+  "source_scenes_per_split": 4,
+  "status": "PASS",
+  "test_opened": false
+}

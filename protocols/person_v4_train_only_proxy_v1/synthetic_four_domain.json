@@ -1,0 +1,24 @@
+{
+  "DG_feature_weights": [
+    2.7142930030822754,
+    -0.03557451441884041
+  ],
+  "DG_heldout_accuracy": 0.8203125,
+  "ERM_feature_weights": [
+    2.4264893531799316,
+    0.8715113401412964
+  ],
+  "ERM_heldout_accuracy": 0.37890625,
+  "accuracy_improvement": 0.44140625,
+  "article_evidence": false,
+  "final_group_weights": [
+    0.23423220217227936,
+    0.3193628787994385,
+    0.4464048743247986
+  ],
+  "heldout_domain_count": 1,
+  "purpose": "integration_test_only",
+  "source_domain_count": 3,
+  "status": "PASS",
+  "style_mixing": "deterministic_cross_example_permutation"
+}

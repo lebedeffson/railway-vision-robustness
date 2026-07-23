@@ -1,0 +1,151 @@
+protocol_id: person-v4-train-only-proxy-v1
+protocol_type: prospective_train_only_compute_filter
+parent_protocol: canonical-v4-person-dg-nwd-expedited-v1
+parent_commit: 61855bd21fce1a962714aa88b1ddde625524d9a4
+frozen_before_A3_fold0_result: true
+
+scope:
+  scientific_result: false
+  article_evidence: false
+  may_open_external_fold0: false
+  may_open_official_validation: false
+  may_open_test: false
+  may_interrupt_active_A3: false
+  pass_allows: one_external_scene_fold_only
+  fail_blocks: another_expensive_run_of_same_configuration
+
+inputs:
+  development_manifest: outputs/person_v3/protocol/development_manifest.csv
+  development_manifest_sha256: b07be14110e0eb068de0aaa055759b2ac0123d531948200fa39e636638a7fcba
+  outer_folds: outputs/person_v3/protocol/folds.json
+  outer_folds_sha256: ff5a6268c394d396c05440b8d309cf5256f998b6c371c66bc52ac9c9bccb14bf
+  tile_manifest: outputs/canonical_m4/tiling_audit/tile_manifest.csv
+  tile_manifest_sha256: 3821295bdf84524d71aecf786921cfda5b1ea3d76968e9a04e3a6161f071721c
+  initialization: yolo11m.pt
+  initialization_sha256: d5ffc1a674953a08e11a8d21e022781b1b23a19b730afc309290bd9fb5305b95
+  grouped_scene_field: grouped_scene_id
+  outer_fold: 0
+
+forbidden:
+  outer_fold0_heldout_scenes:
+    - 10_station_suelldorf_10
+    - 18_vegetation_switch_18
+    - 3_fire_site_3
+  official_test_globs:
+    - outputs/person_v3/test/**
+    - outputs/canonical_v2/test/**
+  labels_and_images_for_forbidden_scenes_must_not_be_opened: true
+
+selection:
+  method: deterministic_centered_temporal_block
+  ordering: [subsequence_id, frame_id, source_image]
+  source_frame_cap_per_scene: 250
+  heldout_frame_cap: 175
+  random_sampling: false
+  adjacent_frames_may_not_cross_roles_within_split: true
+
+proxy_splits:
+  - id: proxy_0
+    source_scenes:
+      - 8_station_altona_8
+      - 12_vegetation_steady_12
+      - 6_station_klein_flottbek_6
+      - 9_station_ruebenkamp_9
+    heldout_scene: 4_station_pedestrian_bridge_4
+  - id: proxy_1
+    source_scenes:
+      - 4_station_pedestrian_bridge_4
+      - 5_station_bergedorf_5
+      - 12_vegetation_steady_12
+      - 2_station_berliner_tor_2
+    heldout_scene: 8_station_altona_8
+  - id: proxy_2
+    source_scenes:
+      - 4_station_pedestrian_bridge_4
+      - 8_station_altona_8
+      - 6_station_klein_flottbek_6
+      - 9_station_ruebenkamp_9
+    heldout_scene: 12_vegetation_steady_12
+
+paired_variants:
+  execution_order: [A0, A3]
+  A0:
+    role: ERM_control
+    nwd_qfl: false
+    group_dro: false
+    mixstyle: false
+    scale_aware: false
+    swad: false
+  A3:
+    role: full_DG_NWD_stack
+    nwd_qfl: true
+    group_dro: true
+    mixstyle: true
+    scale_aware: true
+    swad: true
+
+training:
+  initialization_is_paired: true
+  seed: 20260723
+  input_size: 640
+  batch: 1
+  nominal_batch_size: 8
+  workers: 2
+  amp: false
+  deterministic: true
+  tiling: unchanged_from_person_v4
+  fusion: unchanged_from_person_v4
+  evaluator: unchanged_from_person_v4
+  stages:
+    stage1:
+      epochs: 2
+    stage2:
+      epochs: 8
+    stage3_swad:
+      epochs: 2
+  total_epochs: 12
+
+early_reject:
+  earliest_epoch: 8
+  require_all:
+    best_mAP50_delta_max: -0.03
+    best_recall_delta_max: -0.03
+    evaluations_without_improvement: 3
+    losses_and_gradients_technically_valid: true
+  train_loss_alone_may_stop: false
+
+proxy_gate:
+  paired_against: A0
+  require_all:
+    median_delta_mAP50_min: 0.03
+    median_delta_recall_min: 0.03
+    median_delta_small_recall_min: 0.05
+    worst_split_delta_recall_min: 0.0
+    improved_splits_min: 2
+    split_count: 3
+    maximum_single_split_recall_drop: 0.03
+    NaN_Inf: 0
+    lost_GT: 0
+    evaluator_consistency: PASS
+
+synthetic_four_domain:
+  purpose: integration_test_only
+  article_evidence: false
+  source_domains: 3
+  heldout_domains: 1
+  expected_check: GroupDRO_and_MixStyle_reduce_style_overfitting
+
+outputs:
+  root: outputs/person_v4_proxy
+  required:
+    - protocol/protocol_lock.json
+    - protocol/proxy_splits.json
+    - protocol/proxy_frame_manifest.csv
+    - protocol/proxy_tile_manifest.csv
+    - protocol/isolation_audit.json
+    - protocol/execution_status.json
+    - tests/math_sanity.json
+    - tests/synthetic_four_domain.json
+    - results/paired_proxy_metrics.csv
+    - results/proxy_gate.json
+    - results/decision_trace.json

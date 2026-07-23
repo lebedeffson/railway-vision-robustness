@@ -11,7 +11,9 @@ from scripts.person_v4.losses import (
     normalized_wasserstein_similarity,
     quality_focal_loss,
     small_object_alpha,
+    update_group_dro_weights,
 )
+from scripts.person_v4.swad import average_state_dicts, state_dict_sha256
 from scripts.person_v4.trainer import (
     MixStyleSceneBank,
     PersonDGDetectionModel,
@@ -52,6 +54,32 @@ class PersonV4MathTest(unittest.TestCase):
         self.assertTrue(torch.isfinite(prediction.grad).all())
         self.assertGreater(float(prediction.grad.abs().sum()), 0.0)
 
+    def test_nwd_decreases_smoothly_with_center_shift(self) -> None:
+        target = torch.tensor([[0.0, 0.0, 2.0, 2.0]])
+        shifts = [
+            torch.tensor([[float(value), 0.0, float(value + 2), 2.0]])
+            for value in (0, 1, 2)
+        ]
+        similarities = [
+            float(normalized_wasserstein_similarity(target, box, 8.0))
+            for box in shifts
+        ]
+        self.assertGreater(similarities[0], similarities[1])
+        self.assertGreater(similarities[1], similarities[2])
+        iou_loss_at_one_pixel = 1 - (2.0 / 6.0)
+        nwd_loss_at_one_pixel = 1 - similarities[1]
+        self.assertLess(nwd_loss_at_one_pixel, iou_loss_at_one_pixel)
+
+    def test_nwd_is_finite_for_one_pixel_boxes(self) -> None:
+        first = torch.tensor(
+            [[0.0, 0.0, 1.0, 1.0]], requires_grad=True
+        )
+        second = torch.tensor([[1.0, 0.0, 2.0, 1.0]])
+        similarity = normalized_wasserstein_similarity(first, second, 4.0)
+        (1 - similarity).sum().backward()
+        self.assertTrue(torch.isfinite(similarity).all())
+        self.assertTrue(torch.isfinite(first.grad).all())
+
     def test_small_boxes_receive_more_nwd_weight(self) -> None:
         small = torch.tensor([[0.0, 0.0, 4.0, 4.0]])
         large = torch.tensor([[0.0, 0.0, 64.0, 64.0]])
@@ -66,6 +94,35 @@ class PersonV4MathTest(unittest.TestCase):
         loss = quality_focal_loss(logits, targets, beta=2.0).sum()
         loss.backward()
         self.assertTrue(torch.isfinite(logits.grad).all())
+
+    def test_quality_focal_gradient_moves_scores_toward_quality(self) -> None:
+        positive = torch.tensor([-2.0], requires_grad=True)
+        quality_focal_loss(
+            positive, torch.tensor([0.8]), beta=2.0
+        ).sum().backward()
+        self.assertLess(float(positive.grad), 0.0)
+        background = torch.tensor([2.0], requires_grad=True)
+        quality_focal_loss(
+            background, torch.tensor([0.0]), beta=2.0
+        ).sum().backward()
+        self.assertGreater(float(background.grad), 0.0)
+
+    def test_quality_target_is_bounded_and_orders_localization(self) -> None:
+        iou = torch.tensor([0.2, 0.8])
+        nwd = torch.tensor([0.3, 0.9])
+        target = 0.5 * iou + 0.5 * nwd
+        self.assertTrue(torch.all((0 <= target) & (target <= 1)))
+        self.assertGreater(float(target[1]), float(target[0]))
+
+    def test_group_dro_upweights_the_worst_scene(self) -> None:
+        weights = torch.full((3,), 1 / 3)
+        for index, loss in enumerate((0.2, 0.5, 1.2)):
+            weights = update_group_dro_weights(
+                weights, index, loss, eta=0.5
+            )
+        self.assertAlmostEqual(float(weights.sum()), 1.0, places=6)
+        self.assertGreater(float(weights[2]), float(weights[1]))
+        self.assertGreater(float(weights[1]), float(weights[0]))
 
     def test_scene_sampler_round_robins_groups(self) -> None:
         paths = ["/x/a_0.jpg", "/x/a_1.jpg", "/x/b_0.jpg", "/x/b_1.jpg"]
@@ -93,7 +150,55 @@ class PersonV4MathTest(unittest.TestCase):
         second = torch.randn(1, 4, 3, 3) + 10
         mixed = hook(torch.nn.Identity(), (second,), second)
         self.assertFalse(torch.equal(second, mixed))
+        self.assertEqual(mixed.shape, second.shape)
+        second_standardized = (
+            second - second.mean(dim=(2, 3), keepdim=True)
+        ) / second.std(dim=(2, 3), keepdim=True, unbiased=False)
+        mixed_standardized = (
+            mixed - mixed.mean(dim=(2, 3), keepdim=True)
+        ) / mixed.std(dim=(2, 3), keepdim=True, unbiased=False)
+        self.assertTrue(
+            torch.allclose(
+                second_standardized,
+                mixed_standardized,
+                atol=1.0e-4,
+                rtol=1.0e-4,
+            )
+        )
         self.assertEqual(hook.mix_count, 1)
+        model.eval()
+        held = torch.randn(1, 4, 3, 3)
+        self.assertTrue(
+            torch.equal(
+                held, hook(torch.nn.Identity(), (held,), held)
+            )
+        )
+
+    def test_swad_average_and_hash_are_deterministic(self) -> None:
+        states = [
+            {
+                "weight": torch.tensor([1.0, 3.0]),
+                "bn.running_mean": torch.tensor([2.0]),
+                "bn.num_batches_tracked": torch.tensor(4),
+            },
+            {
+                "weight": torch.tensor([3.0, 5.0]),
+                "bn.running_mean": torch.tensor([4.0]),
+                "bn.num_batches_tracked": torch.tensor(7),
+            },
+        ]
+        first = average_state_dicts(states)
+        second = average_state_dicts(states)
+        self.assertTrue(
+            torch.equal(first["weight"], torch.tensor([2.0, 4.0]))
+        )
+        self.assertTrue(
+            torch.equal(first["bn.running_mean"], torch.tensor([3.0]))
+        )
+        self.assertEqual(int(first["bn.num_batches_tracked"]), 7)
+        self.assertEqual(
+            state_dict_sha256(first), state_dict_sha256(second)
+        )
 
     def test_custom_detection_loss_backward_on_real_yolo_graph(self) -> None:
         base = YOLO(str(ROOT / "yolo11m.pt")).model

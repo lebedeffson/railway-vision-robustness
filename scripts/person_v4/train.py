@@ -28,6 +28,7 @@ from scripts.person_v4.common import (
     sha256,
 )
 from scripts.person_v4.trainer import PersonDGTrainer
+from scripts.person_v4.swad import average_state_dicts, state_dict_sha256
 from scripts.run_micro_overfit import GradientLogger
 
 
@@ -276,16 +277,7 @@ def build_swad(
         )
         for epoch in selected
     ]
-    averaged: dict[str, torch.Tensor] = {}
-    for key in states[0]:
-        value = states[0][key]
-        if not torch.is_floating_point(value):
-            averaged[key] = value
-            continue
-        total = torch.zeros_like(value, dtype=torch.float32)
-        for state in states:
-            total += state[key].float()
-        averaged[key] = (total / len(states)).to(dtype=value.dtype)
+    averaged = average_state_dicts(states)
     checkpoint = torch.load(
         stage_best, map_location="cpu", weights_only=False
     )
@@ -302,6 +294,9 @@ def build_swad(
         "selected_epochs": selected,
         "checkpoint_count": len(selected),
         "source": "stage2_EMA_epoch_trajectory",
+        "state_sha256": state_dict_sha256(averaged),
+        "floating_state_policy": "arithmetic_mean_float64_accumulator",
+        "non_floating_state_policy": "elementwise_max_for_BN_counters",
         "selection_split": "development_fold_validation_only",
         "test_used": False,
         "output": str(destination.resolve()),

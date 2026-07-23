@@ -1,0 +1,23 @@
+{
+  "active_A3_may_be_interrupted": false,
+  "code_sha256": {
+    "scripts/person_v4/build_train_only_proxy.py": "7e4bd35d9b7a64d113396088c157ec83a9a444f216a4065c9bb9f867ae0dbff0",
+    "scripts/person_v4/losses.py": "446bd15a0dd390ab26ac05335104e0d179b6e99d05ba09ab9a7b3d258a6cc783",
+    "scripts/person_v4/proxy.py": "133346357179c7ffd352a1dfb5b3a6a5c03537ff8cd38b097a0b6e627f93c142",
+    "scripts/person_v4/run_proxy_cpu_checks.py": "6df172d12751e1f678ba16cde9a0e0f80e73744aaacc97128db9c013d15d3c5e",
+    "scripts/person_v4/swad.py": "03bd59c338445d2257871bb545174cd92b2153cd5595d678286094c586a7de20",
+    "scripts/person_v4/train.py": "df31c1182c3b0346724aafe3d144291edc3f7ee7431d2ae238a091f90d26b35b",
+    "tests/test_person_v4_math.py": "5adc0dc74096aa327717870a40ce6bc7edc0a506cdd015f2c5a1a06fed215531",
+    "tests/test_person_v4_proxy.py": "50c1add5b1bd830b24cfed299dacbeb18331551fc8e8549c7c2af522b2d41cb1"
+  },
+  "git_commit_at_freeze": "61855bd21fce1a962714aa88b1ddde625524d9a4",
+  "isolation_audit_sha256": "d0a043cdd7a1917583ab7b3d283f3b57d7921bafa286258aa334fc010363ec56",
+  "protocol_id": "person-v4-train-only-proxy-v1",
+  "protocol_path": "configs/person_v4_train_only_proxy.yaml",
+  "protocol_sha256": "1951f5cab83989e50c422620987208bb3063af25663c538a266f5cafffe96930",
+  "proxy_frame_manifest_sha256": "5f4f789f3e659315c0eecd3d1aba83c861cee5403ae4093e74d862819f5c961a",
+  "proxy_splits_sha256": "501469848408609879bad5a578aea061a4bc1b873d7e7433410d9cf90a336972",
+  "proxy_tile_manifest_sha256": "bb3451115a63a7a90bd6090c249193ccf4e4140c0336c6cbe45097d5ef4afd44",
+  "status": "LOCKED",
+  "test_sealed": true
+}

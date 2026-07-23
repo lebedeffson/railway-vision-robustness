@@ -1,0 +1,21 @@
+{
+  "checks": {
+    "GroupDRO_weight_sum": 1.0,
+    "GroupDRO_worst_scene_weight_largest": true,
+    "MixStyle_cross_scene_mixed": true,
+    "MixStyle_eval_disabled": true,
+    "MixStyle_shape_preserved": true,
+    "NWD_identity": true,
+    "NWD_one_pixel_shift_loss": 0.1175031065940857,
+    "NWD_smoother_than_IoU": true,
+    "NWD_tiny_gradient_finite": true,
+    "QFL_lowers_background_score": true,
+    "QFL_raises_underpredicted_quality": true,
+    "SWAD_BN_counter_explicit_max": true,
+    "SWAD_hash_deterministic": true,
+    "SWAD_parameter_mean_exact": true
+  },
+  "device": "cpu",
+  "scientific_result": false,
+  "status": "PASS"
+}
