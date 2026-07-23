@@ -312,7 +312,11 @@ def main() -> None:
         extra={"stage": "micro_overfit", "checkpoint_sha256": sha256(best)},
     )
     if result["status"] != "PASS":
-        raise RuntimeError(f"Micro-overfit gate failed: {json.dumps(result, indent=2)}")
+        print(
+            "Micro-overfit scientific gate failed; complete diagnostics were "
+            "saved and the parent pipeline must block the candidate matrix.",
+            flush=True,
+        )
     print(json.dumps(result, indent=2))
 
 

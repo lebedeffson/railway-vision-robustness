@@ -147,6 +147,51 @@ def choose_initial_base(candidates: list[str], seed: int) -> str:
     return str(rows[0]["candidate"])
 
 
+def stop_after_micro_failure(micro: dict[str, Any]) -> None:
+    skipped = [
+        "current_checkpoint_diagnosis",
+        "candidate_R0_reference",
+        "candidate_R1",
+        "candidate_R2",
+        "candidate_R3",
+        "candidate_R4",
+        "comparison",
+        "checkpoint_freeze",
+        "threshold_calibration",
+        "quality_gate",
+        "clean_test",
+        "FGSM",
+        "PGD",
+        "adaptive_PGD",
+        "D2_D3",
+        "R2_R3",
+        "article_finalization",
+    ]
+    payload = read_status()
+    for name in skipped:
+        payload.setdefault("stages", {})[name] = {
+            "status": "skipped",
+            "finished_at": now(),
+            "error": "blocked_by_frozen_micro_overfit_gate",
+            "outputs": [],
+        }
+    payload["status"] = "stopped_micro_overfit_failed"
+    payload["current_stage"] = None
+    payload["micro_overfit_passed"] = False
+    payload["quality_gate_passed"] = False
+    payload["quality_gate_evaluated"] = False
+    payload["test_opened"] = False
+    payload["attacks_status"] = "skipped"
+    payload["article_finalization_status"] = "skipped"
+    payload["micro_overfit_result"] = micro
+    write_status(payload)
+    subprocess.run(
+        [str(PYTHON), "scripts/finalize_rescue.py", "--micro-failure"],
+        cwd=PROJECT_DIR,
+        check=True,
+    )
+
+
 def main() -> None:
     ensure_branch()
     assert_test_sealed()
@@ -184,7 +229,12 @@ def main() -> None:
     )
     micro = json.loads((OUTPUT_ROOT / "micro_overfit/result.json").read_text(encoding="utf-8"))
     if micro.get("status") != "PASS":
-        raise RuntimeError("Rescue candidate matrix is blocked by micro-overfit failure")
+        stop_after_micro_failure(micro)
+        print(
+            "[rescue] candidate matrix stopped by frozen micro-overfit gate",
+            flush=True,
+        )
+        return
     stage(
         "current_checkpoint_diagnosis",
         [str(PYTHON), "scripts/analyze_current_checkpoint.py"],

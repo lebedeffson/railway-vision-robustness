@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import shutil
@@ -208,7 +209,7 @@ def build_report(
     return "\n".join(lines) + "\n"
 
 
-def build_bundle(passed: bool) -> Path:
+def build_bundle(passed: bool, failure_stage: str | None = None) -> Path:
     name = (
         "TNormFilter_baseline_rescue_v1_passed.zip"
         if passed else "TNormFilter_baseline_rescue_v1_gate_failed.zip"
@@ -253,6 +254,8 @@ def build_bundle(passed: bool) -> Path:
             "git_commit": run_text(["git", "rev-parse", "HEAD"]),
             "git_branch": run_text(["git", "branch", "--show-current"]),
             "quality_gate_passed": passed,
+            "quality_gate_evaluated": failure_stage != "micro_overfit",
+            "failure_stage": failure_stage,
             "files": len(checksums),
             "weights_included": False,
             "environment": environment_snapshot(),
@@ -271,7 +274,98 @@ def build_bundle(passed: bool) -> Path:
     return destination
 
 
+def finalize_micro_failure() -> None:
+    protocol = load_protocol()
+    FINAL.mkdir(parents=True, exist_ok=True)
+    COMPARISON.mkdir(parents=True, exist_ok=True)
+    micro = json.loads(
+        (OUTPUT_ROOT / "micro_overfit/result.json").read_text(encoding="utf-8")
+    )
+    quality_gate = {
+        "protocol_id": protocol["protocol_id"],
+        "split_manifest_sha256": protocol["split_manifest_sha256"],
+        "quality_gate_passed": False,
+        "quality_gate_evaluated": False,
+        "blocked_by": "micro_overfit",
+        "micro_overfit_status": micro["status"],
+        "micro_overfit_mAP50": micro["mAP50"],
+        "micro_overfit_recall": micro["recall"],
+        "micro_overfit_mAP50_requirement": protocol["micro_overfit"]["map50_min"],
+        "micro_overfit_recall_requirement": protocol["micro_overfit"]["recall_min"],
+        "test_opened": False,
+    }
+    decision = {
+        "protocol_id": protocol["protocol_id"],
+        "winner": None,
+        "checkpoint_frozen": False,
+        "thresholds_frozen": False,
+        "quality_gate_passed": False,
+        "quality_gate_evaluated": False,
+        "candidate_matrix_status": "skipped_micro_overfit_failure",
+        "test_used": False,
+    }
+    atomic_json(FINAL / "quality_gate.json", quality_gate)
+    atomic_json(COMPARISON / "selection_decision.json", decision)
+    report = "\n".join([
+        "# Canonical v2 Rescue v1 diagnostic report",
+        "",
+        "## Outcome",
+        "",
+        "The prospectively frozen micro-overfit gate did not pass. The R0-R4 "
+        "candidate matrix, test, attacks, and article finalization were not run.",
+        "",
+        "## Micro-overfit",
+        "",
+        f"- frames: {micro['frames']}",
+        f"- mAP50: {micro['mAP50']:.6f} (required {protocol['micro_overfit']['map50_min']:.2f})",
+        f"- Recall: {micro['recall']:.6f} (required {protocol['micro_overfit']['recall_min']:.2f})",
+        f"- F1: {micro['f1']:.6f}",
+        f"- initial/final train loss sum: {micro['initial_train_loss_sum']:.6f}/"
+        f"{micro['final_train_loss_sum']:.6f}",
+        f"- gradient NaN/Inf: {micro['gradient_nan_or_inf']}",
+        f"- checkpoint SHA-256: `{micro['checkpoint_sha256']}`",
+        "",
+        "## Scientific boundary",
+        "",
+        "- quality gate evaluated: false",
+        "- test opened: false",
+        "- attacks: skipped",
+        "- hypotheses H1-H4: not evaluated",
+        "",
+        "Detailed class, scene, threshold, gradient, prediction, audit, and "
+        "training artifacts are included in this diagnostic archive.",
+        "",
+    ])
+    (FINAL / "rescue_report.md").write_text(report, encoding="utf-8")
+    expected_bundle = (
+        OUTPUT_ROOT / "bundles" / "TNormFilter_baseline_rescue_v1_gate_failed.zip"
+    )
+    atomic_json(FINAL / "run_summary.json", {
+        "failure_stage": "micro_overfit",
+        "micro_overfit": micro,
+        "quality_gate": quality_gate,
+        "selection": decision,
+        "bundle": str(expected_bundle.resolve()),
+        "test_opened": False,
+        "attacks": "skipped",
+        "article_finalization": "skipped",
+        "hypotheses_H1_H4": "not_evaluated",
+    })
+    bundle = build_bundle(False, failure_stage="micro_overfit")
+    print(json.dumps({
+        "failure_stage": "micro_overfit",
+        "bundle": str(bundle),
+        "bundle_sha256": sha256(bundle),
+    }, indent=2))
+
+
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--micro-failure", action="store_true")
+    args = parser.parse_args()
+    if args.micro_failure:
+        finalize_micro_failure()
+        return
     protocol = load_protocol()
     policy = yaml.safe_load(POLICY.read_text(encoding="utf-8"))
     COMPARISON.mkdir(parents=True, exist_ok=True)

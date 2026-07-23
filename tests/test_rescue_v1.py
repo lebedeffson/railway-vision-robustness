@@ -191,6 +191,17 @@ class RescueV1Test(unittest.TestCase):
                 val[str((root / "micro/val/frame.png").resolve())], "scene-a"
             )
 
+    def test_micro_failure_is_a_scientific_stop_not_a_crash(self) -> None:
+        micro_source = (ROOT / "scripts/run_micro_overfit.py").read_text()
+        runner_source = (ROOT / "scripts/run_rescue_pipeline.py").read_text()
+        finalizer_source = (ROOT / "scripts/finalize_rescue.py").read_text()
+        self.assertNotIn("raise RuntimeError(f\"Micro-overfit gate failed", micro_source)
+        self.assertIn("stop_after_micro_failure(micro)", runner_source)
+        self.assertIn('"--micro-failure"', runner_source)
+        self.assertIn('"stopped_micro_overfit_failed"', runner_source)
+        self.assertIn('"failure_stage": "micro_overfit"', finalizer_source)
+        self.assertIn('"hypotheses_H1_H4": "not_evaluated"', finalizer_source)
+
     def test_no_tbd_finalization_when_gate_failed(self) -> None:
         self._assert_role_blocked("finalization")
 
