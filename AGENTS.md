@@ -67,6 +67,9 @@
   and a separate rescue dataset removes one exact train bbox duplicate without
   changing split or test labels. Resume at micro-overfit; CUDA invisibility is
   an infrastructure block, not a scientific gate failure.
+- Canonical v3 development-pool CPU audit is blocked by class-scene support:
+  animal occurs in only two development scenes. Do not run C1/C2/P2 training
+  until new development-only scenes are frozen under a new protocol.
 
 ## Notes
 

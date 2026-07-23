@@ -260,3 +260,23 @@ GT objects, so its zero Recall is not treated as a catastrophic scene failure;
 the hard fail is caused by mAP50 and Recall alone. Remaining CV folds, full
 training, official validation, test, attacks and H1-H4 analysis are
 `skipped_by_expedited_triage`.
+
+Canonical v3 merged the old 10-scene train and 5-scene validation into a
+1085-frame, 15-scene development pool while preserving the same five sealed
+test scenes. A deterministic 100,000-partition constrained split search proved
+the requested fivefold class-support contract infeasible: animal occurs in only
+two development scenes, so at least one held-out animal fold has fewer than two
+training scenes (the best partition groups both animal scenes and leaves zero
+animal train support in that fold). In the old M4 fold 0, road vehicle was not
+strictly absent but had only seven training objects from one scene versus 1192
+held-out objects.
+
+The fold-0 fusion audit also corrected the interpretation of the tile/global
+metric gap. At the model prefilter 1169 GT were matchable; the safety threshold
+reduced this to 842 and global fusion to 826. Thus fusion lost only 16 matched
+GT, while thresholding lost 327. Border recall was 0.07385 versus 0.19741 for
+center objects after fusion, confirming a context/local-detector problem.
+Tile-level mAP is not numerically comparable with global mAP because overlapping
+tiles duplicate GT in the tile evaluator. Canonical v3 is
+`BLOCKED_DEVELOPMENT_DATA_SUPPORT`; C1/C2/P2, test and attacks remain blocked
+until additional development-only scenes are introduced under a new protocol.
