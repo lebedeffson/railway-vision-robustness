@@ -186,6 +186,11 @@ def stop_after_micro_failure(micro: dict[str, Any]) -> None:
     payload["micro_overfit_result"] = micro
     write_status(payload)
     subprocess.run(
+        [str(PYTHON), "scripts/analyze_micro_failure.py"],
+        cwd=PROJECT_DIR,
+        check=True,
+    )
+    subprocess.run(
         [str(PYTHON), "scripts/finalize_rescue.py", "--micro-failure"],
         cwd=PROJECT_DIR,
         check=True,

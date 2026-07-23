@@ -215,7 +215,9 @@ def train(data_yaml: Path, protocol: dict[str, Any]) -> Path:
     gradient_logger = GradientLogger(OUTPUT / "gradient_metrics.csv")
     model.add_callback("on_train_start", gradient_logger.train_start)
     model.add_callback("on_train_epoch_start", gradient_logger.epoch_start)
-    model.add_callback("on_before_zero_grad", gradient_logger.before_zero_grad)
+    # Ultralytics 8.4.102 defines but does not dispatch on_before_zero_grad.
+    # Batch-end still exposes accumulated gradients on non-step batches.
+    model.add_callback("on_train_batch_end", gradient_logger.before_zero_grad)
     model.add_callback("on_train_epoch_end", gradient_logger.epoch_end)
     settings = protocol["micro_overfit"]
     if last.is_file():
@@ -283,12 +285,17 @@ def main() -> None:
     initial_loss = float(history.iloc[0][loss_columns].sum())
     final_loss = float(history.iloc[-1][loss_columns].sum())
     gradient = pd.read_csv(OUTPUT / "gradient_metrics.csv")
+    nonzero_gradient_observed = bool(
+        (gradient["backbone_gradient_norm"].astype(float) > 0).any()
+        and (gradient["head_gradient_norm"].astype(float) > 0).any()
+    )
     result = {
         "status": "PASS" if (
             float(val["mAP50"]) >= float(protocol["micro_overfit"]["map50_min"])
             and float(val["recall"]) >= float(protocol["micro_overfit"]["recall_min"])
             and final_loss < initial_loss
             and not gradient["nan_or_inf"].astype(bool).any()
+            and nonzero_gradient_observed
         ) else "FAIL",
         "checkpoint": str(best.resolve()), "checkpoint_sha256": sha256(best),
         "frames": int(protocol["micro_overfit"]["frames"]),
@@ -297,6 +304,8 @@ def main() -> None:
         "final_train_loss_sum": final_loss,
         "loss_decreased": final_loss < initial_loss,
         "gradient_nan_or_inf": bool(gradient["nan_or_inf"].astype(bool).any()),
+        "nonzero_gradient_observed": nonzero_gradient_observed,
+        "gradient_logging_valid": nonzero_gradient_observed,
         "test_evaluated": False,
     }
     atomic_json(OUTPUT / "result.json", result)

@@ -116,7 +116,7 @@ def train_stage(
     logger = GradientLogger(root / f"{stage}_gradient_metrics.csv")
     model.add_callback("on_train_start", logger.train_start)
     model.add_callback("on_train_epoch_start", logger.epoch_start)
-    model.add_callback("on_before_zero_grad", logger.before_zero_grad)
+    model.add_callback("on_train_batch_end", logger.before_zero_grad)
     model.add_callback("on_train_epoch_end", logger.epoch_end)
     if last.is_file():
         model.train(resume=True)

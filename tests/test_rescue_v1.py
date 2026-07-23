@@ -198,9 +198,26 @@ class RescueV1Test(unittest.TestCase):
         self.assertNotIn("raise RuntimeError(f\"Micro-overfit gate failed", micro_source)
         self.assertIn("stop_after_micro_failure(micro)", runner_source)
         self.assertIn('"--micro-failure"', runner_source)
+        self.assertIn('"scripts/analyze_micro_failure.py"', runner_source)
         self.assertIn('"stopped_micro_overfit_failed"', runner_source)
         self.assertIn('"failure_stage": "micro_overfit"', finalizer_source)
         self.assertIn('"hypotheses_H1_H4": "not_evaluated"', finalizer_source)
+
+    def test_gradient_logger_uses_dispatched_ultralytics_callback(self) -> None:
+        micro_source = (ROOT / "scripts/run_micro_overfit.py").read_text()
+        candidate_source = (ROOT / "scripts/train_rescue_candidate.py").read_text()
+        self.assertIn(
+            'add_callback("on_train_batch_end", gradient_logger.before_zero_grad)',
+            micro_source,
+        )
+        self.assertIn(
+            'add_callback("on_train_batch_end", logger.before_zero_grad)',
+            candidate_source,
+        )
+        self.assertNotIn(
+            'add_callback("on_before_zero_grad", gradient_logger.before_zero_grad)',
+            micro_source,
+        )
 
     def test_no_tbd_finalization_when_gate_failed(self) -> None:
         self._assert_role_blocked("finalization")

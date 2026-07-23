@@ -281,6 +281,11 @@ def finalize_micro_failure() -> None:
     micro = json.loads(
         (OUTPUT_ROOT / "micro_overfit/result.json").read_text(encoding="utf-8")
     )
+    diagnosis_path = OUTPUT_ROOT / "micro_overfit/failure_diagnosis.json"
+    diagnosis = (
+        json.loads(diagnosis_path.read_text(encoding="utf-8"))
+        if diagnosis_path.is_file() else {}
+    )
     quality_gate = {
         "protocol_id": protocol["protocol_id"],
         "split_manifest_sha256": protocol["split_manifest_sha256"],
@@ -323,7 +328,20 @@ def finalize_micro_failure() -> None:
         f"- initial/final train loss sum: {micro['initial_train_loss_sum']:.6f}/"
         f"{micro['final_train_loss_sum']:.6f}",
         f"- gradient NaN/Inf: {micro['gradient_nan_or_inf']}",
+        f"- gradient logger valid: {micro.get('gradient_logging_valid', False)}",
         f"- checkpoint SHA-256: `{micro['checkpoint_sha256']}`",
+        "",
+        "## Root-cause evidence",
+        "",
+        f"- dominant error source: {diagnosis.get('dominant_error_source', 'unknown')}",
+        f"- small/medium/large Recall: "
+        f"{diagnosis.get('size_recall', {}).get('small')}/"
+        f"{diagnosis.get('size_recall', {}).get('medium')}/"
+        f"{diagnosis.get('size_recall', {}).get('large')}",
+        f"- signal share of false negatives: "
+        f"{diagnosis.get('signal_false_negative_share')}",
+        f"- gradient-flow conclusion: "
+        f"{diagnosis.get('gradient_flow_conclusion', 'unknown')}",
         "",
         "## Scientific boundary",
         "",
@@ -343,6 +361,7 @@ def finalize_micro_failure() -> None:
     atomic_json(FINAL / "run_summary.json", {
         "failure_stage": "micro_overfit",
         "micro_overfit": micro,
+        "failure_diagnosis": diagnosis,
         "quality_gate": quality_gate,
         "selection": decision,
         "bundle": str(expected_bundle.resolve()),
