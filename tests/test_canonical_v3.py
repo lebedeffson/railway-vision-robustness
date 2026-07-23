@@ -25,6 +25,10 @@ class CanonicalV3ProtocolTests(unittest.TestCase):
         self.assertTrue(self.protocol["data"]["test_sealed"])
         self.assertTrue(self.protocol["cpu_audit"]["required_before_training"])
         self.assertFalse(self.protocol["cpu_audit"]["may_read_test_labels"])
+        self.assertEqual(
+            self.protocol["data"]["development_source_splits"],
+            ["train", "val"],
+        )
 
     def test_only_two_candidates_are_frozen(self) -> None:
         self.assertEqual(

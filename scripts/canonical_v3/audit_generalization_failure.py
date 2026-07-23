@@ -509,9 +509,18 @@ def main() -> None:
     atomic_csv(fusion_rows, AUDIT_ROOT / "fusion_loss_per_class.csv")
     atomic_json(AUDIT_ROOT / "fusion_loss_report.json", fusion_report)
 
+    old_train_scenes = set(
+        development.loc[
+            development["split"].eq("train"), "grouped_scene_id"
+        ].astype(str)
+    )
     old_fold_training = matrix[
-        ~matrix["grouped_scene_id"].isin(
-            ["4_station_pedestrian_bridge_4", "19_vegetation_curve_19"]
+        matrix["grouped_scene_id"].isin(
+            old_train_scenes
+            - {
+                "4_station_pedestrian_bridge_4",
+                "19_vegetation_curve_19",
+            }
         )
     ]
     road_column = "class_2_road_vehicle"
