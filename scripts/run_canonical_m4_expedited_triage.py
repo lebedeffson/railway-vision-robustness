@@ -1,0 +1,295 @@
+from __future__ import annotations
+
+import json
+import math
+import os
+import subprocess
+import time
+import zipfile
+from pathlib import Path
+from typing import Any
+
+import pandas as pd
+import yaml
+
+from canonical_m4_common import PROJECT_DIR, atomic_json, now, sha256
+
+
+PYTHON = PROJECT_DIR / ".venv/bin/python"
+FULL_ROOT = PROJECT_DIR / "outputs/canonical_m4"
+FOLD_ROOT = FULL_ROOT / "scene_cv/fold_0/seed_20260722"
+TRAINING_MARKER = FOLD_ROOT / "TRAINING_COMPLETE.json"
+EVALUATION_ROOT = FOLD_ROOT / "evaluation"
+TRIAGE_ROOT = FULL_ROOT / "expedited/triage"
+PROTOCOL_PATH = PROJECT_DIR / "configs/canonical_v2_m4_expedited_protocol.yaml"
+TEST_MARKER = FULL_ROOT / "final/TEST_OPENED.json"
+FULL_STATUS = FULL_ROOT / "final/pre_gate_pipeline_status.json"
+
+
+def load_protocol() -> dict[str, Any]:
+    return yaml.safe_load(PROTOCOL_PATH.read_text(encoding="utf-8"))
+
+
+def classify(
+    evaluation: dict[str, Any],
+    per_scene: pd.DataFrame,
+    lost_gt: int,
+    protocol: dict[str, Any],
+) -> tuple[str, list[str]]:
+    triage = protocol["early_triage"]
+    reasons: list[str] = []
+    finite_values = [
+        evaluation.get("mAP50"),
+        evaluation.get("mAP50_95"),
+        evaluation.get("safety_precision"),
+        evaluation.get("safety_recall"),
+        evaluation.get("safety_f1"),
+    ]
+    if not all(
+        isinstance(value, (int, float)) and math.isfinite(float(value))
+        for value in finite_values
+    ):
+        reasons.append("non_finite_metric")
+    if float(evaluation.get("mAP50", -math.inf)) < float(triage["map50_min"]):
+        reasons.append("map50_below_triage_threshold")
+    if float(evaluation.get("safety_recall", -math.inf)) < float(
+        triage["recall_min"]
+    ):
+        reasons.append("recall_below_triage_threshold")
+    if not bool(evaluation.get("evaluator_consistency_passed")):
+        reasons.append("evaluator_consistency_failed")
+    if not bool(evaluation.get("no_missing_scene")):
+        reasons.append("missing_held_out_scene")
+    if int(lost_gt) != 0:
+        reasons.append("lost_ground_truth")
+    if not bool(evaluation.get("no_nan_or_inf")):
+        reasons.append("nan_or_inf_detected")
+    if per_scene.empty or (per_scene["recall"].astype(float) <= 0.0).any():
+        reasons.append("catastrophic_scene_failure")
+    return ("hard_fail" if reasons else "promising"), reasons
+
+
+def stop_full_service() -> None:
+    subprocess.run(
+        ["systemctl", "--user", "stop", "tnorm-canonical-m4.service"],
+        check=True,
+    )
+    subprocess.run(
+        ["systemctl", "--user", "disable", "tnorm-canonical-m4.service"],
+        check=False,
+    )
+
+
+def mark_full_protocol_partial(status: str) -> None:
+    payload = (
+        json.loads(FULL_STATUS.read_text(encoding="utf-8"))
+        if FULL_STATUS.is_file()
+        else {"protocol_id": "canonical-v2-m4-full-v1", "stages": {}}
+    )
+    payload["updated_at"] = now()
+    payload["current_stage"] = "expedited_triage"
+    payload["expedited_triage_status"] = status
+    for fold in range(1, 5):
+        payload["stages"][f"scene_cv_fold_{fold}"] = {
+            "status": "skipped_by_expedited_triage"
+        }
+    for seed in (20260722, 20260723, 20260724):
+        payload["stages"][f"full_training_seed_{seed}"] = {
+            "status": (
+                "moved_to_expedited_protocol"
+                if seed == 20260722 and status == "promising"
+                else "skipped_by_expedited_triage"
+            )
+        }
+    atomic_json(FULL_STATUS, payload)
+
+
+def diagnostic_bundle(report: dict[str, Any]) -> Path:
+    destination = (
+        FULL_ROOT / "bundles/TNormFilter_M4_expedited_triage_hard_fail.zip"
+    )
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_suffix(".zip.tmp")
+    paths = [
+        PROTOCOL_PATH,
+        TRIAGE_ROOT / "early_generalization_report.json",
+        TRIAGE_ROOT / "early_generalization_report.md",
+        EVALUATION_ROOT / "evaluation_result.json",
+        EVALUATION_ROOT / "evaluator_consistency.json",
+        EVALUATION_ROOT / "per_scene_metrics.csv",
+        EVALUATION_ROOT / "per_class_metrics.csv",
+        EVALUATION_ROOT / "per_size_metrics.csv",
+        FOLD_ROOT / "TRAINING_COMPLETE.json",
+        FULL_STATUS,
+        PROJECT_DIR / "outputs/canonical_m4/tiling_audit/tiling_audit.json",
+    ]
+    with zipfile.ZipFile(temporary, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for path in paths:
+            if path.is_file():
+                archive.write(path, path.relative_to(PROJECT_DIR))
+        archive.writestr(
+            "run_summary.json",
+            json.dumps(report, indent=2, ensure_ascii=False) + "\n",
+        )
+    os.replace(temporary, destination)
+    return destination
+
+
+def write_report() -> dict[str, Any]:
+    protocol = load_protocol()
+    evaluation = json.loads(
+        (EVALUATION_ROOT / "evaluation_result.json").read_text(encoding="utf-8")
+    )
+    consistency = json.loads(
+        (EVALUATION_ROOT / "evaluator_consistency.json").read_text(encoding="utf-8")
+    )
+    per_scene = pd.read_csv(EVALUATION_ROOT / "per_scene_metrics.csv")
+    per_class = pd.read_csv(EVALUATION_ROOT / "per_class_metrics.csv")
+    per_size = pd.read_csv(EVALUATION_ROOT / "per_size_metrics.csv")
+    tiling = json.loads(
+        (FULL_ROOT / "tiling_audit/tiling_audit.json").read_text(encoding="utf-8")
+    )
+    lost_gt = int(tiling["lost_source_gt_instances"])
+    status, reasons = classify(evaluation, per_scene, lost_gt, protocol)
+    class_names = {
+        0: "person",
+        1: "signal",
+        2: "road vehicle",
+        3: "train",
+        4: "animal",
+        5: "bicycle",
+    }
+    class_rows = []
+    for row in per_class.to_dict(orient="records"):
+        row["class_name"] = class_names.get(int(row["class_id"]), "unknown")
+        class_rows.append(row)
+    report = {
+        "status": status,
+        "role": "early_computational_go_no_go_not_canonical_validation",
+        "created_at": now(),
+        "protocol_id": protocol["protocol_id"],
+        "protocol_sha256": sha256(PROTOCOL_PATH),
+        "parent_protocol": protocol["parent_protocol"],
+        "fold": 0,
+        "seed": 20260722,
+        "checkpoint": evaluation["checkpoint"],
+        "checkpoint_sha256": evaluation["checkpoint_sha256"],
+        "frames": int(evaluation["frames"]),
+        "scenes": int(evaluation["scenes"]),
+        "mAP50": float(evaluation["mAP50"]),
+        "mAP50_95": float(evaluation["mAP50_95"]),
+        "precision": float(evaluation["safety_precision"]),
+        "recall": float(evaluation["safety_recall"]),
+        "f1": float(evaluation["safety_f1"]),
+        "fn": int(evaluation["safety_fn"]),
+        "fn_per_frame": float(evaluation["safety_fn_per_frame"]),
+        "small_recall": float(evaluation["small_recall"]),
+        "medium_recall": float(evaluation["medium_recall"]),
+        "large_recall": float(evaluation["large_recall"]),
+        "per_class": class_rows,
+        "per_scene": per_scene.to_dict(orient="records"),
+        "lost_gt": lost_gt,
+        "duplicate_predictions": not bool(
+            evaluation["no_duplicate_predictions"]
+        ),
+        "missing_scene_count": (
+            0 if bool(evaluation["no_missing_scene"]) else max(0, 2 - len(per_scene))
+        ),
+        "evaluator_consistency": consistency,
+        "hard_fail_reasons": reasons,
+        "test_opened": TEST_MARKER.exists(),
+        "recommended_action": (
+            "stop_and_build_diagnostic_bundle"
+            if status == "hard_fail"
+            else "run_one_fixed_full_seed_then_official_validation"
+        ),
+    }
+    if report["test_opened"]:
+        raise RuntimeError("Expedited triage found an illegal test-open marker")
+    atomic_json(TRIAGE_ROOT / "early_generalization_report.json", report)
+    lines = [
+        "# M4 early generalization triage",
+        "",
+        "This is a computational go/no-go result, not canonical validation.",
+        "",
+        f"- Status: `{status}`",
+        f"- mAP50: `{report['mAP50']:.6f}`",
+        f"- Recall: `{report['recall']:.6f}`",
+        f"- Small Recall: `{report['small_recall']:.6f}`",
+        f"- Held-out scenes: `{report['scenes']}`",
+        f"- Hard-fail reasons: `{', '.join(reasons) if reasons else 'none'}`",
+        "- Test opened: `false`",
+        "",
+    ]
+    (TRIAGE_ROOT / "early_generalization_report.md").write_text(
+        "\n".join(lines), encoding="utf-8"
+    )
+    return report
+
+
+def main() -> None:
+    TRIAGE_ROOT.mkdir(parents=True, exist_ok=True)
+    atomic_json(
+        TRIAGE_ROOT / "watcher_status.json",
+        {
+            "status": "waiting_for_fold_0_training",
+            "started_at": now(),
+            "protocol_sha256": sha256(PROTOCOL_PATH),
+            "test_opened": TEST_MARKER.exists(),
+        },
+    )
+    while not TRAINING_MARKER.is_file():
+        if TEST_MARKER.exists():
+            raise RuntimeError("Test opened while expedited triage was waiting")
+        time.sleep(1)
+    stop_full_service()
+    atomic_json(
+        TRIAGE_ROOT / "watcher_status.json",
+        {
+            "status": "evaluating_fold_0",
+            "training_marker": str(TRAINING_MARKER.resolve()),
+            "training_marker_sha256": sha256(TRAINING_MARKER),
+            "test_opened": False,
+        },
+    )
+    subprocess.run(
+        [
+            str(PYTHON),
+            "-u",
+            "scripts/evaluate_canonical_m4.py",
+            "--mode",
+            "cv",
+            "--seed",
+            "20260722",
+            "--fold",
+            "0",
+        ],
+        cwd=PROJECT_DIR,
+        check=True,
+    )
+    report = write_report()
+    mark_full_protocol_partial(report["status"])
+    if report["status"] == "hard_fail":
+        bundle = diagnostic_bundle(report)
+        report["diagnostic_bundle"] = str(bundle.resolve())
+        report["diagnostic_bundle_sha256"] = sha256(bundle)
+        atomic_json(TRIAGE_ROOT / "early_generalization_report.json", report)
+    else:
+        subprocess.run(
+            ["systemctl", "--user", "start", "tnorm-canonical-m4-expedited.service"],
+            check=True,
+        )
+    atomic_json(
+        TRIAGE_ROOT / "watcher_status.json",
+        {
+            "status": "complete",
+            "finished_at": now(),
+            "triage_result": report["status"],
+            "test_opened": False,
+        },
+    )
+
+
+if __name__ == "__main__":
+    main()
+
