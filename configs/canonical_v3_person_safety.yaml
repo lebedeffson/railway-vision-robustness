@@ -1,0 +1,207 @@
+protocol_id: canonical-v3-person-safety-v1
+parent_commit: 8afe225bc03bb0840783a94c22b3982b403e2de0
+scope_change:
+  timing: before_any_test_access
+  reason: multiclass_development_scene_support_block
+  multiclass_status: blocked_by_development_class_support
+  multiclass_hypotheses_tested: false
+
+target:
+  original_class_id: 0
+  model_class_id: 0
+  class_name: person
+  other_classes_are_not_targets: true
+  frames_without_person_are_background_negatives: true
+
+data:
+  source_manifest: data/yolo_osdar23_rescue_v1/manifest.csv
+  source_manifest_sha256: 14ebd490d9c0be7dc4b305031dafa2c329b710c258b8c194b21bd15952330331
+  development_source_splits: [train, val]
+  development_grouped_scenes: 15
+  test_source_split: test
+  test_grouped_scenes: 5
+  test_sealed: true
+  test_labels_read_before_gate: false
+  grouped_scene_field: grouped_scene_id
+
+folds:
+  count: 5
+  heldout_scenes_per_fold: 3
+  positive_scenes_per_fold: 2
+  negative_scenes_per_fold: 1
+  minimum_train_positive_scenes: 8
+  seed: 20260723
+  candidate_partitions: 100000
+  balance:
+    - person_GT
+    - small_person
+    - medium_person
+    - large_person
+    - frames
+
+pipeline:
+  architecture: YOLO11m
+  initialization: yolo11m.pt
+  initialization_sha256: d5ffc1a674953a08e11a8d21e022781b1b23a19b730afc309290bd9fb5305b95
+  tiling_source: configs/canonical_v2_m4_full_protocol.yaml
+  tiling_source_sha256: 17871a1b911ecc29b3e22eb978ccb9eb5aff6bb13e89472e3cbf1c0f0e7a6c29
+  tiling: frozen_M4_overlapping_2x2
+  fusion: frozen_M4_class_aware_NMS
+  P2: false
+  halo: false
+  AMP: false
+  seed: 20260723
+  workers: 2
+  batch: 1
+  input_size: 640
+  staged_training:
+    stage1:
+      epochs: 5
+      freeze_layers: 10
+      backbone_lr: 0.0
+      head_lr: 0.0003
+    stage2:
+      epochs: 15
+      freeze_layers: 0
+      backbone_lr: 0.0001
+      head_lr: 0.0003
+  augmentations:
+    hsv_h: 0.0
+    hsv_s: 0.0
+    hsv_v: 0.0
+    degrees: 0.0
+    translate: 0.0
+    scale: 0.0
+    shear: 0.0
+    perspective: 0.0
+    flipud: 0.0
+    fliplr: 0.0
+    mosaic: 0.0
+    mixup: 0.0
+    cutmix: 0.0
+    copy_paste: 0.0
+    erasing: 0.0
+
+evaluation:
+  iou_threshold: 0.50
+  confidence_min: 0.001
+  confidence_max: 0.500
+  confidence_step: 0.001
+  triage_threshold_rule: maximum_F1_on_pooled_first_two_OOF_folds
+  standard_threshold_rule: maximum_F1_on_all_OOF
+  safety_threshold_rule: highest_threshold_with_recall_at_least_0_50_and_precision_at_least_0_30
+  independent_reparse_tolerance: 0.0001
+  size_area_ratio_thresholds:
+    small: 0.001
+    medium: 0.01
+
+triage:
+  folds: [0, 1]
+  hard_fail:
+    macro_mAP50_below: 0.45
+    macro_recall_below: 0.45
+    any_fold_recall_below: 0.25
+  promising:
+    macro_mAP50_min: 0.50
+    macro_recall_min: 0.50
+    every_fold_recall_min: 0.30
+  borderline:
+    macro_mAP50_min: 0.45
+    macro_recall_min: 0.45
+    every_fold_recall_min: 0.25
+    macro_small_recall_min: 0.30
+    action: continue_remaining_three_folds
+  always_require:
+    evaluator_consistency: PASS
+    lost_GT: 0
+    NaN_Inf: 0
+
+OOF_gate:
+  mAP50_min: 0.50
+  safety_recall_min: 0.50
+  standard_F1_min: 0.50
+  worst_fold_recall_min: 0.30
+  evaluator_consistency: PASS
+  lost_GT: 0
+  missing_scenes: 0
+  desired_article_level:
+    mAP50: 0.60
+    recall: 0.60
+
+final_training:
+  scenes: all_15_development_scenes
+  seed: 20260723
+  epoch_rule: median_best_epoch_of_five_folds
+  checkpoint_rule: final_EMA_checkpoint_at_frozen_epoch
+  multiple_seed_selection: false
+
+attack_calibration:
+  source: OOF_only
+  floor_fraction_max_exclusive: 0.50
+  FGSM_epsilon_px: [0.25, 0.5, 1.0]
+  PGD20_epsilon_px: [0.1, 0.25, 0.5]
+  adaptive_Product_PGD20_epsilon_px: [0.1, 0.25, 0.5]
+  PGD_steps: 20
+  restarts: 3
+  seeds: [42, 123, 999]
+  test_budget_rule: one_largest_informative_non_floor_budget_per_attack
+
+diagnostics:
+  feature_layers: [P3, P4, P5]
+  tnorms: [Product, Lukasiewicz]
+  damage:
+    D2:
+      - budget
+      - attack_type
+      - actual_L1
+      - actual_L2
+      - actual_Linf
+      - cosine
+      - normalized_L2
+      - MSE
+      - MAE
+      - correlation
+      - entropy_shift
+    D3_extension:
+      - Product
+      - Lukasiewicz
+      - C_sp_object
+      - C_dir
+      - C_atk_object
+  recovery:
+    R2:
+      - budget
+      - attack_type
+      - defense
+      - attacked_person_F1
+      - attacked_person_Recall
+      - standard_recovery_features
+    R3_extension:
+      - Product_recovery
+      - Lukasiewicz_recovery
+      - G_raw
+      - C_def
+
+test_protocol:
+  open_once_after_OOF_pass: true
+  target: person_only
+  attacks: [FGSM, PGD20, adaptive_Product_PGD20]
+  defenses: [none, Product_preprocessing, median]
+  statistics:
+    group: grouped_scene_id
+    cluster_bootstrap_iterations: 5000
+    LOSO: true
+
+failure_policy:
+  triage_fail_blocks:
+    - remaining_folds
+    - final_training
+    - test
+    - attacks
+    - final_article
+  OOF_fail_blocks:
+    - final_training
+    - test
+    - attacks
+    - final_article
+  negative_result_must_be_preserved: true
