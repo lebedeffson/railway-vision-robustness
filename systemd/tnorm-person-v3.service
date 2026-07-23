@@ -5,6 +5,7 @@ After=default.target
 [Service]
 Type=simple
 WorkingDirectory=/home/lebedeffson/Code/андрей/TNormFilter_handoff
+ExecStartPre=/usr/bin/mkdir -p /home/lebedeffson/Code/андрей/TNormFilter_handoff/outputs/person_v3/logs
 ExecStart=/home/lebedeffson/Code/андрей/TNormFilter_handoff/.venv/bin/python -u scripts/person_v3/run_pipeline.py
 Restart=on-failure
 RestartSec=30
@@ -18,4 +19,3 @@ StandardError=append:/home/lebedeffson/Code/андрей/TNormFilter_handoff/out
 
 [Install]
 WantedBy=default.target
-
