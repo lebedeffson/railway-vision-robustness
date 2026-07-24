@@ -28,7 +28,9 @@ test и запуска атак.
 | Canonical v2 | validation quality gate FAIL | не открывался |
 | Multiclass v3 | blocked: недостаточная class-by-scene support | не открывался |
 | Person v3 | two-fold hard FAIL | не открывался |
-| Person v4 DG/NWD | development-only expedited selection выполняется | запечатан |
+| Person v4 DG/NWD | A1/A3 expedited selection FAIL | не открывался |
+| Person v4 train-only proxy | FAIL; подтвердил отказ от сложного DG-стека | не открывался |
+| Person v5 data-first | protocol freeze; CrowdHuman acquisition ещё не выполнен | запечатан |
 
 Зафиксированный person-v3 baseline на folds 0/1:
 
@@ -76,7 +78,70 @@ Git-репозиторий**. Для воспроизведения необхо
 принять условия его распространения и построить локальное представление
 скриптами проекта. Каталог `data/` исключён через `.gitignore`.
 
-## Замороженные протоколы
+## Текущий протокол: person v5 data-first
+
+`canonical-v5-person-data-first-v1` возвращается к простому ERM и меняет
+источник предобучения, а не формулу loss:
+
+```text
+COCO YOLO11m
+→ CrowdHuman person-only pretraining
+→ railway fold fine-tuning с train-only hard mining
+→ folds 0/1
+→ только при gate — folds 2–4
+```
+
+CrowdHuman используется только в рамках его условий для некоммерческих
+исследований и образования. Выбраны `vbox` (видимая область человека);
+`mask` и записи с `extra.ignore=1` исключаются. Изображения CrowdHuman,
+архивы и производное YOLO-представление не входят в Git или release bundle.
+
+- Официальная страница:
+  [CrowdHuman](https://www.crowdhuman.org/)
+- Формат, загрузка и условия:
+  [CrowdHuman download](https://www.crowdhuman.org/download.html)
+- Статья:
+  [CrowdHuman: A Benchmark for Detecting Human in a Crowd](https://arxiv.org/abs/1805.00123)
+
+На момент заморозки официальные Google Drive URL возвращали HTTP 404.
+Протокол допускает только транспортный mirror с теми же именами файлов и
+обязательной фиксацией SHA-256 после получения. Test CrowdHuman не нужен и не
+загружается.
+
+Загрузка требует явного подтверждения условий и сохраняет resume-файлы:
+
+```bash
+PYTHONPATH="$PWD:$PWD/scripts" .venv/bin/python \
+  scripts/person_v5/download_crowdhuman.py \
+  --accept-noncommercial-research-terms
+```
+
+Без этого флага скрипт завершится до первого сетевого запроса. После загрузки
+конвертация `vbox` выполняется отдельно и создаёт audit:
+
+```bash
+PYTHONPATH="$PWD:$PWD/scripts" .venv/bin/python \
+  scripts/person_v5/prepare_crowdhuman.py \
+  --source data/crowdhuman_downloads \
+  --accept-noncommercial-research-terms
+```
+
+Первичный v5-кандидат только один: YOLO11m с CrowdHuman pretraining.
+RT-DETR отложен до отдельного prospective amendment; NWD/QFL, GroupDRO,
+MixStyle и SWAD не используются.
+
+Gate folds 0/1:
+
+- macro mAP50 ≥ `0.45`;
+- macro Recall ≥ `0.45`;
+- macro small Recall ≥ `0.30`;
+- worst-fold Recall ≥ `0.30`;
+- улучшены оба fold относительно D0;
+- evaluator consistency PASS, lost GT/NaN/Inf = 0.
+
+До прохождения полного OOF gate test и атаки физически закрыты.
+
+## Предыдущие замороженные протоколы
 
 - Полный DG/NWD: `configs/canonical_v4_person_dg_nwd.yaml`
 - Expedited amendment:
@@ -114,9 +179,8 @@ evaluator или коэффициенты loss. Он сокращает толь
 ## Быстрая проверка состояния
 
 ```bash
-systemctl --user status tnorm-person-v4-expedited.service --no-pager
-journalctl --user -u tnorm-person-v4-expedited.service -n 100 --no-pager
-cat outputs/person_v4_expedited/pipeline_status.json
+cat outputs/person_v4_proxy/results/proxy_gate.json
+cat protocols/canonical_v5_person_data_first_v1/protocol_lock.json
 test ! -e outputs/person_v3/test/TEST_OPENED.json
 ```
 
@@ -139,7 +203,8 @@ python -m venv .venv
 PYTHONPATH="$PWD:$PWD/scripts" \
   .venv/bin/python -m pytest -q --import-mode=importlib \
   tests/test_person_v4_protocol.py \
-  tests/test_person_v4_expedited.py
+  tests/test_person_v4_expedited.py \
+  tests/test_person_v5_protocol.py
 ```
 
 Полный acceptance suite дополнительно требует локальные OSDaR23-derived
@@ -156,6 +221,7 @@ PYTHONPATH="$PWD:$PWD/scripts" \
 ```text
 configs/                 frozen scientific protocols
 scripts/person_v4/       training, evaluator and expedited decision pipeline
+scripts/person_v5/       data-first protocol lock and CrowdHuman conversion
 systemd/                 resumable user services
 tests/                   protocol, math and leakage checks
 data/                    local datasets and manifests; not a release artifact
@@ -163,6 +229,7 @@ outputs/person_v3/       immutable failed person baseline
 outputs/person_v4/       full-protocol checkpoints and fold evidence
 outputs/person_v4_expedited/
                          expedited decisions, OOF gate and bundle
+outputs/person_v5/       local v5 evidence; excluded from Git
 article/                  read-only template tooling and article validation
 ```
 
@@ -178,9 +245,8 @@ article/                  read-only template tooling and article validation
 - Отрицательные и skipped результаты сохраняются в decision trace.
 
 Историческое описание старого эксперимента находится в `HANDOFF.md`.
-Замороженные публичные правила экспериментов находятся в `configs/`, а
-служебные локальные инструкции агента и рабочие notes намеренно не включаются
-в source-only release.
+Актуальные ограничения и порядок практики поддерживаются в `AGENTS.md` и
+`.codex/notes/final-practice.md`.
 
 ## Что нельзя очищать во время вычислений
 
