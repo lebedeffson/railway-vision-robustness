@@ -79,6 +79,12 @@
   fold-0 and two-fold gates. A2 is skipped; test remains sealed until full OOF PASS.
 - `person-v4-train-only-proxy-v1` is a compute filter using only outer-fold-0
   training scenes. Its PASS permits one external fold, never test or article claims.
+- Canonical v5 is data-first: simple YOLO ERM with CrowdHuman visible-person
+  pretraining and railway train-only hard mining. Do not reintroduce NWD/QFL,
+  GroupDRO, MixStyle or SWAD, and do not run RT-DETR without a new amendment.
+- CrowdHuman images are non-commercial research/education only and may not be
+  redistributed. Require explicit terms acknowledgement; never place its images,
+  archives or derived dataset in Git or release bundles.
 
 ## Notes
 

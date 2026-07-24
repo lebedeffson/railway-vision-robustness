@@ -1,0 +1,216 @@
+protocol_id: canonical-v5-person-data-first-v1
+protocol_type: prospective_external_pretraining_experiment
+parent_protocol: person-v4-train-only-proxy-runtime-v1
+parent_commit: 35d2072113a3151533593cd851459f81fb2127da
+created_after_proxy_result: FAIL
+
+claim_boundary:
+  purpose: obtain_a_transferable_person_detector_before_adversarial_testing
+  scientific_result: false
+  article_evidence_before_full_OOF_gate: false
+  test_sealed: true
+  test_marker: outputs/person_v3/test/TEST_OPENED.json
+  attacks_blocked_until_full_OOF_gate: true
+  prior_negative_results_are_immutable: true
+
+frozen_inputs:
+  development_manifest: outputs/person_v3/protocol/development_manifest.csv
+  development_manifest_sha256: b07be14110e0eb068de0aaa055759b2ac0123d531948200fa39e636638a7fcba
+  folds: outputs/person_v3/protocol/folds.json
+  folds_sha256: ff5a6268c394d396c05440b8d309cf5256f998b6c371c66bc52ac9c9bccb14bf
+  railway_tile_manifest: outputs/canonical_m4/tiling_audit/tile_manifest.csv
+  railway_tile_manifest_sha256: 3821295bdf84524d71aecf786921cfda5b1ea3d76968e9a04e3a6161f071721c
+  coco_initialization: yolo11m.pt
+  coco_initialization_sha256: d5ffc1a674953a08e11a8d21e022781b1b23a19b730afc309290bd9fb5305b95
+  grouped_scene_field: grouped_scene_id
+  triage_folds: [0, 1]
+
+crowdhuman:
+  identity:
+    homepage: https://www.crowdhuman.org/
+    download_page: https://www.crowdhuman.org/download.html
+    paper: https://arxiv.org/abs/1805.00123
+    train_images: 15000
+    validation_images: 4370
+    train_and_validation_person_instances_reported: 470000
+  terms:
+    use: non-commercial_research_and_education_only
+    redistribution_of_images: prohibited
+    explicit_acceptance_required_before_download: true
+    images_must_not_enter_git_or_release_bundles: true
+  transport:
+    official_google_drive_status_at_freeze: HTTP_404
+    fallback: huggingface_dataset_mirror
+    fallback_repository: sshao0516/CrowdHuman
+    fallback_revision: main
+    expected_files:
+      CrowdHuman_train01.zip: 2970597373
+      CrowdHuman_train02.zip: 3092749718
+      CrowdHuman_train03.zip: 2306357030
+      CrowdHuman_val.zip: 2488658160
+      annotation_train.odgt: 80017502
+      annotation_val.odgt: 23323139
+  annotation_view:
+    target_tag: person
+    box: vbox
+    ignored_tags: [mask]
+    ignore_when_extra_ignore_is_one: true
+    class_id: 0
+    class_name: person
+    clipping: image_bounds
+    minimum_width_px: 1
+    minimum_height_px: 1
+  split_use:
+    train: external_pretraining_train
+    validation: external_pretraining_early_stopping_only
+    test: not_downloaded_not_used
+
+matrix:
+  D0:
+    role: frozen_person_v3_ERM_reference
+    training: not_repeated
+    two_fold_macro_mAP50: 0.358828
+    two_fold_macro_recall: 0.354316
+    two_fold_macro_small_recall: 0.211301
+    worst_fold_recall: 0.201288
+  D1:
+    role: primary_candidate
+    architecture: YOLO11m
+    external_pretraining: CrowdHuman_person_visible_body
+    railway_finetuning: simple_ERM_with_hard_mining
+  D2:
+    role: deferred_not_part_of_v1
+    architecture: RT-DETR-R50
+    reason: run_only_under_a_future_prospective_amendment_if_D1_is_rejected
+  execution_order: [D1_fold0, D1_fold1]
+
+external_pretraining:
+  initialization: frozen_inputs.coco_initialization
+  imgsz: 640
+  epochs: 30
+  patience: 5
+  batch: 2
+  nominal_batch_size: 8
+  workers: 2
+  optimizer: AdamW
+  seed: 20260724
+  deterministic: true
+  amp: false
+  pretrained: true
+  loss: standard_ultralytics_box_cls_dfl
+  forbidden:
+    - NWD
+    - QFL
+    - GroupDRO
+    - MixStyle
+    - SWAD
+  augmentation:
+    scale: 0.25
+    translate: 0.05
+    fliplr: 0.5
+    hsv_h: 0.01
+    hsv_s: 0.20
+    hsv_v: 0.20
+    mosaic: 0.0
+    mixup: 0.0
+    copy_paste: 0.0
+  checkpoint_rule:
+    primary: maximum_external_validation_mAP50
+    tie_break: [maximum_recall, earliest_epoch]
+
+railway_finetuning:
+  folds: [0, 1]
+  seed: 20260724
+  imgsz: 640
+  batch: 1
+  nominal_batch_size: 8
+  workers: 2
+  amp: false
+  deterministic: true
+  tiling: unchanged_from_person_v3
+  fusion: unchanged_from_person_v3
+  evaluator: unchanged_from_person_v3
+  loss: standard_ultralytics_box_cls_dfl
+  epochs:
+    frozen_backbone_warmup: 5
+    full_finetuning: 20
+    total: 25
+  learning_rate:
+    warmup_head: 0.0003
+    full_backbone: 0.00005
+    full_head: 0.00015
+  hard_mining:
+    data_scope: current_fold_train_scenes_only
+    starts_after_epoch: 5
+    refresh: once_before_full_finetuning
+    positive_priority:
+      - person_height_below_16px
+      - missed_person_at_IoU_0_50
+      - border_person
+      - occluded_person
+    negative_priority:
+      - person_false_positive_signal
+      - person_false_positive_pole
+      - person_false_positive_sign
+      - other_vertical_structure
+    background_tile_fraction_min: 0.20
+    background_tile_fraction_max: 0.30
+    maximum_frame_weight: 4.0
+    heldout_fold_mining: prohibited
+    test_mining: prohibited
+
+evaluation:
+  IoU: 0.50
+  confidence_sweep: [0.001, 0.500, 0.001]
+  threshold_rule: maximum_pooled_F1_on_folds_0_and_1
+  tie_break: [maximum_recall, minimum_threshold]
+  independent_reparse_tolerance: 0.0001
+  required:
+    evaluator_consistency: PASS
+    lost_GT: 0
+    missing_scenes: 0
+    NaN_Inf: 0
+
+two_fold_gate:
+  require_all:
+    macro_mAP50_min: 0.45
+    macro_recall_min: 0.45
+    macro_small_recall_min: 0.30
+    worst_fold_recall_min: 0.30
+    folds_improved_over_D0_min: 2
+    evaluator_consistency: PASS
+    lost_GT: 0
+    missing_scenes: 0
+    NaN_Inf: 0
+  fail_action:
+    remaining_folds: blocked
+    D2: deferred
+    test: sealed
+    attacks: blocked
+  pass_action:
+    remaining_folds: [2, 3, 4]
+    configuration_changes: prohibited
+    test: sealed_until_full_OOF_gate
+
+full_OOF_gate:
+  require_all:
+    OOF_mAP50_min: 0.50
+    OOF_safety_recall_min: 0.50
+    OOF_F1_min: 0.50
+    worst_fold_recall_min: 0.30
+    evaluator_consistency: PASS
+    lost_GT: 0
+    missing_scenes: 0
+    NaN_Inf: 0
+  test_remains_sealed_until_pass: true
+
+outputs:
+  root: outputs/person_v5
+  external_data_root: data/crowdhuman
+  required_before_training:
+    - protocol/protocol_lock.json
+    - protocol/data_acquisition_manifest.json
+    - protocol/crowdhuman_conversion_audit.json
+    - protocol/test_seal_audit.json
+  images_and_archives_are_release_artifacts: false
+

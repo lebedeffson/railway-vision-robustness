@@ -225,6 +225,14 @@ SWAD. A candidate must improve macro mAP50, Recall and small Recall by at least
 selection evidence; test remains sealed until the unchanged winner passes the
 full five-fold OOF gate.
 
+The v4 expedited selection and the train-only proxy both rejected the custom
+DG/NWD stack. Canonical v5 therefore freezes a data-first experiment: standard
+YOLO box/class/DFL losses, CrowdHuman visible-person pretraining, and bounded
+hard-positive/hard-negative mining using only each railway fold's train scenes.
+The only v5-v1 GPU candidate is D1 on folds 0/1; RT-DETR is deferred and requires
+a new prospective amendment. CrowdHuman test is unused, and image data must
+never enter Git or a release bundle.
+
 The final canonical contract supersedes the earlier post-gate ordering: after
 v2 calibration and quality gate, fit/select N1 or the predeclared N2 fallback on
 clean validation, run the five-scene deterministic frame-order pilot, compute
