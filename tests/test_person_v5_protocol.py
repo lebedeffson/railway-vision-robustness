@@ -13,7 +13,11 @@ from scripts.person_v5.prepare_crowdhuman import (
     iter_odgt,
     visible_person_boxes,
 )
-from scripts.person_v5.audit_crowdhuman import height_bucket, size_bucket
+from scripts.person_v5.audit_crowdhuman import (
+    audit_passes,
+    height_bucket,
+    size_bucket,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -131,6 +135,36 @@ class CrowdHumanConversionTest(unittest.TestCase):
         self.assertEqual(height_bucket(1.9), "lt_2px")
         self.assertEqual(height_bucket(7.9), "lt_8px")
         self.assertEqual(height_bucket(40), "ge_32px")
+
+    def test_audit_allows_logged_boxes_below_clipped_minimum(self) -> None:
+        summaries = {
+            "train": {
+                "record_count_matches": True,
+                "missing_images": 0,
+            },
+            "val": {
+                "record_count_matches": True,
+                "missing_images": 0,
+            },
+        }
+        self.assertTrue(
+            audit_passes(
+                summaries,
+                corrupt_images=0,
+                cross_split_duplicates=0,
+                id_intersection=0,
+                forbidden_test_artifacts=0,
+            )
+        )
+        self.assertFalse(
+            audit_passes(
+                summaries,
+                corrupt_images=0,
+                cross_split_duplicates=1,
+                id_intersection=0,
+                forbidden_test_artifacts=0,
+            )
+        )
 
 
 if __name__ == "__main__":
