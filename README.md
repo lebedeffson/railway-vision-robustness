@@ -138,6 +138,20 @@ systemctl --user enable --now tnorm-person-v5-data.service
 training и сохраняет runtime provenance под игнорируемым
 `outputs/person_v5/`.
 
+После `crowdhuman_data_audit=PASS` runtime замораживается отдельно:
+
+```bash
+PYTHONPATH="$PWD:$PWD/scripts" .venv/bin/python \
+  scripts/person_v5/lock_runtime.py
+systemctl --user link "$PWD/systemd/tnorm-person-v5-training.service"
+systemctl --user daemon-reload
+systemctl --user enable --now tnorm-person-v5-training.service
+```
+
+Training-service сначала выполняет CrowdHuman pretraining, затем ровно D1
+folds 0/1 с train-only hard mining и независимым global evaluator. При
+двухфолдовом FAIL test и атаки остаются заблокированными.
+
 Первичный v5-кандидат только один: YOLO11m с CrowdHuman pretraining.
 RT-DETR отложен до отдельного prospective amendment; NWD/QFL, GroupDRO,
 MixStyle и SWAD не используются.
