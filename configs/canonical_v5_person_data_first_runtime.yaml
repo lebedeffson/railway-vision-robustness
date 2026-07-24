@@ -1,0 +1,73 @@
+runtime_id: canonical-v5-person-data-first-runtime-v1
+parent_protocol: canonical-v5-person-data-first-v1
+frozen_before_data_audit_and_GPU_training: true
+
+external_pretraining:
+  output: outputs/person_v5/external_pretraining/run
+  data_yaml: data/crowdhuman/yolo_visible_person/data.yaml
+  project: outputs/person_v5/external_pretraining
+  name: run
+  save_period: 5
+
+railway:
+  folds: [0, 1]
+  output_pattern: outputs/person_v5/railway/fold_{fold}
+  source_data_pattern: outputs/person_v3/dataset/folds/fold_{fold}/data.yaml
+  stages:
+    warmup:
+      epochs: 5
+      freeze_layers: 10
+      backbone_lr: 0.0
+      head_lr: 0.0003
+    full:
+      epochs: 20
+      freeze_layers: 0
+      backbone_lr: 0.00005
+      head_lr: 0.00015
+  augmentation:
+    scale: 0.15
+    translate: 0.03
+    fliplr: 0.5
+    hsv_h: 0.01
+    hsv_s: 0.15
+    hsv_v: 0.15
+    mosaic: 0.0
+    mixup: 0.0
+    copy_paste: 0.0
+  save_period: 5
+
+hard_mining:
+  inference_confidence: 0.001
+  missed_match_confidence: 0.01
+  missed_match_IoU: 0.50
+  hard_negative_confidence: 0.05
+  small_person_min_side_after_letterbox_px: 16
+  hard_positive_weight: 4
+  regular_positive_weight: 1
+  target_background_fraction: 0.25
+
+evaluation:
+  source: person_v3_global_full_frame_evaluator
+  confidence_min: 0.001
+  confidence_max: 0.500
+  confidence_step: 0.001
+  IoU: 0.50
+  AP_IoU: [0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95]
+  threshold_rule: maximum_pooled_F1_on_folds_0_and_1
+  threshold_tie_break: [maximum_recall, minimum_threshold]
+  evaluator_tolerance: 0.0001
+
+execution:
+  order:
+    - external_pretraining
+    - D1_fold0_warmup
+    - D1_fold0_hard_mining
+    - D1_fold0_full
+    - D1_fold0_evaluation
+    - D1_fold1_warmup
+    - D1_fold1_hard_mining
+    - D1_fold1_full
+    - D1_fold1_evaluation
+    - two_fold_gate
+  stop_on_two_fold_FAIL: true
+  test_remains_sealed: true

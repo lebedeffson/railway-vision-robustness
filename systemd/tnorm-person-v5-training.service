@@ -1,0 +1,18 @@
+[Unit]
+Description=Canonical v5 CrowdHuman-pretrained railway person triage
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=!/home/lebedeffson/Code/андрей/TNormFilter_handoff/outputs/person_v3/test/TEST_OPENED.json
+ConditionPathExists=/home/lebedeffson/Code/андрей/TNormFilter_handoff/outputs/person_v5/protocol/runtime_lock.json
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/lebedeffson/Code/андрей/TNormFilter_handoff
+Environment=PYTHONPATH=/home/lebedeffson/Code/андрей/TNormFilter_handoff:/home/lebedeffson/Code/андрей/TNormFilter_handoff/scripts
+ExecStart=/home/lebedeffson/Code/андрей/TNormFilter_handoff/.venv/bin/python /home/lebedeffson/Code/андрей/TNormFilter_handoff/scripts/person_v5/run_pipeline.py
+Restart=on-failure
+RestartSec=60
+TimeoutStartSec=infinity
+
+[Install]
+WantedBy=default.target
