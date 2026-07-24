@@ -1,0 +1,19 @@
+{
+  "created_at": "2026-07-24T09:22:12.020428+00:00",
+  "crowdhuman_terms_acceptance_recorded": false,
+  "data_acquisition_allowed": false,
+  "frozen_input_hashes": {
+    "coco_initialization": "d5ffc1a674953a08e11a8d21e022781b1b23a19b730afc309290bd9fb5305b95",
+    "development_manifest": "b07be14110e0eb068de0aaa055759b2ac0123d531948200fa39e636638a7fcba",
+    "folds": "ff5a6268c394d396c05440b8d309cf5256f998b6c371c66bc52ac9c9bccb14bf",
+    "railway_tile_manifest": "3821295bdf84524d71aecf786921cfda5b1ea3d76968e9a04e3a6161f071721c"
+  },
+  "git_commit_at_lock": "2e88ff319f9b2a13b28e5474aeb73780f579ffda",
+  "protocol_id": "canonical-v5-person-data-first-v1",
+  "protocol_path": "configs/canonical_v5_person_data_first.yaml",
+  "protocol_sha256": "6e017b1cb5576433fd339cffca0efb07c053aeecd139318f3c453475098095c3",
+  "status": "LOCKED",
+  "test_marker_absent": true,
+  "test_sealed": true,
+  "training_allowed": false
+}

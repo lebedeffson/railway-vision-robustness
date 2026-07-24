@@ -108,6 +108,24 @@ CrowdHuman используется только в рамках его усло
 обязательной фиксацией SHA-256 после получения. Test CrowdHuman не нужен и не
 загружается.
 
+Загрузка требует явного подтверждения условий и сохраняет resume-файлы:
+
+```bash
+PYTHONPATH="$PWD:$PWD/scripts" .venv/bin/python \
+  scripts/person_v5/download_crowdhuman.py \
+  --accept-noncommercial-research-terms
+```
+
+Без этого флага скрипт завершится до первого сетевого запроса. После загрузки
+конвертация `vbox` выполняется отдельно и создаёт audit:
+
+```bash
+PYTHONPATH="$PWD:$PWD/scripts" .venv/bin/python \
+  scripts/person_v5/prepare_crowdhuman.py \
+  --source data/crowdhuman_downloads \
+  --accept-noncommercial-research-terms
+```
+
 Первичный v5-кандидат только один: YOLO11m с CrowdHuman pretraining.
 RT-DETR отложен до отдельного prospective amendment; NWD/QFL, GroupDRO,
 MixStyle и SWAD не используются.

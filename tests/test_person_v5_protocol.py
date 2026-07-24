@@ -8,6 +8,7 @@ from pathlib import Path
 import yaml
 
 from scripts.person_v5.lock_protocol import validate
+from scripts.person_v5.download_crowdhuman import planned_files
 from scripts.person_v5.prepare_crowdhuman import (
     iter_odgt,
     visible_person_boxes,
@@ -71,6 +72,12 @@ class PersonV5ProtocolTest(unittest.TestCase):
         self.assertEqual(gate["worst_fold_recall_min"], 0.30)
         self.assertEqual(gate["folds_improved_over_D0_min"], 2)
 
+    def test_download_plan_excludes_crowdhuman_test(self) -> None:
+        files = planned_files(self.protocol)
+        self.assertEqual(len(files), 6)
+        self.assertFalse(any("test" in name.lower() for name in files))
+        self.assertGreater(sum(files.values()), 10_000_000_000)
+
 
 class CrowdHumanConversionTest(unittest.TestCase):
     def test_visible_box_filter_and_clipping(self) -> None:
@@ -108,4 +115,3 @@ class CrowdHumanConversionTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
