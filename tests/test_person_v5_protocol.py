@@ -28,6 +28,17 @@ class PersonV5ProtocolTest(unittest.TestCase):
         self.assertTrue(self.protocol["claim_boundary"]["test_sealed"])
         marker = ROOT / self.protocol["claim_boundary"]["test_marker"]
         self.assertFalse(marker.exists())
+        required = [
+            ROOT / self.protocol["frozen_inputs"][name]
+            for name in (
+                "development_manifest",
+                "folds",
+                "railway_tile_manifest",
+                "coco_initialization",
+            )
+        ]
+        if not all(path.is_file() for path in required):
+            self.skipTest("local frozen data/checkpoint evidence is absent")
         self.assertEqual(set(validate(self.protocol)), {
             "development_manifest",
             "folds",
