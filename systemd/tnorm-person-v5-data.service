@@ -1,0 +1,19 @@
+[Unit]
+Description=Canonical v5 CrowdHuman train/validation acquisition and conversion
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=!/home/lebedeffson/Code/андрей/TNormFilter_handoff/outputs/person_v3/test/TEST_OPENED.json
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/lebedeffson/Code/андрей/TNormFilter_handoff
+Environment=PYTHONPATH=/home/lebedeffson/Code/андрей/TNormFilter_handoff:/home/lebedeffson/Code/андрей/TNormFilter_handoff/scripts
+ExecStart=/home/lebedeffson/Code/venv/bin/python /home/lebedeffson/Code/андрей/TNormFilter_handoff/scripts/person_v5/run_data_stage.py
+Nice=10
+IOSchedulingClass=idle
+Restart=on-failure
+RestartSec=30
+TimeoutStartSec=infinity
+
+[Install]
+WantedBy=default.target

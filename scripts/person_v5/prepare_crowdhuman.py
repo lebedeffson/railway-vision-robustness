@@ -198,7 +198,7 @@ def prepare(source: Path, destination: Path) -> dict[str, Any]:
     }
     audit = (
         PROJECT
-        / "protocols/canonical_v5_person_data_first_v1/"
+        / "outputs/person_v5/protocol/"
         "crowdhuman_conversion_audit.json"
     )
     atomic_json(audit, payload)
