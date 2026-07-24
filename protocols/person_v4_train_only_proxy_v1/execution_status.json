@@ -1,8 +1,9 @@
 {
-  "GPU_proxy_started": false,
+  "status": "COMPLETE",
+  "GPU_proxy_started": true,
   "active_A3_interrupted": false,
-  "next_allowed_action": "run_CPU_checks_then_wait_for_active_A3_verdict",
-  "reason": "active_A3_fold0_must_finish_unchanged",
-  "status": "READY_NOT_STARTED",
-  "test_opened": false
+  "external_A3_fold0_result": "FAIL",
+  "proxy_result": "FAIL",
+  "test_opened": false,
+  "article_evidence": false
 }
