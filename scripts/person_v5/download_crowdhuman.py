@@ -20,7 +20,7 @@ CONFIG = PROJECT / "configs/canonical_v5_person_data_first.yaml"
 LOCK = PROJECT / "protocols/canonical_v5_person_data_first_v1/protocol_lock.json"
 MANIFEST = (
     PROJECT
-    / "protocols/canonical_v5_person_data_first_v1/"
+    / "outputs/person_v5/protocol/"
     "data_acquisition_manifest.json"
 )
 MIRROR = "https://huggingface.co/datasets/sshao0516/CrowdHuman/resolve/main"

@@ -126,6 +126,18 @@ PYTHONPATH="$PWD:$PWD/scripts" .venv/bin/python \
   --accept-noncommercial-research-terms
 ```
 
+На experiment host обе стадии запускаются одним resumable user-service:
+
+```bash
+systemctl --user link "$PWD/systemd/tnorm-person-v5-data.service"
+systemctl --user daemon-reload
+systemctl --user enable --now tnorm-person-v5-data.service
+```
+
+Сервис выполняет только download и conversion/audit. Он не запускает GPU
+training и сохраняет runtime provenance под игнорируемым
+`outputs/person_v5/`.
+
 Первичный v5-кандидат только один: YOLO11m с CrowdHuman pretraining.
 RT-DETR отложен до отдельного prospective amendment; NWD/QFL, GroupDRO,
 MixStyle и SWAD не используются.
