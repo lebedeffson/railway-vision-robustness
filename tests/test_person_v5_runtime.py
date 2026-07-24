@@ -12,6 +12,7 @@ from scripts.person_v5.lock_runtime import CODE
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = ROOT / "configs/canonical_v5_person_data_first_runtime.yaml"
 SERVICE = ROOT / "systemd/tnorm-person-v5-training.service"
+DATA_SERVICE = ROOT / "systemd/tnorm-person-v5-data.service"
 
 
 class PersonV5RuntimeTest(unittest.TestCase):
@@ -50,6 +51,12 @@ class PersonV5RuntimeTest(unittest.TestCase):
         self.assertNotIn("run_test", text)
         self.assertNotIn("attack", text.lower())
 
+    def test_data_service_locks_runtime_before_handoff(self) -> None:
+        text = DATA_SERVICE.read_text(encoding="utf-8")
+        self.assertIn("ExecStartPost=", text)
+        self.assertIn("lock_runtime.py", text)
+        self.assertIn("OnSuccess=tnorm-person-v5-training.service", text)
+
     def test_iou_reference_cases(self) -> None:
         self.assertAlmostEqual(iou([0, 0, 10, 10], [0, 0, 10, 10]), 1)
         self.assertEqual(iou([0, 0, 1, 1], [2, 2, 3, 3]), 0)
@@ -60,4 +67,3 @@ class PersonV5RuntimeTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

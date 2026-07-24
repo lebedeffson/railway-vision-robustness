@@ -138,7 +138,8 @@ systemctl --user enable --now tnorm-person-v5-data.service
 training и сохраняет runtime provenance под игнорируемым
 `outputs/person_v5/`.
 
-После `crowdhuman_data_audit=PASS` runtime замораживается отдельно:
+После `crowdhuman_data_audit=PASS` data-service сам запускает runtime lock и
+передаёт управление training-service. Те же действия можно выполнить вручную:
 
 ```bash
 PYTHONPATH="$PWD:$PWD/scripts" .venv/bin/python \
