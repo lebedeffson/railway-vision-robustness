@@ -8,6 +8,7 @@ from typing import Any
 
 from scripts.person_v5.download_crowdhuman import acquire
 from scripts.person_v5.prepare_crowdhuman import prepare
+from scripts.person_v5.audit_crowdhuman import audit
 
 
 PROJECT = Path(__file__).resolve().parents[2]
@@ -77,6 +78,18 @@ def run() -> None:
             train_images=conversion["splits"]["train"]["linked_images"],
             validation_images=conversion["splits"]["val"]["linked_images"],
         )
+        status("crowdhuman_data_audit", "running", started_at=now())
+        audit_result = audit()
+        status(
+            "crowdhuman_data_audit",
+            "success",
+            finished_at=now(),
+            report=(
+                "outputs/person_v5/data_audit/"
+                "crowdhuman_data_audit.json"
+            ),
+            image_root_count=audit_result["image_root_count"],
+        )
         status(
             "GPU_training",
             "blocked_pending_runtime_and_data_audit",
@@ -95,4 +108,3 @@ def run() -> None:
 
 if __name__ == "__main__":
     run()
-

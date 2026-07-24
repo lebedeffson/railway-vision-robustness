@@ -13,6 +13,7 @@ from scripts.person_v5.prepare_crowdhuman import (
     iter_odgt,
     visible_person_boxes,
 )
+from scripts.person_v5.audit_crowdhuman import height_bucket, size_bucket
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -122,6 +123,14 @@ class CrowdHumanConversionTest(unittest.TestCase):
                 encoding="utf-8",
             )
             self.assertEqual([row["ID"] for row in iter_odgt(path)], ["a", "b"])
+
+    def test_audit_size_buckets_are_frozen(self) -> None:
+        self.assertEqual(size_bucket(10, 10), "small")
+        self.assertEqual(size_bucket(40, 40), "medium")
+        self.assertEqual(size_bucket(100, 100), "large")
+        self.assertEqual(height_bucket(1.9), "lt_2px")
+        self.assertEqual(height_bucket(7.9), "lt_8px")
+        self.assertEqual(height_bucket(40), "ge_32px")
 
 
 if __name__ == "__main__":
