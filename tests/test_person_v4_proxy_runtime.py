@@ -7,6 +7,8 @@ from pathlib import Path
 import yaml
 
 from scripts.person_v4.run_train_only_proxy import (
+    IMAGE_ROOT,
+    LABEL_ROOT,
     PROTOCOL_ROOT,
     TEST_MARKER,
     assert_runtime_isolation,
@@ -66,6 +68,18 @@ class PersonV4ProxyRuntimeTest(unittest.TestCase):
             self.assertTrue(train)
             self.assertTrue(heldout)
             self.assertFalse(set(train) & set(heldout), split)
+            for emitted in train + heldout:
+                image = Path(emitted)
+                self.assertEqual(image.parent, IMAGE_ROOT.absolute())
+                self.assertNotIn(
+                    "outputs/canonical_m4/tiling_audit/dataset/images",
+                    emitted,
+                )
+                label = LABEL_ROOT / f"{image.stem}.txt"
+                self.assertTrue(label.is_file())
+                for line in label.read_text(encoding="utf-8").splitlines():
+                    if line.strip():
+                        self.assertEqual(int(float(line.split()[0])), 0)
 
     def test_runtime_lock_binds_runtime_protocol(self) -> None:
         lock = json.loads(

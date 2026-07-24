@@ -105,6 +105,12 @@ def prepare_datasets(contract: dict[str, Any]) -> dict[str, Path]:
     tiles = contract["tiles"]
     destination = OUTPUT / "datasets"
     destination.mkdir(parents=True, exist_ok=True)
+    image_root = IMAGE_ROOT.absolute()
+    label_root = LABEL_ROOT.absolute()
+    forbidden_image_root = (
+        PROJECT
+        / "outputs/canonical_m4/tiling_audit/dataset/images"
+    ).absolute()
     for split in contract["runtime"]["execution"]["splits"]:
         root = destination / split
         root.mkdir(parents=True, exist_ok=True)
@@ -119,7 +125,30 @@ def prepare_datasets(contract: dict[str, Any]) -> dict[str, Path]:
                 label = LABEL_ROOT / f"{stem}.txt"
                 if not image.is_file() or not label.is_file():
                     raise RuntimeError(f"Proxy tile pair is missing: {stem}")
-                paths.append(str(image.resolve()))
+                emitted = image.absolute()
+                if emitted.parent != image_root:
+                    raise RuntimeError(
+                        f"Proxy image escaped person-only alias root: {stem}"
+                    )
+                if emitted.is_relative_to(forbidden_image_root):
+                    raise RuntimeError(
+                        f"Proxy image entered multiclass image root: {stem}"
+                    )
+                for line_number, line in enumerate(
+                    label.read_text(encoding="utf-8").splitlines(), start=1
+                ):
+                    if not line.strip():
+                        continue
+                    fields = line.split()
+                    if len(fields) != 5 or int(float(fields[0])) != 0:
+                        raise RuntimeError(
+                            "Proxy label is not person-only: "
+                            f"{label_root / label.name}:{line_number}"
+                        )
+                # Do not resolve this symlink. Ultralytics derives the label
+                # path from the literal /images/ alias; resolving it routes
+                # the run into the multiclass canonical-M4 label directory.
+                paths.append(str(emitted))
             if not paths:
                 raise RuntimeError(f"Proxy {split} has empty {role} role")
             roles[role] = sorted(paths)
@@ -741,6 +770,18 @@ def finalize(contract: dict[str, Any]) -> dict[str, Any]:
 def run() -> dict[str, Any]:
     contract = assert_runtime_isolation()
     datasets = prepare_datasets(contract)
+    atomic_json(
+        PROTOCOL_ROOT / "execution_status.json",
+        {
+            "status": "RUNNING",
+            "GPU_proxy_started": True,
+            "active_A3_interrupted": False,
+            "external_A3_fold0_result": "FAIL",
+            "proxy_result": None,
+            "test_opened": False,
+            "article_evidence": False,
+        },
+    )
     atomic_json(
         OUTPUT / "runtime_contract.json",
         {

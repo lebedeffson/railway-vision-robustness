@@ -5,15 +5,15 @@
     "scripts/person_v4/losses.py": "ee31bfca885aee9c1ee3518c9444542cdb0db24362c218fe65cd6e463217b56e",
     "scripts/person_v4/proxy.py": "f71e1738385fb383a8e0f376fc73308f78f048b66c182b35afdbfd95f4911f22",
     "scripts/person_v4/run_proxy_cpu_checks.py": "073db06b1e948612005533b8dbcdee70724fb987cfcb5835a20a9509c57fc5a7",
-    "scripts/person_v4/run_train_only_proxy.py": "bfb4c6f75af477a74cbf6ccfdd7690ec6ad1aa03e292f6f4ec15875e098c1fa3",
+    "scripts/person_v4/run_train_only_proxy.py": "7ca36e9c529f295e5249c383eb0bb577769a3809a0846ebd815135d1e9b5e62d",
     "scripts/person_v4/swad.py": "b834ae3d323bba7fdd38e09577138f23880f34e6f2d177a347d3be8c29143a03",
     "scripts/person_v4/train.py": "a95fe280c356e71d44914408cf1418286300c9620a5621e5948ec8522af7412c",
     "systemd/tnorm-person-v4-proxy.service": "f60fd337756d652251fa659f1ebc90455f54c67cc98af9918d808523dc77ee0a",
     "tests/test_person_v4_math.py": "aef475f8b70281d5d46a279330936755e579e1223e84db25958aac50d997cc1c",
     "tests/test_person_v4_proxy.py": "ab238ace2b455a387b5051a8305ee9166c2e1a4309c4e2c5d4ff9af23df89aa2",
-    "tests/test_person_v4_proxy_runtime.py": "dfa15ef9325e3a436829cf1c0fc32cd2c582cf87e7ca0b7ff70fb199b20dcd29"
+    "tests/test_person_v4_proxy_runtime.py": "18126a248b8ea0460cfba2d77f5547d14f0109f5472ef7c0dc7af8b4f44eb4c6"
   },
-  "git_commit_at_freeze": "40d66dd959bd9abb5e2f98f70e70933247f07ca3",
+  "git_commit_at_freeze": "99e419ac58a91cebe83760b484f649a7881cbc79",
   "isolation_audit_sha256": "d0a043cdd7a1917583ab7b3d283f3b57d7921bafa286258aa334fc010363ec56",
   "protocol_id": "person-v4-train-only-proxy-v1",
   "protocol_path": "configs/person_v4_train_only_proxy.yaml",
