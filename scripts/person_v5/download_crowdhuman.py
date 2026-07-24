@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import hashlib
 import json
 import shutil
+import sys
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -84,7 +86,7 @@ def download(url: str, destination: Path, expected_size: int) -> None:
     part.replace(destination)
 
 
-def acquire(destination: Path) -> dict[str, Any]:
+def acquire(destination: Path, workers: int = 3) -> dict[str, Any]:
     if not LOCK.is_file():
         raise RuntimeError("Canonical v5 protocol lock is missing")
     lock = json.loads(LOCK.read_text(encoding="utf-8"))
@@ -95,20 +97,39 @@ def acquire(destination: Path) -> dict[str, Any]:
         raise RuntimeError("Canonical v5 protocol changed after lock")
     files = planned_files(protocol)
     destination.mkdir(parents=True, exist_ok=True)
-    records = {}
-    for name, expected_size in files.items():
+    def acquire_one(item: tuple[str, int]) -> tuple[str, dict[str, Any]]:
+        name, expected_size = item
         target = destination / name
+        print(
+            f"download_start name={name} existing_bytes="
+            f"{target.with_suffix(target.suffix + '.part').stat().st_size if target.with_suffix(target.suffix + '.part').exists() else 0}",
+            file=sys.stderr,
+            flush=True,
+        )
         if not target.is_file() or target.stat().st_size != expected_size:
             download(
                 f"{MIRROR}/{name}?download=true",
                 target,
                 expected_size,
             )
-        records[name] = {
+        record = {
             "bytes": target.stat().st_size,
             "sha256": sha256(target),
             "transport_url": f"{MIRROR}/{name}?download=true",
         }
+        print(
+            f"download_complete name={name} bytes={record['bytes']}",
+            file=sys.stderr,
+            flush=True,
+        )
+        return name, record
+
+    records = {}
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=max(1, min(int(workers), len(files)))
+    ) as executor:
+        for name, record in executor.map(acquire_one, files.items()):
+            records[name] = record
     payload = {
         "status": "PASS",
         "protocol_id": protocol["protocol_id"],
@@ -136,14 +157,19 @@ def main() -> None:
         "--accept-noncommercial-research-terms",
         action="store_true",
     )
+    parser.add_argument("--workers", type=int, default=3)
     args = parser.parse_args()
     if not args.accept_noncommercial_research_terms:
         raise SystemExit(
             "CrowdHuman terms were not accepted; no network request was made"
         )
-    print(json.dumps(acquire(args.destination.resolve()), indent=2))
+    print(
+        json.dumps(
+            acquire(args.destination.resolve(), workers=args.workers),
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":
     main()
-
