@@ -1,23 +1,28 @@
 {
   "active_A3_may_be_interrupted": false,
   "code_sha256": {
-    "scripts/person_v4/build_train_only_proxy.py": "7e4bd35d9b7a64d113396088c157ec83a9a444f216a4065c9bb9f867ae0dbff0",
-    "scripts/person_v4/losses.py": "446bd15a0dd390ab26ac05335104e0d179b6e99d05ba09ab9a7b3d258a6cc783",
-    "scripts/person_v4/proxy.py": "133346357179c7ffd352a1dfb5b3a6a5c03537ff8cd38b097a0b6e627f93c142",
-    "scripts/person_v4/run_proxy_cpu_checks.py": "6df172d12751e1f678ba16cde9a0e0f80e73744aaacc97128db9c013d15d3c5e",
-    "scripts/person_v4/swad.py": "03bd59c338445d2257871bb545174cd92b2153cd5595d678286094c586a7de20",
-    "scripts/person_v4/train.py": "df31c1182c3b0346724aafe3d144291edc3f7ee7431d2ae238a091f90d26b35b",
-    "tests/test_person_v4_math.py": "5adc0dc74096aa327717870a40ce6bc7edc0a506cdd015f2c5a1a06fed215531",
-    "tests/test_person_v4_proxy.py": "50c1add5b1bd830b24cfed299dacbeb18331551fc8e8549c7c2af522b2d41cb1"
+    "scripts/person_v4/build_train_only_proxy.py": "bbd6242435614a5161153d6ff3f3475e737dc76be010e1aeee0d1b7d474a76fc",
+    "scripts/person_v4/losses.py": "ee31bfca885aee9c1ee3518c9444542cdb0db24362c218fe65cd6e463217b56e",
+    "scripts/person_v4/proxy.py": "f71e1738385fb383a8e0f376fc73308f78f048b66c182b35afdbfd95f4911f22",
+    "scripts/person_v4/run_proxy_cpu_checks.py": "073db06b1e948612005533b8dbcdee70724fb987cfcb5835a20a9509c57fc5a7",
+    "scripts/person_v4/run_train_only_proxy.py": "bfb4c6f75af477a74cbf6ccfdd7690ec6ad1aa03e292f6f4ec15875e098c1fa3",
+    "scripts/person_v4/swad.py": "b834ae3d323bba7fdd38e09577138f23880f34e6f2d177a347d3be8c29143a03",
+    "scripts/person_v4/train.py": "a95fe280c356e71d44914408cf1418286300c9620a5621e5948ec8522af7412c",
+    "systemd/tnorm-person-v4-proxy.service": "f60fd337756d652251fa659f1ebc90455f54c67cc98af9918d808523dc77ee0a",
+    "tests/test_person_v4_math.py": "aef475f8b70281d5d46a279330936755e579e1223e84db25958aac50d997cc1c",
+    "tests/test_person_v4_proxy.py": "ab238ace2b455a387b5051a8305ee9166c2e1a4309c4e2c5d4ff9af23df89aa2",
+    "tests/test_person_v4_proxy_runtime.py": "dfa15ef9325e3a436829cf1c0fc32cd2c582cf87e7ca0b7ff70fb199b20dcd29"
   },
-  "git_commit_at_freeze": "61855bd21fce1a962714aa88b1ddde625524d9a4",
+  "git_commit_at_freeze": "40d66dd959bd9abb5e2f98f70e70933247f07ca3",
   "isolation_audit_sha256": "d0a043cdd7a1917583ab7b3d283f3b57d7921bafa286258aa334fc010363ec56",
   "protocol_id": "person-v4-train-only-proxy-v1",
   "protocol_path": "configs/person_v4_train_only_proxy.yaml",
-  "protocol_sha256": "1951f5cab83989e50c422620987208bb3063af25663c538a266f5cafffe96930",
+  "protocol_sha256": "8f1761ed7285c8d66da5a6f1a3d3312f3dd92e4bbd239925e3f5a8d73ac6e001",
   "proxy_frame_manifest_sha256": "5f4f789f3e659315c0eecd3d1aba83c861cee5403ae4093e74d862819f5c961a",
   "proxy_splits_sha256": "501469848408609879bad5a578aea061a4bc1b873d7e7433410d9cf90a336972",
   "proxy_tile_manifest_sha256": "bb3451115a63a7a90bd6090c249193ccf4e4140c0336c6cbe45097d5ef4afd44",
+  "runtime_protocol_path": "configs/person_v4_train_only_proxy_runtime.yaml",
+  "runtime_protocol_sha256": "8e7b1b7dc135df0d9dec15c6d9c507404638687ec70061b732d8146b86ab0d1e",
   "status": "LOCKED",
   "test_sealed": true
 }

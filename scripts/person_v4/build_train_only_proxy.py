@@ -22,8 +22,11 @@ LOCKED_CODE = (
     Path("scripts/person_v4/swad.py"),
     Path("scripts/person_v4/build_train_only_proxy.py"),
     Path("scripts/person_v4/run_proxy_cpu_checks.py"),
+    Path("scripts/person_v4/run_train_only_proxy.py"),
     Path("tests/test_person_v4_math.py"),
     Path("tests/test_person_v4_proxy.py"),
+    Path("tests/test_person_v4_proxy_runtime.py"),
+    Path("systemd/tnorm-person-v4-proxy.service"),
 )
 
 
@@ -270,6 +273,13 @@ def freeze(
         "git_commit_at_freeze": commit,
         "protocol_path": str(CONFIG_RELATIVE),
         "protocol_sha256": sha256(config_path),
+        "runtime_protocol_path": (
+            "configs/person_v4_train_only_proxy_runtime.yaml"
+        ),
+        "runtime_protocol_sha256": sha256(
+            project_root
+            / "configs/person_v4_train_only_proxy_runtime.yaml"
+        ),
         "proxy_splits_sha256": sha256(splits_path),
         "proxy_frame_manifest_sha256": sha256(frame_manifest),
         "proxy_tile_manifest_sha256": sha256(tile_manifest),

@@ -1,0 +1,90 @@
+protocol_id: person-v4-train-only-proxy-runtime-v1
+parent_protocol: person-v4-train-only-proxy-v1
+parent_protocol_path: configs/person_v4_train_only_proxy.yaml
+clarified_before_proxy_metrics: true
+reason: freeze exact runtime details omitted from the compute-filter protocol
+
+execution:
+  splits: [proxy_0, proxy_1, proxy_2]
+  variants: [A0, A3]
+  order:
+    - [proxy_0, A0]
+    - [proxy_0, A3]
+    - [proxy_1, A0]
+    - [proxy_1, A3]
+    - [proxy_2, A0]
+    - [proxy_2, A3]
+  require_all_six_runs: true
+  early_reject_enabled: false
+  resume_by_stage_completion_marker: true
+
+training:
+  initialization: yolo11m.pt
+  seed: 20260723
+  input_size: 640
+  batch: 1
+  nominal_batch_size: 8
+  workers: 2
+  optimizer: AdamW
+  weight_decay: 0.0005
+  amp: false
+  deterministic: true
+  stages:
+    stage1:
+      epochs: 2
+      freeze_layers: 10
+      backbone_lr: 0.0
+      head_lr: 0.0003
+    stage2:
+      epochs: 8
+      freeze_layers: 0
+      backbone_lr: 0.0001
+      head_lr: 0.0003
+    stage3:
+      epochs: 2
+      freeze_layers: 0
+      backbone_lr: 0.00005
+      head_lr: 0.00015
+  A3_swad:
+    states:
+      - stage2_best
+      - stage3_epoch_1_EMA
+      - stage3_epoch_2_EMA
+    floating_state: arithmetic_mean
+    non_floating_BN_counter: elementwise_max
+  A0_final_checkpoint: stage3_best
+
+evaluation:
+  source: global_full_frame_person_evaluator
+  tiling: frozen_M4_four_tiles
+  fusion: frozen_M4_class_aware_fusion
+  IoU: 0.50
+  confidence_sweep: [0.001, 0.500, 0.001]
+  threshold_rule: maximum_pooled_F1_across_three_proxy_splits_per_variant
+  tie_break: [maximum_recall, minimum_threshold]
+  identical_rule_for_A0_A3: true
+  independent_reparse_tolerance: 0.0001
+  required:
+    evaluator_consistency: PASS
+    lost_GT: 0
+    missing_scenes: 0
+    NaN_Inf: 0
+
+isolation:
+  allowed_frame_manifest: protocols/person_v4_train_only_proxy_v1/proxy_frame_manifest.csv
+  allowed_tile_manifest: protocols/person_v4_train_only_proxy_v1/proxy_tile_manifest.csv
+  forbidden_outer_fold0_scenes:
+    - 10_station_suelldorf_10
+    - 18_vegetation_switch_18
+    - 3_fire_site_3
+  official_validation_read: false
+  test_read: false
+  test_marker_must_be_absent: outputs/person_v3/test/TEST_OPENED.json
+
+reporting:
+  article_evidence: false
+  scientific_result: false
+  purpose: audit_proxy_predictiveness_after_external_A3_failure
+  expected_interpretation:
+    proxy_fail: proxy_can_reject_this_failed_idea
+    proxy_pass: proxy_is_too_easy_and_must_not_gate_future_runs

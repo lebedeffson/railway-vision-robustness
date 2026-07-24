@@ -1,0 +1,20 @@
+[Unit]
+Description=Person v4 train-only A0/A3 proxy calibration
+After=graphical-session.target
+ConditionPathExists=!/home/lebedeffson/Code/андрей/TNormFilter_handoff/outputs/person_v3/test/TEST_OPENED.json
+StartLimitIntervalSec=600
+StartLimitBurst=2
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/lebedeffson/Code/андрей/TNormFilter_handoff
+Environment=PYTHONPATH=/home/lebedeffson/Code/андрей/TNormFilter_handoff:/home/lebedeffson/Code/андрей/TNormFilter_handoff/scripts
+ExecStart=/home/lebedeffson/Code/андрей/TNormFilter_handoff/.venv/bin/python -u scripts/person_v4/run_train_only_proxy.py
+Nice=5
+IOSchedulingClass=best-effort
+IOSchedulingPriority=6
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target
