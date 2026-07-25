@@ -5,20 +5,20 @@
     "V5-C",
     "V5-D"
   ],
-  "config_sha256": "8e7bf73292d58561dbe5c5a203f10793055fe8d9a1adcb0711288552b9f0a917",
-  "created_at": "2026-07-25T10:46:44.688584+00:00",
+  "config_sha256": "bb8e6619c209d516dc9bc1caa575a3a45a81d52f1f63b74066e68f0c252533e9",
+  "created_at": "2026-07-25T10:48:24.685245+00:00",
   "diagnostic_decision_sha256": "b8ceecbd511ab3287950d60b1e25e8f103677bd2356d616772687fafe4928fe1",
   "excluded_candidates": [
     "V5-E",
     "V5-S"
   ],
-  "git_commit": "8e63cd6f94986c3310eaea019420c83c00a2f9c3",
+  "git_commit": "3ce59a89d2515119eb4a5fa3f86e8e1f615e498f",
   "implementation_sha256": {
-    "configs/person_v5/candidate_runtime.yaml": "8e7bf73292d58561dbe5c5a203f10793055fe8d9a1adcb0711288552b9f0a917",
+    "configs/person_v5/candidate_runtime.yaml": "bb8e6619c209d516dc9bc1caa575a3a45a81d52f1f63b74066e68f0c252533e9",
     "scripts/person_canonical_v5/build_instance_bank.py": "c5c2b95bd13be5443e078919095fb87eb63946cb91b2253b16b78f3a997551ee",
     "scripts/person_canonical_v5/candidate_gate.py": "90d13e4fa56e25c0075a9c0f2a0d829e1f3f20120377c1ad7c50eaa2d5d2d068",
     "scripts/person_canonical_v5/evaluate_candidate.py": "04859dbf0021851f393e1971af300dd88ad542af0d8c7301ab12a4f57e14193a",
-    "scripts/person_canonical_v5/materialize_pasting.py": "ffc2e5955c89325ce3c10472ef10ff347b5988da05136ef60b07eb3d5b7584c9",
+    "scripts/person_canonical_v5/materialize_pasting.py": "4dd02045fac8000fbca9f262d88c9b516d16d211c69630fc90ca22790b097cfd",
     "scripts/person_canonical_v5/render_pasting_audit.py": "98b8712442e6502f64557085bf9712e1af9dac3e32a1e113f79b5e8f07eb2579",
     "scripts/person_canonical_v5/train_candidates.py": "e3359eefc23d7bb32ef6118a84b92ca80c906fac3d88b8d1376bc1b740fdc8a4",
     "src/augmentation/person_pasting.py": "123e08ece221bf3d0d9f734741e70dad8150adf72c09c25d228f723b348aa632",
@@ -26,7 +26,7 @@
     "src/models/coordinate_attention.py": "f17d890fd476af3187c37eed6c4ca95958216c36a57339895253c3dd5bc6bef5",
     "src/models/p2_head.py": "fcb5c1b98510664fd51fe2d7379d35e56865ee344c563da3d26e73b0ecc4b177"
   },
-  "protocol_id": "person-canonical-v5-candidate-runtime-v1",
+  "protocol_id": "person-canonical-v5-candidate-runtime-v1a",
   "status": "LOCKED",
   "test_sealed": true,
   "training_allowed": true
