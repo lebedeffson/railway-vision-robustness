@@ -1,0 +1,105 @@
+protocol_id: person-canonical-v5-candidate-runtime-v1
+parent_protocol: person-canonical-v5-range-aware-v1
+test_sealed: true
+test_marker: outputs/person_v3/test/TEST_OPENED.json
+diagnostic_decision: protocols/person_canonical_v5_range_aware_v1/development_diagnostic_decision.json
+diagnostic_requirements:
+  status: PASS
+  gradual_transfer_allowed: false
+  V5_E_status: EXCLUDED_BY_PROSPECTIVE_DIAGNOSTIC_RULE
+
+execution:
+  folds: [0, 1]
+  order:
+    - V5-A_fold0
+    - V5-A_fold1
+    - V5-B_fold0
+    - V5-B_fold1
+    - V5-C_fraction25_fold0
+    - V5-C_fraction50_fold0
+    - freeze_pasting_fraction
+    - V5-C_selected_fold1
+    - V5-D_selected_fold0
+    - V5-D_selected_fold1
+    - two_fold_gate
+  V5-E: excluded_by_diagnostic
+  V5-S: supplementary_deferred
+
+training:
+  initialization: yolo11m.pt
+  seed: 20260723
+  imgsz: 640
+  batch: 1
+  workers: 2
+  optimizer: AdamW
+  weight_decay: 0.0005
+  amp: false
+  deterministic: true
+  nominal_batch_size: 8
+  augmentations:
+    hsv_h: 0.0
+    hsv_s: 0.0
+    hsv_v: 0.0
+    degrees: 0.0
+    translate: 0.0
+    scale: 0.0
+    shear: 0.0
+    perspective: 0.0
+    flipud: 0.0
+    fliplr: 0.0
+    mosaic: 0.0
+    mixup: 0.0
+    cutmix: 0.0
+    copy_paste: 0.0
+    erasing: 0.0
+  stages:
+    stage1:
+      epochs: 5
+      freeze_layers: 10
+      backbone_lr: 0.0
+      head_lr: 0.0003
+    stage2:
+      epochs: 15
+      freeze_layers: 0
+      backbone_lr: 0.0001
+      head_lr: 0.0003
+
+pasting_fraction_selection:
+  candidates: [0.25, 0.50]
+  source: V5-C_fold0_only
+  admissible_macro_mAP50_delta_vs_B0_min: -0.01
+  lexicographic:
+    - maximum_small_recall
+    - maximum_recall
+    - maximum_mAP50
+    - lower_fraction
+  freeze_before_fold1: true
+
+evaluation:
+  confidence_min: 0.001
+  confidence_max: 0.500
+  confidence_step: 0.001
+  iou: 0.50
+  AP_IoU: [0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95]
+  threshold_rule: maximum_pooled_F1_per_candidate_on_folds_0_and_1
+  evaluator_tolerance: 0.0001
+  grouped_unit: grouped_scene_id
+
+gate:
+  require_all:
+    macro_mAP50_min: 0.45
+    macro_recall_min: 0.45
+    macro_small_recall_min: 0.30
+    worst_fold_recall_min: 0.30
+    evaluator_consistency: PASS
+    lost_GT: 0
+    NaN_Inf: 0
+  improvement_over_B0:
+    delta_macro_recall_min_any: 0.03
+    delta_macro_small_recall_min_any: 0.05
+    delta_macro_mAP50_min: -0.01
+  on_fail:
+    test: sealed
+    attacks: blocked
+    H1_H4: not_evaluated
+

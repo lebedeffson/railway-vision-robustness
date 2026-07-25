@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import json
 import math
 import os
@@ -9,6 +10,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import cv2
 from PIL import Image
 
 from scripts.person_canonical_v5.common import PROJECT, assert_test_sealed, atomic_csv
@@ -87,7 +89,127 @@ def crop_box(image: Image.Image, box: Box) -> Image.Image:
     )
 
 
-def build(fold: int) -> dict[str, Any]:
+def process_subsequence(
+    subsequence: str,
+    subset: pd.DataFrame,
+    image_root: Path,
+    mask_root: Path,
+) -> tuple[list[InstanceRecord], list[dict[str, Any]]]:
+    records: list[InstanceRecord] = []
+    audit: list[dict[str, Any]] = []
+    label_path = raw_label_path(str(subsequence))
+    if not label_path.is_file():
+        raise RuntimeError(f"Missing OpenLABEL document: {label_path}")
+    frame_lookup = {
+        str(row.frame_id): row for row in subset.itertuples(index=False)
+    }
+    current_source: Path | None = None
+    current_image: Image.Image | None = None
+    for geometry in iter_person_geometry(
+        label_path, image_width=4112, image_height=2504
+    ):
+        row = frame_lookup.get(geometry.frame_id)
+        if row is None:
+            continue
+        source = Path(row.source_image)
+        instance_id = source_instance_id(
+            str(row.grouped_scene_id), str(row.frame_id), geometry.box
+        )
+        status = "REJECTED"
+        reason = ""
+        image_path = image_root / f"{instance_id}.png"
+        mask_path = mask_root / f"{instance_id}.png"
+        try:
+            if current_source != source:
+                current_source = source
+                current_image = Image.open(source).convert("RGB")
+            assert current_image is not None
+            image = current_image
+            region = expanded_box(
+                geometry.box, image.width, image.height
+            )
+            cropped = crop_box(image, region)
+            relative = Box(
+                geometry.box.x1 - region.x1,
+                geometry.box.y1 - region.y1,
+                geometry.box.x2 - region.x1,
+                geometry.box.y2 - region.y1,
+            )
+            mask = grabcut_mask(cropped, relative)
+            passed, quality = mask_quality(
+                mask,
+                minimum_foreground_fraction=0.10,
+                maximum_foreground_fraction=0.85,
+                maximum_border_fraction=0.25,
+            )
+            if not passed:
+                reason = "MASK_HALO"
+            elif geometry.visibility < 0.50:
+                reason = "EXCESSIVE_OCCLUSION"
+            else:
+                if not image_path.is_file():
+                    cropped.save(image_path)
+                if not mask_path.is_file():
+                    Image.fromarray(mask).save(mask_path)
+                status = "PASS"
+                records.append(
+                    InstanceRecord(
+                        instance_id=instance_id,
+                        source_scene_id=str(row.grouped_scene_id),
+                        source_frame_id=str(row.frame_id),
+                        image_path=image_path,
+                        mask_path=mask_path,
+                        box=geometry.box,
+                        original_width=image.width,
+                        original_height=image.height,
+                        estimated_range_m=geometry.assignment.distance_m,
+                        visibility=geometry.visibility,
+                        occlusion=geometry.occlusion,
+                        quality_status=status,
+                    )
+                )
+            audit.append(
+                {
+                    "instance_id": instance_id,
+                    "source_scene_id": str(row.grouped_scene_id),
+                    "source_subsequence_id": str(row.subsequence_id),
+                    "source_frame_id": str(row.frame_id),
+                    "object_uuid": geometry.object_uuid,
+                    "source_image": str(source.resolve()),
+                    "instance_image": str(image_path.resolve()) if status == "PASS" else "",
+                    "mask_path": str(mask_path.resolve()) if status == "PASS" else "",
+                    "bbox_x1": geometry.box.x1,
+                    "bbox_y1": geometry.box.y1,
+                    "bbox_x2": geometry.box.x2,
+                    "bbox_y2": geometry.box.y2,
+                    "range_source": geometry.assignment.source,
+                    "range_or_scale_group": geometry.assignment.group,
+                    "estimated_range_m": geometry.assignment.distance_m,
+                    "visibility": geometry.visibility,
+                    "occlusion": geometry.occlusion,
+                    "mask_foreground_fraction": quality["foreground_fraction"],
+                    "mask_border_fraction": quality["border_fraction"],
+                    "quality_status": status,
+                    "rejection_reason": reason,
+                }
+            )
+        except (OSError, ValueError, cv2.error) as error:
+            audit.append(
+                {
+                    "instance_id": instance_id,
+                    "source_scene_id": str(row.grouped_scene_id),
+                    "source_subsequence_id": str(row.subsequence_id),
+                    "source_frame_id": str(row.frame_id),
+                    "object_uuid": geometry.object_uuid,
+                    "source_image": str(source.resolve()),
+                    "quality_status": status,
+                    "rejection_reason": f"PREPARATION_ERROR:{error}",
+                }
+            )
+    return records, audit
+
+
+def build(fold: int, workers: int = 4) -> dict[str, Any]:
     assert_test_sealed()
     train_scenes, heldout_scenes, test_scenes = split_scenes(fold)
     manifest = pd.read_csv(MANIFEST)
@@ -102,109 +224,25 @@ def build(fold: int) -> dict[str, Any]:
     mask_root.mkdir(parents=True, exist_ok=True)
     records: list[InstanceRecord] = []
     audit: list[dict[str, Any]] = []
-    by_subsequence = rows.groupby("subsequence_id", sort=True)
-    for subsequence, subset in by_subsequence:
-        label_path = raw_label_path(str(subsequence))
-        if not label_path.is_file():
-            raise RuntimeError(f"Missing OpenLABEL document: {label_path}")
-        frame_lookup = {
-            str(row.frame_id): row for row in subset.itertuples(index=False)
-        }
-        for geometry in iter_person_geometry(
-            label_path, image_width=4112, image_height=2504
-        ):
-            row = frame_lookup.get(geometry.frame_id)
-            if row is None:
-                continue
-            source = Path(row.source_image)
-            instance_id = source_instance_id(
-                str(row.grouped_scene_id), str(row.frame_id), geometry.box
+    groups = [
+        (str(subsequence), subset.copy())
+        for subsequence, subset in rows.groupby("subsequence_id", sort=True)
+    ]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+        pending = [
+            pool.submit(
+                process_subsequence,
+                subsequence,
+                subset,
+                image_root,
+                mask_root,
             )
-            status = "REJECTED"
-            reason = ""
-            image_path = image_root / f"{instance_id}.png"
-            mask_path = mask_root / f"{instance_id}.png"
-            try:
-                image = Image.open(source).convert("RGB")
-                region = expanded_box(
-                    geometry.box, image.width, image.height
-                )
-                cropped = crop_box(image, region)
-                relative = Box(
-                    geometry.box.x1 - region.x1,
-                    geometry.box.y1 - region.y1,
-                    geometry.box.x2 - region.x1,
-                    geometry.box.y2 - region.y1,
-                )
-                mask = grabcut_mask(cropped, relative)
-                passed, quality = mask_quality(
-                    mask,
-                    minimum_foreground_fraction=0.10,
-                    maximum_foreground_fraction=0.85,
-                    maximum_border_fraction=0.25,
-                )
-                if not passed:
-                    reason = "MASK_HALO"
-                elif geometry.visibility < 0.50:
-                    reason = "EXCESSIVE_OCCLUSION"
-                else:
-                    cropped.save(image_path)
-                    Image.fromarray(mask).save(mask_path)
-                    status = "PASS"
-                    records.append(
-                        InstanceRecord(
-                            instance_id=instance_id,
-                            source_scene_id=str(row.grouped_scene_id),
-                            source_frame_id=str(row.frame_id),
-                            image_path=image_path,
-                            mask_path=mask_path,
-                            box=geometry.box,
-                            original_width=image.width,
-                            original_height=image.height,
-                            estimated_range_m=geometry.assignment.distance_m,
-                            visibility=geometry.visibility,
-                            occlusion=geometry.occlusion,
-                            quality_status=status,
-                        )
-                    )
-                audit.append(
-                    {
-                        "instance_id": instance_id,
-                        "source_scene_id": str(row.grouped_scene_id),
-                        "source_subsequence_id": str(row.subsequence_id),
-                        "source_frame_id": str(row.frame_id),
-                        "object_uuid": geometry.object_uuid,
-                        "source_image": str(source.resolve()),
-                        "instance_image": str(image_path.resolve()) if status == "PASS" else "",
-                        "mask_path": str(mask_path.resolve()) if status == "PASS" else "",
-                        "bbox_x1": geometry.box.x1,
-                        "bbox_y1": geometry.box.y1,
-                        "bbox_x2": geometry.box.x2,
-                        "bbox_y2": geometry.box.y2,
-                        "range_source": geometry.assignment.source,
-                        "range_or_scale_group": geometry.assignment.group,
-                        "estimated_range_m": geometry.assignment.distance_m,
-                        "visibility": geometry.visibility,
-                        "occlusion": geometry.occlusion,
-                        "mask_foreground_fraction": quality["foreground_fraction"],
-                        "mask_border_fraction": quality["border_fraction"],
-                        "quality_status": status,
-                        "rejection_reason": reason,
-                    }
-                )
-            except (OSError, ValueError) as error:
-                audit.append(
-                    {
-                        "instance_id": instance_id,
-                        "source_scene_id": str(row.grouped_scene_id),
-                        "source_subsequence_id": str(row.subsequence_id),
-                        "source_frame_id": str(row.frame_id),
-                        "object_uuid": geometry.object_uuid,
-                        "source_image": str(source.resolve()),
-                        "quality_status": status,
-                        "rejection_reason": f"PREPARATION_ERROR:{error}",
-                    }
-                )
+            for subsequence, subset in groups
+        ]
+        for future in pending:
+            partial_records, partial_audit = future.result()
+            records.extend(partial_records)
+            audit.extend(partial_audit)
     validate_instance_bank(
         records,
         train_scene_ids=train_scenes,
@@ -239,6 +277,6 @@ def build(fold: int) -> dict[str, Any]:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--fold", type=int, required=True, choices=range(5))
+    parser.add_argument("--workers", type=int, default=4)
     arguments = parser.parse_args()
-    print(json.dumps(build(arguments.fold), indent=2))
-
+    print(json.dumps(build(arguments.fold, arguments.workers), indent=2))

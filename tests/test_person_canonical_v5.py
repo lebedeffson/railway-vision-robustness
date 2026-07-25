@@ -11,6 +11,11 @@ from PIL import Image
 from torch import nn
 
 from scripts.person_canonical_v5.lock_protocol import validate
+from scripts.person_canonical_v5.materialize_pasting import (
+    candidate_anchors,
+    encode_labels,
+    read_labels,
+)
 from src.augmentation.person_pasting import (
     AuditFlag,
     Box,
@@ -42,6 +47,7 @@ from src.training.gradual_transfer import (
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / "configs/person_v5/protocol.yaml"
+CANDIDATE_RUNTIME = ROOT / "configs/person_v5/candidate_runtime.yaml"
 
 
 class PersonCanonicalV5ProtocolTest(unittest.TestCase):
@@ -96,6 +102,23 @@ class PersonCanonicalV5ProtocolTest(unittest.TestCase):
         self.assertEqual(gate["macro_small_recall_min"], 0.30)
         self.assertEqual(gate["worst_fold_recall_min"], 0.30)
 
+    def test_candidate_runtime_excludes_rejected_gradual_transfer(self) -> None:
+        runtime = yaml.safe_load(
+            CANDIDATE_RUNTIME.read_text(encoding="utf-8")
+        )
+        self.assertTrue(runtime["test_sealed"])
+        self.assertEqual(
+            runtime["execution"]["V5-E"], "excluded_by_diagnostic"
+        )
+        self.assertNotIn(
+            "V5-E",
+            " ".join(runtime["execution"]["order"]),
+        )
+        self.assertEqual(
+            runtime["pasting_fraction_selection"]["candidates"],
+            [0.25, 0.50],
+        )
+
 
 class P2AndCoordinateAttentionTest(unittest.TestCase):
     def test_coordinate_attention_preserves_shape_and_gradient(self) -> None:
@@ -149,6 +172,24 @@ class RangeAssignmentTest(unittest.TestCase):
 
 
 class PersonPastingTest(unittest.TestCase):
+    def test_generated_labels_roundtrip(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "labels.txt"
+            expected = [Box(10, 20, 30, 60)]
+            path.write_text(encode_labels(expected, 100, 100), encoding="utf-8")
+            actual = read_labels(path, 100, 100)
+            self.assertEqual(len(actual), 1)
+            for observed, reference in zip(
+                (actual[0].x1, actual[0].y1, actual[0].x2, actual[0].y2),
+                (10, 20, 30, 60),
+            ):
+                self.assertAlmostEqual(observed, reference)
+
+    def test_candidate_anchors_stay_in_image(self) -> None:
+        anchors = candidate_anchors(Box(40, 20, 50, 60), 100, 100)
+        self.assertTrue(anchors)
+        self.assertTrue(all(0 <= x < 100 and 0 <= y < 100 for x, y in anchors))
+
     def test_mask_quality_rejects_rectangular_foreground(self) -> None:
         full = np.ones((20, 10), dtype=np.uint8) * 255
         passed, metrics = mask_quality(
