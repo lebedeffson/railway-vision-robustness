@@ -233,6 +233,15 @@ The only v5-v1 GPU candidate is D1 on folds 0/1; RT-DETR is deferred and require
 a new prospective amendment. CrowdHuman test is unused, and image data must
 never enter Git or a release bundle.
 
+Person canonical v5 range-aware runs the immutable V5-A=P2,
+V5-B=P2+Coordinate Attention, V5-C=25% person pasting and V5-D=P2+25% person
+pasting matrix. StarBlock is forbidden in those candidates. The prospective
+v5b transition is documented in `protocol/v5b/V5B_DEFERRED_ACTIVATION.md` but
+remains inactive until every primary v5 candidate finishes two folds and fails
+the frozen gates. Only then may a separate `feat/person-canonical-v5b-starcoord`
+branch lock B0, StarBlock, Coordinate Attention and StarBlock+Coordinate
+Attention candidates without P2; railway test and attacks remain sealed.
+
 The final canonical contract supersedes the earlier post-gate ordering: after
 v2 calibration and quality gate, fit/select N1 or the predeclared N2 fallback on
 clean validation, run the five-scene deterministic frame-order pilot, compute

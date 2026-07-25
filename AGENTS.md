@@ -92,6 +92,9 @@
 - Preserve `protocol/v5/V5_EXECUTION_LOCK.json` for official person-v5 runs:
   25% pasting is primary, 50% is fold-0 sensitivity only, evaluation uses
   confidence 0.07, and test/attacks stay blocked until full OOF PASS.
+- Never add StarBlock to current V5-B or V5-D. Activate the separate
+  `feat/person-canonical-v5b-starcoord` protocol only after all four primary
+  v5 candidates receive terminal two-fold FAIL; v5b excludes P2.
 
 ## Notes
 
