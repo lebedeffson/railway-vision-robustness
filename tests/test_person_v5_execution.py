@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from scripts.person_canonical_v5.execution_analysis import holm  # noqa: E402
+from scripts.person_canonical_v5.finalize_execution import finalize  # noqa: E402
 
 
 def test_execution_lock_freezes_primary_and_sensitivity_pasting() -> None:
@@ -80,3 +81,19 @@ def test_runner_never_opens_test_or_runs_attacks() -> None:
     assert "scripts.run_attack" not in source
     assert "TEST_NOT_OPENED" in source
     assert "ATTACKS_BLOCKED" in source
+
+
+def test_terminal_finalizer_waits_without_gate() -> None:
+    assert finalize()["status"] == "WAITING_FOR_TERMINAL_GATE"
+
+
+def test_finalizer_timer_is_non_mutating_until_terminal_gate() -> None:
+    timer = (
+        ROOT / "systemd/tnorm-person-v5-finalize.timer"
+    ).read_text(encoding="utf-8")
+    service = (
+        ROOT / "systemd/tnorm-person-v5-finalize.service"
+    ).read_text(encoding="utf-8")
+    assert "OnUnitActiveSec=2min" in timer
+    assert "ConditionPathExists=!" in service
+    assert "finalize_execution" in service

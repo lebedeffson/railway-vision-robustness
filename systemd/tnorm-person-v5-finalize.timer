@@ -1,0 +1,11 @@
+[Unit]
+Description=Poll terminal person canonical v5 gate
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+Unit=tnorm-person-v5-finalize.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target
