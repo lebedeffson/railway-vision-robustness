@@ -25,6 +25,11 @@ from src.data.range_assignment import (
     preferred_levels,
     small_object_weight,
 )
+from src.data.openlabel_person_geometry import (
+    bbox_from_center,
+    lidar_distance,
+    parse_occlusion,
+)
 from src.models.coordinate_attention import CoordinateAttention
 from src.models.p2_head import build_p2_model, detection_strides
 from src.training.gradual_transfer import (
@@ -111,6 +116,14 @@ class P2AndCoordinateAttentionTest(unittest.TestCase):
 
 
 class RangeAssignmentTest(unittest.TestCase):
+    def test_openlabel_geometry_parsing(self) -> None:
+        self.assertEqual(bbox_from_center([10, 20, 4, 8]), Box(8, 16, 12, 24))
+        self.assertEqual(
+            lidar_distance({"val": [3, 4, 12, 0, 0, 0, 1, 1, 1, 1]}),
+            13.0,
+        )
+        self.assertEqual(parse_occlusion("25-50 %"), 0.375)
+
     def test_verified_lidar_and_scale_fallback_are_not_conflated(self) -> None:
         lidar = assign_range_or_scale(
             area_ratio=0.0001,

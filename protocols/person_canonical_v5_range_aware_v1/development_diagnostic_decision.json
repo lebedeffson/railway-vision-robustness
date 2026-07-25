@@ -1,0 +1,33 @@
+{
+  "B1_macro_recall": 0.242420382302544,
+  "B1_worst_fold_recall": 0.0909822866344605,
+  "D1_best_macro_recall": 0.3326378273554218,
+  "D1_best_worst_fold_recall": 0.1819645732689211,
+  "V5_E_status": "EXCLUDED_BY_PROSPECTIVE_DIAGNOSTIC_RULE",
+  "allowed_main_candidates": [
+    "V5-A",
+    "V5-B",
+    "V5-C",
+    "V5-D"
+  ],
+  "attacks_blocked": true,
+  "created_at": "2026-07-25T10:36:34.282063+00:00",
+  "diagnostic_lock_sha256": "6a69da8d1e88af83d0f4a1ef0ca880dd2d40934c4dd1d51540c85aaa882a274d",
+  "diagnostic_status": "PASS",
+  "evaluator_parity": "PASS",
+  "fixed_confidence_threshold": 0.07,
+  "fixed_iou_threshold": 0.5,
+  "gradual_transfer_allowed": false,
+  "input_hashes": {
+    "outputs/person_canonical_v5/development_diagnostic/development_diagnostic_summary.json": "0fdaccdb75af4a11b4cddf77d88d289561cce2172e0e47fab36b0ed49571ccb8",
+    "outputs/person_canonical_v5/development_diagnostic/per_area_results.csv": "ca8adb87d4261bf88608e96065cd62b438d83213a25e344b821aa5b06e1873e8",
+    "outputs/person_canonical_v5/development_diagnostic/per_scene_results.csv": "80d25a1bebc099c4baedb55b155ee93b9f0a840055c2bbd564bbbed0a2c77c85",
+    "outputs/person_canonical_v5/development_diagnostic/state_fold_results.csv": "b1a6711c7b201f623e7aab0efc63595e6026b8e7b245e9091c032f23873dcf98",
+    "outputs/person_canonical_v5/development_diagnostic/state_macro_results.csv": "19cf4630b3705c58af04c1ea2faa3b66bf6ecc380ff76286efb9d48a37ee0c2c"
+  },
+  "lock_git_commit": "655928dcdf64130fe5850b28880cf141b357c06f",
+  "protocol_id": "person-canonical-v5-range-aware-v1",
+  "protocol_lock_sha256": "cbf9869dffb41a49d6108987f1910475eed1d878930e051f5ecce0417fe7ba9c",
+  "scientific_result": false,
+  "test_opened": false
+}
