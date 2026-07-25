@@ -583,7 +583,6 @@ def main() -> int:
             str(REFERENCE_DOCX),
             "--resource-path",
             str(FINAL),
-            "--toc",
             "-o",
             str(docx),
         ],
