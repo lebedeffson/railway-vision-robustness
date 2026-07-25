@@ -6,6 +6,8 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from scripts.person_canonical_v5.common import (
     OUTPUT,
     PROJECT,
@@ -19,6 +21,7 @@ from scripts.person_canonical_v5.train_candidates import assert_runtime_locked
 
 PYTHON = PROJECT / ".venv/bin/python"
 STATUS = OUTPUT / "candidate_pipeline_status.json"
+RUNTIME = PROJECT / "configs/person_v5/candidate_runtime.yaml"
 
 
 def update(stage: str, state: str, **values: Any) -> None:
@@ -26,7 +29,9 @@ def update(stage: str, state: str, **values: Any) -> None:
         json.loads(STATUS.read_text(encoding="utf-8"))
         if STATUS.is_file()
         else {
-            "protocol_id": "person-canonical-v5-candidate-runtime-v1a",
+            "protocol_id": yaml.safe_load(
+                RUNTIME.read_text(encoding="utf-8")
+            )["protocol_id"],
             "test_opened": False,
             "stages": {},
         }
@@ -124,6 +129,11 @@ def prepare_pasting(fold: int, fraction: int) -> None:
     payload = json.loads(summary.read_text(encoding="utf-8"))
     if payload["maximum_insertions_per_frame"] > 2:
         raise RuntimeError("Pasting contract exceeded two instances per frame")
+    if (
+        payload["accepted_frames"]
+        != payload["target_changed_frames"]
+    ):
+        raise RuntimeError("Requested changed-frame fraction was not achieved")
     update(
         f"pasting_fold{fold}_fraction{fraction}",
         "success",
@@ -194,4 +204,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

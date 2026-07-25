@@ -1,9 +1,16 @@
-protocol_id: person-canonical-v5-candidate-runtime-v1a
+protocol_id: person-canonical-v5-candidate-runtime-v1b
 parent_protocol: person-canonical-v5-range-aware-v1
 amendment:
-  timing: before_first_candidate_training
-  reason: enforce_frozen_maximum_two_insertions_per_source_frame
-  supersedes: person-canonical-v5-candidate-runtime-v1
+  timing: after_partial_V5_A_without_completion_marker_or_metrics
+  reason: enforce_requested_changed_frame_fraction_after_geometric_rejections
+  supersedes: person-canonical-v5-candidate-runtime-v1a
+  preserved:
+    - candidate_models
+    - training_recipe
+    - folds
+    - gates
+    - pasting_fraction_candidates
+    - test_seal
 test_sealed: true
 test_marker: outputs/person_v3/test/TEST_OPENED.json
 diagnostic_decision: protocols/person_canonical_v5_range_aware_v1/development_diagnostic_decision.json
@@ -82,6 +89,9 @@ pasting_fraction_selection:
 instance_pasting_contract:
   maximum_insertions_per_source_frame: 2
   source_frame_match: exact_frame_token
+  changed_fraction_denominator: all_current_fold_train_source_frames
+  changed_fraction_must_equal_requested: true
+  insufficient_geometrically_valid_frames: FAIL
 
 evaluation:
   confidence_min: 0.001

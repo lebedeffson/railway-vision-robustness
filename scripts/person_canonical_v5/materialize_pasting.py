@@ -145,8 +145,26 @@ def materialize(fold: int, changed_fraction: float) -> dict[str, Any]:
     perspective = fit_perspective(tiles)
     frame_ids = sorted(tiles["source_image"].astype(str).unique())
     rng = np.random.default_rng(SEED + fold + int(changed_fraction * 100))
-    selected_count = int(round(len(frame_ids) * changed_fraction))
-    selected = set(rng.choice(frame_ids, selected_count, replace=False).tolist())
+    target_count = int(round(len(frame_ids) * changed_fraction))
+    eligible = {
+        str(row.source_image)
+        for row in tiles.itertuples(index=False)
+        if read_labels(
+            Path(row.tile_label),
+            int(row.right) - int(row.left),
+            int(row.bottom) - int(row.top),
+        )
+    }
+    if len(eligible) < target_count:
+        raise RuntimeError(
+            f"Only {len(eligible)} frames can support a geometrically anchored "
+            f"paste; {target_count} are required"
+        )
+    ordered_eligible = rng.permutation(sorted(eligible)).tolist()
+    rank = {frame: index for index, frame in enumerate(ordered_eligible)}
+    tiles["selection_rank"] = tiles["source_image"].astype(str).map(
+        lambda value: rank.get(value, len(rank))
+    )
     suffix = f"fraction_{int(changed_fraction * 100)}"
     destination = ROOT / f"fold_{fold}/{suffix}/dataset"
     image_root = destination / "images/train"
@@ -158,7 +176,10 @@ def materialize(fold: int, changed_fraction: float) -> dict[str, Any]:
     inserted_by_frame: dict[str, int] = {}
     original_gt = generated_gt = inserted_gt = 0
     bank_records = list(bank.to_dict("records"))
-    for row in tiles.sort_values(["source_image", "tile_id"]).itertuples(index=False):
+    attempted_frames: set[str] = set()
+    for row in tiles.sort_values(
+        ["selection_rank", "source_image", "tile_id"]
+    ).itertuples(index=False):
         source_image = Path(row.tile_image)
         source_label = Path(row.tile_label)
         output_image = image_root / source_image.name
@@ -170,10 +191,12 @@ def materialize(fold: int, changed_fraction: float) -> dict[str, Any]:
         attempts = []
         frame_key = str(row.source_image)
         if (
-            frame_key in selected
+            frame_key in eligible
+            and len(accepted_frames) < target_count
             and boxes
             and inserted_by_frame.get(frame_key, 0) < 2
         ):
+            attempted_frames.add(frame_key)
             ordered_boxes = sorted(boxes, key=lambda box: (box.height, box.x1))
             for existing in ordered_boxes:
                 for anchor in candidate_anchors(existing, image.width, image.height):
@@ -276,7 +299,7 @@ def materialize(fold: int, changed_fraction: float) -> dict[str, Any]:
         else:
             symlink_or_replace(source_image, output_image)
             symlink_or_replace(source_label, output_label)
-            if str(row.source_image) in selected:
+            if frame_key in attempted_frames:
                 audit_rows.append(
                     {
                         "fold": fold,
@@ -298,6 +321,11 @@ def materialize(fold: int, changed_fraction: float) -> dict[str, Any]:
         raise RuntimeError("Generated GT count does not match accepted pastes")
     if max(inserted_by_frame.values(), default=0) > 2:
         raise RuntimeError("Frozen maximum of two insertions per frame exceeded")
+    if len(accepted_frames) != target_count:
+        raise RuntimeError(
+            f"Changed-frame contract failed: {len(accepted_frames)} != "
+            f"{target_count}"
+        )
     train_list = destination / "train.txt"
     atomic_text(train_list, "\n".join(output_images) + "\n")
     validation = PERSON_DATASET / f"folds/fold_{fold}/val.txt"
@@ -317,7 +345,8 @@ def materialize(fold: int, changed_fraction: float) -> dict[str, Any]:
         "requested_changed_frame_fraction": changed_fraction,
         "achieved_changed_frame_fraction": achieved,
         "train_frames": len(frame_ids),
-        "selected_frames": len(selected),
+        "target_changed_frames": target_count,
+        "attempted_frames": len(attempted_frames),
         "accepted_frames": len(accepted_frames),
         "inserted_GT": inserted_gt,
         "maximum_insertions_per_frame": max(

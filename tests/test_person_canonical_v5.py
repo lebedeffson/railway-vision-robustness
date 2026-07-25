@@ -124,6 +124,11 @@ class PersonCanonicalV5ProtocolTest(unittest.TestCase):
             ],
             2,
         )
+        self.assertTrue(
+            runtime["instance_pasting_contract"][
+                "changed_fraction_must_equal_requested"
+            ]
+        )
 
     def test_candidate_service_keeps_test_sealed(self) -> None:
         service = (
