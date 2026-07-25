@@ -103,6 +103,9 @@
   must not be read unless T0-D passes the frozen fold-0 gate.
 - Canonical v6 T0 ended at fold-0 FAIL: Product fusion improved Recall only
   +0.00322 and small Recall +0.00357. Keep fold 1, T1, test and attacks blocked.
+- Canonical v7 V0 ended at fold-0 FAIL. Its monotone tabular verifier was
+  selected and thresholded on train-scene OOF but suppressed held-out TP;
+  keep fold 1 sealed and add a crop verifier only through a new prospective lock.
 
 ## Notes
 

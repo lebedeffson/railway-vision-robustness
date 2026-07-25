@@ -34,6 +34,7 @@ test и запуска атак.
 | Person v5 range-aware | V5-A и V5-B: two-fold FAIL; официальный V5-C остановлен до первой эпохи из-за label-integrity defect | запечатан |
 | Person v5 expedited screening | C0/C1/C2 successive halving, только compute screening | запечатан |
 | Person v6 temporal T-norm | T0 fold-0 FAIL; fold 1 skipped, T1 blocked | запечатан |
+| Person v7 tracklet verifier | V0 fold-0 FAIL; fold 1 skipped; crop stage требует нового lock | запечатан |
 
 Зафиксированный person-v3 baseline на folds 0/1:
 
@@ -166,6 +167,23 @@ Test и атаки остаются закрытыми.
 systemctl --user status tnorm-person-v6-t0.service --no-pager
 journalctl --user -u tnorm-person-v6-t0.service -f
 ```
+
+## Текущий протокол: person v7 tracklet verifier
+
+`canonical-v7-person-tracklet-verifier-v1` проверяет, можно ли отделить
+дополнительные TP высокорекольного ByteTrack-потока от FP без переобучения B0.
+Два монотонных scorer-а обучались только по train-сценам fold 0; модель,
+калибровка и standard/safety thresholds выбирались по grouped train-scene OOF
+до чтения held-out fold 0.
+
+V0 завершён с `FAIL`. Выбранный monotonic gradient boosting получил на
+held-out standard point `mAP50=0.22048`, `Recall=0.08776`,
+`small Recall=0.02681`, то есть уступил B0 (`0.25114/0.20129/0.14656`).
+Fold 1 не читался. Crop-verifier допускается только отдельным prospective
+amendment; менять V0 после результата запрещено.
+
+Полный отчёт:
+[`reports/v7/V7_V0_FINAL_REPORT.md`](reports/v7/V7_V0_FINAL_REPORT.md).
 
 Официальное состояние исполнения:
 
