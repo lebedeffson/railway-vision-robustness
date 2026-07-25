@@ -1,0 +1,33 @@
+{
+  "ambiguous_tracklets_excluded_from_training": true,
+  "attacks_status": "BLOCKED",
+  "config_sha256": "6ac5a59fe1f1d75c347689d60b4cf04c35f3a5792c391543b99d1ec4c6bdc59d",
+  "crop_verifier_status": "DEFERRED_UNLESS_V0_FAIL",
+  "fold_1_runs_only_after_fold_0_pass": true,
+  "heldout_fold_0_read_after_freeze_only": true,
+  "implementation_commit": "e12d186b0e21f867e5c482d7beb536a925bfd3c0",
+  "implementation_sha256": {
+    "configs/canonical_v7_person_tracklet_verifier.yaml": "6ac5a59fe1f1d75c347689d60b4cf04c35f3a5792c391543b99d1ec4c6bdc59d",
+    "protocol/v7/V7_PROTOCOL.md": "980b3c983968dc3e095b6b0a45ee6a2295184a3e268b2c63f6bbcd725a55d973",
+    "scripts/audit_evaluator.py": "815c1649b730bc152a6362f03f53b4c4a72f4c3d30b8b703b6b7f830ecbfc727",
+    "scripts/person_v3/evaluate.py": "fe289a376b087e6d07e7088ed0ad84efb8d9ff4a66b48d8470d527026eef79dc",
+    "scripts/person_v7/common.py": "039bf888a036808905a1616410aa2c13a88c1b9490b456fdc68e293cb0374be9",
+    "scripts/person_v7/lock_protocol.py": "5841e0ee65db65ff23e24b3bb621b2ad3af67d042d313dc0d05a924de5e53815",
+    "scripts/person_v7/run_v0.py": "317b6cbbc6d77b76f4ea6af297f0f9a37b4b92433c4ef945c112e806fc86b9d6",
+    "src/temporal/ratta.py": "33810d8542972d0d28e6567ed1824496ca578248c13c5b14ed95e6f3fe9144bb",
+    "src/tracklet_verifier/__init__.py": "e13d7b372ef65ccdfa58fcd4481e96888d3e2853d7539a8429c2fae255280738",
+    "src/tracklet_verifier/verifier.py": "9e13dc3bb9c80afd165f3fab4bb4d674a042b03e7a2cf2bd2a9238a4833d8ebc",
+    "systemd/tnorm-person-v7-v0.service": "ecf14072df977248792c3f749d56b6a3ca6530084ec9c69ee6561f9a7c2786a5",
+    "tests/test_person_v7_tracklet_verifier.py": "84e38b28342ce7bd58261dd28b34b50bb868e089a54dbcc1db7a828c42cbe317"
+  },
+  "model_selection_uses_train_scene_oof_only": true,
+  "models": [
+    "V0-A_monotone_rank_logistic",
+    "V0-B_monotone_hist_gradient_boosting"
+  ],
+  "parent_result": "canonical-v6-person-temporal-tnorm-v1:T0_FAIL",
+  "protocol_id": "canonical-v7-person-tracklet-verifier-v1",
+  "test_status": "SEALED",
+  "test_used": false,
+  "threshold_selection_uses_train_scene_oof_only": true
+}
