@@ -420,3 +420,17 @@ leave-one-scene-out reduction was -15.77%. Brier and ECE improved slightly,
 but secondary calibration cannot rescue the primary failure. Close v8b as
 `DEVELOPMENT_FAIL`; do not open risk-only test or claim incremental T-norm
 value.
+
+The post-lock V8b finalizer independently reconstructs all article metrics
+from `OOF_PREDICTIONS.csv` without checkpoint, image, raw-feature or test
+access. It generates six article tables, five figures, LOSO and size-weighting
+sensitivities, MD/DOCX/PDF and a redacted public release. Release acceptance
+requires exact U2/U3 anchors, 5/15 wins, paired-bootstrap reproduction, zero
+test access, no absolute paths/emails/secrets, and archive checksums.
+
+Canonical v9 is a new prospective design, not a reinterpretation of V8b.
+It remains `BLOCKED_PREREQUISITES` until either five new independent
+development scenes or detector-OOF features for every old scene exist. Its
+primary endpoint remains FN/frame MAE; V3 adds only train-residualized,
+causal temporal T-norm signal to V2. The synthetic proxy is implementation
+evidence only.

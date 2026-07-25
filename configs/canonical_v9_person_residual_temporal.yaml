@@ -1,0 +1,83 @@
+protocol_id: canonical-v9-person-residual-temporal-v1
+parent_protocol: canonical-v8b-person-failure-risk-v1
+status: BLOCKED_PREREQUISITES
+
+activation:
+  any_of:
+    - new_independent_development_scenes_minimum: 5
+    - detector_oof_features:
+        required_grouped_scenes: 15
+        detector_excluded_held_out_scene: true
+  current_new_scene_count: 0
+  current_detector_oof_scene_count: 0
+
+scope:
+  target_class: person
+  primary_endpoint: scene_macro_MAE_fn_per_frame
+  endpoint_selected_prospectively: true
+  test_status: SEALED
+  test_access_count: 0
+  adversarial_attacks: out_of_scope
+  article_evidence_from_proxy: false
+
+validation:
+  outer_split: leave_one_grouped_scene_out
+  inner_split: leave_one_grouped_scene_out
+  statistical_unit: grouped_scene_id
+  bootstrap_iterations: 10000
+  bootstrap_seed: 20260726
+  all_preprocessing_fit_train_only: true
+
+baseline:
+  name: V2
+  features:
+    - detector_statistics
+    - standard_representation_metrics
+
+candidate:
+  name: V3_residual_temporal_tnorm
+  residualization:
+    base_prediction: train_scene_oof_V2
+    tnorm_features_residualized_against: V2_features
+    fit_scope: inner_train_scenes_only
+    final_prediction: V2_prediction_plus_residual_tnorm_prediction
+  temporal_features:
+    causal_only: true
+    windows: [3, 5]
+    fields:
+      - product_delta
+      - lukasiewicz_delta
+      - rolling_median
+      - rolling_mad
+      - rolling_slope
+      - change_point_score
+      - proposal_background_temporal_gap
+    future_frame_access: forbidden
+
+models:
+  primary:
+    family: hierarchical_mixed_effects_regression
+    fixed_effects:
+      - V2_features
+      - residualized_tnorm_features
+    random_intercept: grouped_scene_id
+    optional_random_slope: disabled
+  sensitivity:
+    family: gradient_boosting
+    selection: strict_nested_scene_cv
+  neural_risk_model: forbidden
+
+gate:
+  relative_scene_macro_MAE_reduction_minimum_percent: 5.0
+  paired_scene_bootstrap_delta_MAE_CI_upper_below: 0.0
+  scene_win_fraction_minimum: 0.70
+  worst_LOSO_relative_reduction_minimum_percent: 0.0
+  secondary_endpoints_cannot_rescue_primary_failure: true
+
+forbidden:
+  - reuse_v8b_as_confirmation
+  - post_hoc_endpoint_change
+  - test_based_feature_selection
+  - future_frame_features
+  - scene_leakage
+  - raw_U3_repetition_without_residualization

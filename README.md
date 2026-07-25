@@ -36,7 +36,8 @@ test и запуска атак.
 | Person v6 temporal T-norm | T0 fold-0 FAIL; fold 1 skipped, T1 blocked | запечатан |
 | Person v7 tracklet verifier | V0 и frozen-crop V1/V2: fold-0 FAIL; fold 1 skipped | запечатан |
 | Person v8 active data | BLOCKED_NO_NEW_DATA; GPU_NOT_STARTED | запечатан |
-| Person v8b failure risk | DEVELOPMENT_FAIL; U3 worsened primary FN/frame MAE | не открывался |
+| Person v8b failure risk | FINALIZED_NEGATIVE_RESULT; U3 worsened primary FN/frame MAE | не открывался |
+| Person v9 residual-temporal | BLOCKED_PREREQUISITES; design frozen, execution not started | запечатан |
 
 Зафиксированный person-v3 baseline на folds 0/1:
 
@@ -67,7 +68,7 @@ execution-lock не создавался, test не открывался. Acquis
 без изменений.
 
 ```bash
-PYTHONPATH="$PWD:$PWD/scripts" /home/lebedeffson/Code/venv/bin/python \
+PYTHONPATH="$PWD:$PWD/scripts" python \
   scripts/person_v8/audit_active_data.py
 ```
 
@@ -139,6 +140,36 @@ test_access_count:           0
 U3 немного улучшил Brier и ECE, но вторичные показатели не могут заменить
 провал заранее зафиксированного первичного endpoint. Положительный вклад
 T-нормовых признаков на текущем development pool не подтверждён.
+
+Финальный V8b-пакет воспроизводится только из сохранённой development OOF
+таблицы:
+
+```bash
+PYTHONPATH="$PWD/scripts" python scripts/v8b/finalize_v8b.py
+PYTHONPATH="$PWD/scripts" python scripts/v8b/build_article_v8b.py
+PYTHONPATH="$PWD/scripts" python scripts/v8b/build_release_v8b.py
+```
+
+Выходы находятся в `outputs/person_v8b/final/`: шесть таблиц статьи, пять
+рисунков, MD/DOCX/PDF, независимый audit и публичный ZIP. Датасет,
+изображения, checkpoint, сырые признаки, test и локальные пути в архив не
+включаются.
+
+## Prospective protocol: person v9
+
+`canonical-v9-person-residual-temporal-v1` проверяет уникальный остаточный
+T-нормовый сигнал после train-only residualization и причинные временные
+признаки. Primary endpoint остаётся `FN/frame`.
+
+V9 не запущен. Его активация разрешена только после одного из условий:
+
+- не менее пяти новых независимых railway development-сцен; либо
+- detector-OOF predictions/features для всех 15 сцен, где held-out сцена
+  исключена из обучения соответствующего детектора.
+
+До этого `V9_PREREQUISITES.json` сохраняет
+`BLOCKED_PREREQUISITES`, `execution_status=NOT_STARTED` и
+`test_access_count=0`.
 
 ## Данные и статистическая единица
 

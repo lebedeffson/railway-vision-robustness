@@ -118,6 +118,12 @@
 - Canonical v8b ended at `DEVELOPMENT_FAIL`: U2 MAE was 1.59549 and U3 MAE
   was 1.76798 (relative reduction -10.81%, 5/15 scene wins). Preserve the
   negative result; risk-only test remains sealed and T-norm gain is unconfirmed.
+- Final V8b publication artifacts must be regenerated only from the saved OOF
+  table with `scripts/v8b/finalize_v8b.py`; the independent audit, article
+  validation and public-bundle redaction must all pass before release.
+- Canonical v9 is prospective and `BLOCKED_PREREQUISITES`. Do not execute it
+  until five new independent scenes or detector-OOF features for all 15 scenes
+  pass audit; its primary endpoint is still scene-macro `FN/frame` MAE.
 
 ## Notes
 

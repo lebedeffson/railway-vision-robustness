@@ -1,0 +1,21 @@
+{
+  "protocol_id": "canonical-v9-person-residual-temporal-v1",
+  "status": "BLOCKED_PREREQUISITES",
+  "new_independent_development_scenes": {
+    "required": 5,
+    "observed": 0,
+    "passed": false
+  },
+  "detector_oof_features": {
+    "required_grouped_scenes": 15,
+    "observed_grouped_scenes": 0,
+    "detector_excludes_held_out_scene": false,
+    "passed": false
+  },
+  "activation_rule": "AT_LEAST_ONE_PREREQUISITE_MUST_PASS",
+  "activation_passed": false,
+  "proxy_article_evidence": false,
+  "test_status": "SEALED",
+  "test_access_count": 0,
+  "execution_status": "NOT_STARTED"
+}
