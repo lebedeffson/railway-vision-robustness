@@ -34,7 +34,7 @@ test и запуска атак.
 | Person v5 range-aware | V5-A и V5-B: two-fold FAIL; официальный V5-C остановлен до первой эпохи из-за label-integrity defect | запечатан |
 | Person v5 expedited screening | C0/C1/C2 successive halving, только compute screening | запечатан |
 | Person v6 temporal T-norm | T0 fold-0 FAIL; fold 1 skipped, T1 blocked | запечатан |
-| Person v7 tracklet verifier | V0 fold-0 FAIL; fold 1 skipped; crop stage требует нового lock | запечатан |
+| Person v7 tracklet verifier | V0 и frozen-crop V1/V2: fold-0 FAIL; fold 1 skipped | запечатан |
 
 Зафиксированный person-v3 baseline на folds 0/1:
 
@@ -179,11 +179,13 @@ journalctl --user -u tnorm-person-v6-t0.service -f
 V0 завершён с `FAIL`. Выбранный monotonic gradient boosting получил на
 held-out standard point `mAP50=0.22048`, `Recall=0.08776`,
 `small Recall=0.02681`, то есть уступил B0 (`0.25114/0.20129/0.14656`).
-Fold 1 не читался. Crop-verifier допускается только отдельным prospective
-amendment; менять V0 после результата запрещено.
+Отдельно зафиксированный crop-amendment также завершён с `FAIL`: train-OOF
+выбрал V2 fusion, но held-out standard дал `0.22571/0.09098/0.02949`.
+Fold 1 не читался. Дополнительный подбор verifier-а на тех же сценах запрещён.
 
-Полный отчёт:
-[`reports/v7/V7_V0_FINAL_REPORT.md`](reports/v7/V7_V0_FINAL_REPORT.md).
+Отчёты:
+[`V0`](reports/v7/V7_V0_FINAL_REPORT.md) и
+[`V1/V2 crop`](reports/v7/V7_CROP_FINAL_REPORT.md).
 
 Официальное состояние исполнения:
 

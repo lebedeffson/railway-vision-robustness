@@ -280,6 +280,14 @@ V0 therefore failed; fold 1 remained unread. A crop verifier is allowed only
 under a new prospective amendment and may reuse the frozen CrowdHuman
 checkpoint without publishing CrowdHuman images or crops.
 
+The prospective crop amendment used the frozen CrowdHuman checkpoint
+`c16f796...` and three contextual crops per tracklet. Train-scene OOF selected
+V2 monotone tabular+crop fusion before held-out scoring. On fold 0, V2 standard
+gave mAP50 0.22571, Recall 0.09098 and small Recall 0.02949; V1 crop-only
+safety gave a descriptive Recall 0.21900 but missed the frozen 0.25 gate and
+was not the OOF-selected candidate. The amendment therefore failed, fold 1
+remained unread, and no further same-pool verifier cycle is allowed.
+
 The final canonical contract supersedes the earlier post-gate ordering: after
 v2 calibration and quality gate, fit/select N1 or the predeclared N2 fallback on
 clean validation, run the five-scene deterministic frame-order pilot, compute

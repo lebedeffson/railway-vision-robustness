@@ -105,7 +105,8 @@
   +0.00322 and small Recall +0.00357. Keep fold 1, T1, test and attacks blocked.
 - Canonical v7 V0 ended at fold-0 FAIL. Its monotone tabular verifier was
   selected and thresholded on train-scene OOF but suppressed held-out TP;
-  keep fold 1 sealed and add a crop verifier only through a new prospective lock.
+  the separately locked frozen-CrowdHuman crop V1/V2 amendment also failed.
+  Keep fold 1/test/attacks sealed and do not start a third same-pool verifier cycle.
 
 ## Notes
 
