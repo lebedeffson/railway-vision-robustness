@@ -1,0 +1,18 @@
+{
+  "protocol_id": "canonical-v8-person-active-data-v1",
+  "closed_at": "2026-07-25T21:01:14Z",
+  "status": "BLOCKED_NO_NEW_DATA",
+  "scientific_status": "NOT_EVALUATED",
+  "gpu_status": "GPU_NOT_STARTED",
+  "training_authorized": false,
+  "acquisition_manifest_present": false,
+  "correction_log_present": false,
+  "execution_lock_present": false,
+  "test_status": "SEALED",
+  "test_access_count": 0,
+  "attacks_status": "BLOCKED",
+  "acquisition_lock_sha256": "b4fccb26b7a14b5ad824a968d22ca5642db3c8b1124007d75ceaae35c78ff350",
+  "protocol_config_sha256": "086bc69e93d62f80373f1d42a7a1749d89ffc73f232bf04da305705120f98d42",
+  "reason": "The prospectively required independent railway scenes were not available. The locked acquisition protocol is preserved unchanged and no detector training was started."
+}
+

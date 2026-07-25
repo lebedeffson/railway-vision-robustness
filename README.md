@@ -35,7 +35,7 @@ test и запуска атак.
 | Person v5 expedited screening | C0/C1/C2 successive halving, только compute screening | запечатан |
 | Person v6 temporal T-norm | T0 fold-0 FAIL; fold 1 skipped, T1 blocked | запечатан |
 | Person v7 tracklet verifier | V0 и frozen-crop V1/V2: fold-0 FAIL; fold 1 skipped | запечатан |
-| Person v8 active data | acquisition protocol frozen; WAITING_FOR_NEW_DATA | запечатан |
+| Person v8 active data | BLOCKED_NO_NEW_DATA; GPU_NOT_STARTED | запечатан |
 
 Зафиксированный person-v3 baseline на folds 0/1:
 
@@ -48,7 +48,7 @@ test и запуска атак.
 
 ## Текущий протокол: person v8 active data
 
-`canonical-v8-person-active-data-v1` не добавляет новую архитектурную или
+`canonical-v8-person-active-data-v1` не добавлял новую архитектурную или
 математическую надстройку. Он разрешает продолжение только после добавления
 минимум трёх действительно новых railway-сцен, 300 вручную проверенных кадров
 и 500 person boxes, из которых не менее 40% относятся к small/distant people.
@@ -60,8 +60,10 @@ test и запуска атак.
 2. execution-lock создаётся только после `CPU_GATE: PASS` и хеширует реальные
    данные, аудит и новые scene-disjoint folds.
 
-Без execution-lock GPU screening физически заблокирован. Отсутствие новых
-данных имеет статус `WAITING_FOR_NEW_DATA`, а не `FAIL`.
+Новые независимые сцены не были доступны. Протокол закрыт как
+`BLOCKED_NO_NEW_DATA`: это не quality-gate FAIL, обучение не запускалось,
+execution-lock не создавался, test не открывался. Acquisition-lock сохранён
+без изменений.
 
 ```bash
 PYTHONPATH="$PWD:$PWD/scripts" /home/lebedeffson/Code/venv/bin/python \

@@ -110,6 +110,8 @@
 - Canonical v8 is active-data only. Do not start GPU training until at least
   three genuinely new railway scenes pass the manual-annotation CPU audit,
   frozen scene splits and `V8_EXECUTION_LOCK`; old fold 0 is tuning-only.
+- Canonical v8 closed as `BLOCKED_NO_NEW_DATA` before GPU execution. Preserve
+  its acquisition lock; do not reopen it or substitute old/synthetic scenes.
 
 ## Notes
 
