@@ -36,7 +36,7 @@ test и запуска атак.
 | Person v6 temporal T-norm | T0 fold-0 FAIL; fold 1 skipped, T1 blocked | запечатан |
 | Person v7 tracklet verifier | V0 и frozen-crop V1/V2: fold-0 FAIL; fold 1 skipped | запечатан |
 | Person v8 active data | BLOCKED_NO_NEW_DATA; GPU_NOT_STARTED | запечатан |
-| Person v8b failure risk | protocol implemented; development LOSO not evaluated | запечатан |
+| Person v8b failure risk | DEVELOPMENT_FAIL; U3 worsened primary FN/frame MAE | не открывался |
 
 Зафиксированный person-v3 baseline на folds 0/1:
 
@@ -123,6 +123,22 @@ F0 audit -> F1 frozen-B0 features -> F2 nested 15-scene LOSO
 ```
 
 FGSM/PGD и заявления об adversarial robustness исключены из v8b.
+
+Итог development-проверки:
+
+```text
+U2 scene-macro MAE FN/frame: 1.59549
+U3 scene-macro MAE FN/frame: 1.76798
+relative MAE reduction:      -10.81%
+paired bootstrap 95% CI:     [-0.00850, 0.40791]
+scene wins:                  5/15
+status:                      DEVELOPMENT_FAIL
+test_access_count:           0
+```
+
+U3 немного улучшил Brier и ECE, но вторичные показатели не могут заменить
+провал заранее зафиксированного первичного endpoint. Положительный вклад
+T-нормовых признаков на текущем development pool не подтверждён.
 
 ## Данные и статистическая единица
 

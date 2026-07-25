@@ -115,6 +115,9 @@
 - Canonical v8b freezes B0 and predicts `FN/frame`; U3-vs-U2 scene-macro MAE is
   primary. GT regions are oracle-only, nested LOSO refits train-only statistics,
   and secondary metrics cannot rescue a primary FAIL or open test.
+- Canonical v8b ended at `DEVELOPMENT_FAIL`: U2 MAE was 1.59549 and U3 MAE
+  was 1.76798 (relative reduction -10.81%, 5/15 scene wins). Preserve the
+  negative result; risk-only test remains sealed and T-norm gain is unconfirmed.
 
 ## Notes
 

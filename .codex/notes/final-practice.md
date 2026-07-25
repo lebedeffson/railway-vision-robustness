@@ -410,3 +410,13 @@ stability. Secondary endpoints cannot rescue failure. B0 was trained on 12 of
 the 15 risk-development scenes, so this LOSO concerns the risk estimator rather
 than uniformly detector-OOF performance. Deployable regions use B0 proposals;
 GT regions are oracle-only. Test and attacks remain sealed/out of scope.
+
+V8b completed F0/F1/F2 on 1,085 frames from all 15 development scenes.
+Technical checks passed, but the confirmatory result was negative: U2
+scene-macro MAE for `FN/frame` was 1.59549 and U3 was 1.76798, a -10.81%
+relative reduction (worsening). The paired scene-bootstrap interval for
+U3-U2 was [-0.00850, 0.40791], U3 won only 5/15 scenes, and minimum
+leave-one-scene-out reduction was -15.77%. Brier and ECE improved slightly,
+but secondary calibration cannot rescue the primary failure. Close v8b as
+`DEVELOPMENT_FAIL`; do not open risk-only test or claim incremental T-norm
+value.

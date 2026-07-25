@@ -1,0 +1,54 @@
+{
+  "protocol_id": "canonical-v8b-person-failure-risk-v1",
+  "status": "DEVELOPMENT_FAIL",
+  "scientific_status": "SCIENTIFIC_FAIL",
+  "detector_training": "NOT_RUN",
+  "test_status": "SEALED",
+  "test_access_count": 0,
+  "attacks_status": "OUT_OF_SCOPE",
+  "implementation_commit": "c1a311124f57bf86a5a96d954ba2d41c28fcf11c",
+  "protocol_lock_sha256": "93c67625c243130b640c35da9447252a2913b4fb59d35e65987c638fdda68e32",
+  "checkpoint_sha256": "5a8483b1d40938f49b05225cfe4b3c92414e874fe72008746396ea32bcfb0a79",
+  "development": {
+    "frames": 1085,
+    "grouped_scenes": 15,
+    "evaluator_consistency": "PASS",
+    "scene_leakage": 0,
+    "nan_inf": 0
+  },
+  "primary_endpoint": {
+    "comparison": "U3_minus_U2",
+    "metric": "scene_macro_MAE_fn_per_frame",
+    "U2": 1.5954889301566773,
+    "U3": 1.7679771024802038,
+    "delta_U3_minus_U2": 0.17248817232352673,
+    "relative_MAE_reduction_percent": -10.810991481250088,
+    "paired_scene_bootstrap_ci95": [
+      -0.008498921018505001,
+      0.407913906543736
+    ],
+    "scene_wins": 5,
+    "required_scene_wins": 10,
+    "minimum_leave_one_scene_out_reduction_percent": -15.772430967912845,
+    "gate": "FAIL"
+  },
+  "secondary_observations": {
+    "Brier_delta_U3_minus_U2": -0.004399145803703763,
+    "ECE_delta_U3_minus_U2": -0.005146479808544824,
+    "calibration_interpretation": "DESCRIPTIVE_ONLY",
+    "secondary_endpoints_can_rescue_primary_fail": false
+  },
+  "artifact_sha256": {
+    "F0_AUDIT.json": "903d92a616fbb11cb85b7bea75d07a32b087851af4c2184bb4001259cabd0ffe",
+    "F1_COMPLETE.json": "ee618265b149cb3a409b42e6e19d7a9fad8a2f8ad2ef9c4cb49c3aaa09b4c84b",
+    "DEVELOPMENT_GATE.json": "b957e5d10efdc7faed0a46ba12b06ca65111888a145d5538d700c29bed3e1426",
+    "OOF_PREDICTIONS.csv": "28bef1f1b0c6aee2a0555c66ff4706cadf59bb45d23ddf1486b191e7c468011d",
+    "PER_SCENE_METRICS.csv": "a43a8a849790e6fb0e5d4f175939ac56de18e8ccf1a4ba020e192f5fa00f248e",
+    "RISK_COVERAGE.csv": "856d01a14a3cbe7544cb4fa3096f13470eba177f5ce18d38d87980d08234a09c"
+  },
+  "decision": {
+    "risk_only_test": "NOT_OPENED",
+    "future_claim": "T_NORM_INCREMENTAL_VALUE_NOT_CONFIRMED",
+    "reason": "U3 failed the prospectively frozen primary development gate"
+  }
+}
