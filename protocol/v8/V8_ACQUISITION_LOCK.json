@@ -1,0 +1,32 @@
+{
+  "attack_status": "BLOCKED",
+  "files": {
+    "configs/canonical_v8_person_active_data.yaml": "086bc69e93d62f80373f1d42a7a1749d89ffc73f232bf04da305705120f98d42",
+    "protocol/v8/V8_ACQUISITION_PROTOCOL.md": "3585ca0fd486f399365dc86eae32075990152fbd63470926983fb3dfeb9f1234",
+    "protocol/v8/schemas/acquisition_manifest.schema.json": "eaa30d1888f20dbd790df14084cc186b8a844a6cbe539885a5075820d1017b70",
+    "protocol/v8/schemas/correction_log.schema.json": "1a83089d6a71ba8010699d1479eae3fce1b5a413191d392b12400802cae8762d",
+    "protocol/v8/templates/acquisition_manifest.csv": "edb114b5033cf68ff85a6f3b28d37458789aefd5258fcd749cfbe2a7405a4f8e",
+    "protocol/v8/templates/correction_log.csv": "77f7b4f6b4e5e1753385839fb1775850afb40c2d3057e22176b4e98d6c292f1d",
+    "scripts/person_v8/audit_active_data.py": "0c3539f9982c01dba3dcf5619aba3edd0b6f356ee6237419082267bd057a8b2b",
+    "scripts/person_v8/build_splits.py": "76dd94d1a8c66464757783a36250c106ac0b3c1ab16d4a67b998570259a4c634",
+    "scripts/person_v8/common.py": "27c7734ab5aa61b7d3fed79fc6931be2c337022744239ca20adf6420d1622199",
+    "scripts/person_v8/lock_acquisition.py": "04709a3d7e882d8e2a8ab50dff2660eeacf7a3c2ff93d6eb34b88b2f4ba9742d",
+    "scripts/person_v8/lock_execution.py": "d96c42c6f140baf44cc9f78e0ed1ccf9fb83a44c9e561c702ddc94c72aedc33f",
+    "scripts/person_v8/run_screening.py": "cde869bed276234eca342d9af984017a1df90520126fc25fcdcca439653d09cf",
+    "systemd/tnorm-person-v8-screening.service": "7025f754f6cf8c812012138522ba738a74ab6caefe2d8d716d94ab15cd0a103b",
+    "tests/test_person_v8_active_data.py": "0fee389e4edb95e8eeaa084ac0f791fa04739d1822c3080afd77cafcb98091f4"
+  },
+  "immutable_inputs": {
+    "b0_initialization": "d5ffc1a674953a08e11a8d21e022781b1b23a19b730afc309290bd9fb5305b95",
+    "prior_development_manifest": "b07be14110e0eb068de0aaa055759b2ac0123d531948200fa39e636638a7fcba",
+    "prior_folds": "ff5a6268c394d396c05440b8d309cf5256f998b6c371c66bc52ac9c9bccb14bf",
+    "sealed_test_manifest": "883c26446c50dab53653f4be35468d8ad359dfe0e3071bba919a09bdfff90584",
+    "tiling_protocol": "17871a1b911ecc29b3e22eb978ccb9eb5aff6bb13e89472e3cbf1c0f0e7a6c29"
+  },
+  "implementation_commit": "5e3ec6298326367f19783b1b9f899244ae3de2cf",
+  "lock_kind": "ACQUISITION_ONLY",
+  "protocol_id": "canonical-v8-person-active-data-v1",
+  "status": "WAITING_FOR_NEW_DATA",
+  "test_status": "SEALED",
+  "training_authorized": false
+}
