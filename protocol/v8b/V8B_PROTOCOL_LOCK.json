@@ -1,0 +1,30 @@
+{
+  "attacks_status": "OUT_OF_SCOPE",
+  "detector_training": "FORBIDDEN",
+  "files": {
+    "configs/canonical_v8b_person_failure_risk.yaml": "1999dc1a49d5a38bd0ff7cfdfca54c1d2da0a62b48542e8b14d49c4af6616441",
+    "protocol/v8b/V8B_PROTOCOL.md": "92a99c2d967fa28a6116feaddd5d6ea9d040196cda7cc5d4bafebdd7fe9322bd",
+    "reports/v8b/V8B_ARTICLE_SCOPE.md": "3315e79232c607d836b81cc8f41cffb13d30139a130d372c89126be3aee44a23",
+    "scripts/person_v8b/analyze_loso.py": "e5fb96e4dff506d8bbb993ed94ac212230ed2645929f7c190502a39500933554",
+    "scripts/person_v8b/common.py": "a7fae8b3d4767a9587f99d5c4f66b39c0ecef460df9a96d013e79b5508ea1bbe",
+    "scripts/person_v8b/extract_features.py": "95de7f5fa3a5fbcc88ddebdbc1665182c7594812e23327ea6dbd3ada2fdfde5a",
+    "scripts/person_v8b/f0_audit.py": "c3f10f51b7e782f0b7f90f411a26ff4ade20f3d98882698fc885240636f8efbf",
+    "scripts/person_v8b/lock_protocol.py": "ad13e6b8b1c7608f68a5eeb66757cd2385b1d65dea34bd1f94bca896049aa501",
+    "scripts/person_v8b/run_pipeline.py": "709300504d23c6036d03ae8de71177860e59a003f5e5a6f89ae16b3915abba21",
+    "systemd/tnorm-person-v8b-risk.service": "d8a3e1faf08b4f36fa69c279af631720dfecbdaecb86a293f941afb6f9e7eb09",
+    "tests/test_person_v8b_failure_risk.py": "f910e6c596ad6e8894fe4e280e669be336a6548f0c55c468ff13a1f29c6bc965"
+  },
+  "immutable_inputs": {
+    "detector_checkpoint": "5a8483b1d40938f49b05225cfe4b3c92414e874fe72008746396ea32bcfb0a79",
+    "development_manifest": "b07be14110e0eb068de0aaa055759b2ac0123d531948200fa39e636638a7fcba",
+    "sealed_test_manifest": "883c26446c50dab53653f4be35468d8ad359dfe0e3071bba919a09bdfff90584",
+    "tiling_protocol": "17871a1b911ecc29b3e22eb978ccb9eb5aff6bb13e89472e3cbf1c0f0e7a6c29",
+    "v8_closure": "9bf8d01df9e68ba65a3f56265c785ec4775eaf254b6c19ccf5c15f9580959ed7"
+  },
+  "implementation_commit": "c1a311124f57bf86a5a96d954ba2d41c28fcf11c",
+  "primary_endpoint": "scene_macro_MAE_fn_per_frame",
+  "protocol_id": "canonical-v8b-person-failure-risk-v1",
+  "status": "LOCKED_BEFORE_F0",
+  "test_access_count": 0,
+  "test_status": "SEALED"
+}
