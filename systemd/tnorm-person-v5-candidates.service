@@ -1,0 +1,18 @@
+[Unit]
+Description=Person canonical v5 development candidate matrix
+After=network-online.target
+ConditionPathExists=/home/lebedeffson/Code/андрей/TNormFilter_handoff/protocols/person_canonical_v5_range_aware_v1/candidate_runtime_lock.json
+ConditionPathExists=!/home/lebedeffson/Code/андрей/TNormFilter_handoff/outputs/person_v3/test/TEST_OPENED.json
+
+[Service]
+Type=simple
+WorkingDirectory=/home/lebedeffson/Code/андрей/TNormFilter_handoff
+Environment=PYTHONPATH=/home/lebedeffson/Code/андрей/TNormFilter_handoff:/home/lebedeffson/Code/андрей/TNormFilter_handoff/scripts
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/lebedeffson/Code/андрей/TNormFilter_handoff/.venv/bin/python -u -m scripts.person_canonical_v5.run_candidate_pipeline
+Restart=on-failure
+RestartSec=30
+Nice=5
+
+[Install]
+WantedBy=default.target

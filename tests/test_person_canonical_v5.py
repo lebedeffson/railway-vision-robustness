@@ -125,6 +125,20 @@ class PersonCanonicalV5ProtocolTest(unittest.TestCase):
             2,
         )
 
+    def test_candidate_service_keeps_test_sealed(self) -> None:
+        service = (
+            ROOT / "systemd/tnorm-person-v5-candidates.service"
+        ).read_text(encoding="utf-8")
+        self.assertIn("ConditionPathExists=!", service)
+        self.assertIn("candidate_runtime_lock.json", service)
+        self.assertNotIn("attack", service.lower())
+        pipeline = (
+            ROOT
+            / "scripts/person_canonical_v5/run_candidate_pipeline.py"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("TEST_OPENED.json", pipeline)
+        self.assertNotIn("outputs/person_v3/test", pipeline)
+
 
 class P2AndCoordinateAttentionTest(unittest.TestCase):
     def test_coordinate_attention_preserves_shape_and_gradient(self) -> None:

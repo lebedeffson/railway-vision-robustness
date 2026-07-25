@@ -27,6 +27,7 @@ CODE = (
     "scripts/person_canonical_v5/train_candidates.py",
     "scripts/person_canonical_v5/evaluate_candidate.py",
     "scripts/person_canonical_v5/candidate_gate.py",
+    "scripts/person_canonical_v5/run_candidate_pipeline.py",
     "scripts/person_canonical_v5/materialize_pasting.py",
     "scripts/person_canonical_v5/render_pasting_audit.py",
     "scripts/person_canonical_v5/build_instance_bank.py",
@@ -34,6 +35,7 @@ CODE = (
     "src/models/p2_head.py",
     "src/models/coordinate_attention.py",
     "src/augmentation/person_pasting.py",
+    "systemd/tnorm-person-v5-candidates.service",
 )
 
 
