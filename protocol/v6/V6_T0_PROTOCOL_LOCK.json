@@ -1,0 +1,19 @@
+{
+  "attacks_status": "BLOCKED",
+  "config_sha256": "90ca81684e60396a8b2c65df69204c95e4f93631a9d03c63b0b683c7ef33c669",
+  "fold_0_parameters_frozen_before_evaluation": true,
+  "fold_1_runs_only_after_fold_0_pass": true,
+  "implementation_commit": "258a039831d20f0d1278d0d2037d429e2dde7575",
+  "implementation_sha256": {
+    "configs/canonical_v6_person_temporal_tnorm.yaml": "90ca81684e60396a8b2c65df69204c95e4f93631a9d03c63b0b683c7ef33c669",
+    "protocol/v6/ACTIVE_DATA_DRAFT_STATUS.json": "bcadbdce230ae3433f7e3f8dabb982af04288045299d4e52dc8088bd82d54dab",
+    "protocol/v6/V6_T0_PROTOCOL.md": "9e5a59f848e6df86dc0a4a3d9125028673888732984d92e9e4b6a8bd5dd2062c",
+    "scripts/person_v6/common.py": "4b79c3794e068efd1d6e1896839096e24d281b44b61cf61088e726c74c066915",
+    "scripts/person_v6/run_t0.py": "cf5b8e1f382c3e984a1d8f36baf8e97ff5836a31f2de853138ed5798300b2f57",
+    "src/temporal/ratta.py": "33810d8542972d0d28e6567ed1824496ca578248c13c5b14ed95e6f3fe9144bb",
+    "systemd/tnorm-person-v6-t0.service": "b383683c94f2b1ca40045aa97e5b0a062f058b4ff25071ba59a6392748d13347"
+  },
+  "protocol_id": "canonical-v6-person-temporal-tnorm-v1",
+  "test_status": "SEALED",
+  "test_used": false
+}
