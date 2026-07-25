@@ -242,6 +242,16 @@ the frozen gates. Only then may a separate `feat/person-canonical-v5b-starcoord`
 branch lock B0, StarBlock, Coordinate Attention and StarBlock+Coordinate
 Attention candidates without P2; railway test and attacks remain sealed.
 
+The formal v5 runtime completed V5-A and V5-B on folds 0/1; both failed the
+frozen gates. It was stopped before V5-C completed an epoch because unchanged
+pasting tiles symlinked original multiclass labels into an `nc: 1` dataset.
+Those partial artifacts are quarantined and not scientific results. The
+prospective `canonical-v5-expedited-screening-v1` amendment uses separate
+screening IDs C0 (B0), C1 (audited 25% pasting) and C2 (C1 plus train-only hard
+negatives), with cumulative 5/10/20-epoch successive halving. It is not article
+evidence and stops after fold-1 confirmation; even a screening PASS needs a new
+locked full OOF continuation before test or attacks.
+
 The final canonical contract supersedes the earlier post-gate ordering: after
 v2 calibration and quality gate, fit/select N1 or the predeclared N2 fallback on
 clean validation, run the five-scene deterministic frame-order pilot, compute

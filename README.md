@@ -31,7 +31,8 @@ test и запуска атак.
 | Person v4 DG/NWD | A1/A3 expedited selection FAIL | не открывался |
 | Person v4 train-only proxy | FAIL; подтвердил отказ от сложного DG-стека | не открывался |
 | Person v5 data-first | CrowdHuman pretraining завершён; railway D1 gate FAIL | не открывался |
-| Person v5 range-aware | execution matrix V5-A/B/C25/D25 выполняется; C50/D50 только sensitivity | запечатан |
+| Person v5 range-aware | V5-A и V5-B: two-fold FAIL; официальный V5-C остановлен до первой эпохи из-за label-integrity defect | запечатан |
+| Person v5 expedited screening | C0/C1/C2 successive halving, только compute screening | запечатан |
 
 Зафиксированный person-v3 baseline на folds 0/1:
 
@@ -103,19 +104,36 @@ V5-D: B0 + P2 + person pasting
 метку `bbox_area_scale_fallback`; размер рамки не называется дальностью.
 Railway inference остаётся RGB-only.
 
-Активный resumable запуск:
+Официальная матрица остановлена после полного V5-B. V5-A и V5-B получили
+two-fold `FAIL`. До первой завершённой эпохи V5-C строгий аудит выявил
+multiclass label-файлы в person-only dataset; частичный запуск изолирован и не
+считается результатом.
 
-```bash
-systemctl --user status tnorm-person-v5-candidates.service --no-pager
-journalctl --user -u tnorm-person-v5-candidates.service -f
+Оставшийся вычислительный отбор вынесен в prospective amendment
+`canonical-v5-expedited-screening-v1`:
+
+```text
+C0: B0 control
+C1: B0 + audited 25% person pasting
+C2: C1 + train-only hard-negative sampler
+
+3 candidates × 5 epochs
+→ at most 2 × 10 epochs
+→ at most 1 × 20 epochs on fold 0
+→ one confirmation fold
 ```
 
-Runtime `person-canonical-v5-candidate-runtime-v1c` защищён implementation
-lock, pre-result execution lock и runtime hash. Основной подтверждающий режим
-pasting заранее зафиксирован как `25%`; `50%` выполняется только на fold 0 как
-описательная чувствительность и исключён из выбора кандидата. Все кандидаты
-оцениваются при едином confidence threshold `0.07` и IoU `0.50`. До полного
-OOF PASS test и атаки физически заблокированы.
+Screening не является материалом статьи и не заменяет полный OOF. Его сервис:
+
+```bash
+systemctl --user status tnorm-person-v5-screening.service --no-pager
+journalctl --user -u tnorm-person-v5-screening.service -f
+```
+
+Amendment защищён отдельным hash-lock. Все кандидаты используют один
+checkpoint, seed, fold, размер входа, tiling и evaluator. Решения записываются
+в append-only `decision_trace.json`. До отдельного полного OOF PASS test и
+атаки физически заблокированы.
 
 Официальное состояние исполнения:
 
@@ -312,6 +330,8 @@ outputs/person_v4/       full-protocol checkpoints and fold evidence
 outputs/person_v4_expedited/
                          expedited decisions, OOF gate and bundle
 outputs/person_v5/       local v5 evidence; excluded from Git
+outputs/person_canonical_v5/screening/
+                         local successive-halving evidence; excluded from Git
 article/                  read-only template tooling and article validation
 ```
 

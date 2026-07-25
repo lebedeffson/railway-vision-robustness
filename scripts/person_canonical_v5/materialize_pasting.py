@@ -69,6 +69,38 @@ def encode_labels(boxes: list[Box], width: int, height: int) -> str:
     return "\n".join(rows) + ("\n" if rows else "")
 
 
+def audit_person_only_labels(label_root: Path) -> dict[str, int]:
+    files = rows = invalid_class_rows = invalid_geometry_rows = 0
+    for path in sorted(label_root.glob("*.txt")):
+        files += 1
+        for line in path.read_text(encoding="utf-8").splitlines():
+            values = line.split()
+            if not values:
+                continue
+            rows += 1
+            if len(values) < 5:
+                invalid_geometry_rows += 1
+                continue
+            try:
+                class_id, x, y, width, height = map(float, values[:5])
+            except ValueError:
+                invalid_geometry_rows += 1
+                continue
+            if int(class_id) != 0 or class_id != int(class_id):
+                invalid_class_rows += 1
+            if (
+                min(x, y, width, height) <= 0
+                or max(x, y, width, height) > 1
+            ):
+                invalid_geometry_rows += 1
+    return {
+        "files": files,
+        "rows": rows,
+        "invalid_class_rows": invalid_class_rows,
+        "invalid_geometry_rows": invalid_geometry_rows,
+    }
+
+
 def fit_perspective(rows: pd.DataFrame) -> PerspectiveModel:
     observations = []
     for row in rows.itertuples(index=False):
@@ -298,7 +330,13 @@ def materialize(fold: int, changed_fraction: float) -> dict[str, Any]:
             )
         else:
             symlink_or_replace(source_image, output_image)
-            symlink_or_replace(source_label, output_label)
+            # The source labels are multiclass, while this derived view is
+            # explicitly person-only (nc=1). Re-encode every unchanged tile so
+            # non-person class IDs can never leak into Ultralytics training.
+            atomic_text(
+                output_label,
+                encode_labels(boxes, image.width, image.height),
+            )
             if frame_key in attempted_frames:
                 audit_rows.append(
                     {
@@ -337,6 +375,15 @@ def materialize(fold: int, changed_fraction: float) -> dict[str, Any]:
         "names": {0: "person"},
     }
     atomic_text(destination / "data.yaml", yaml.safe_dump(data, sort_keys=False))
+    label_audit = audit_person_only_labels(label_root)
+    if (
+        label_audit["files"] != len(output_images)
+        or label_audit["invalid_class_rows"] != 0
+        or label_audit["invalid_geometry_rows"] != 0
+    ):
+        raise RuntimeError(
+            f"Person-only label audit failed: {label_audit}"
+        )
     audit = pd.DataFrame(audit_rows)
     atomic_csv(audit, destination.parent / "pasting_audit.csv")
     achieved = len(accepted_frames) / max(len(frame_ids), 1)
@@ -360,6 +407,7 @@ def materialize(fold: int, changed_fraction: float) -> dict[str, Any]:
         },
         "source_leakage": 0,
         "lost_GT": 0,
+        "person_only_label_audit": label_audit,
         "test_used": False,
     }
     atomic_text(

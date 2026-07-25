@@ -1,0 +1,121 @@
+protocol_id: canonical-v5-expedited-screening-v1
+article_evidence: false
+candidate_screening_only: true
+test_status: SEALED
+attacks_status: BLOCKED
+test_marker: outputs/person_v3/test/TEST_OPENED.json
+
+scope:
+  formal_v5_completed_candidates: [V5-A, V5-B]
+  formal_v5_remaining_candidates_are_unchanged: [V5-C, V5-D]
+  screening_ids_do_not_replace_formal_candidates: true
+  candidates:
+    C0:
+      description: B0 control
+      dataset: original_person_fold
+      hard_negative_sampler: false
+    C1:
+      description: B0 plus 25 percent person instance pasting
+      dataset: person_pasting_25
+      hard_negative_sampler: false
+    C2:
+      description: C1 plus train-only hard-negative sampler
+      dataset: person_pasting_25
+      hard_negative_sampler: true
+
+reference:
+  fold: 0
+  mAP50: 0.2511394
+  recall: 0.2012882
+  small_recall: 0.1465594
+  FP_per_frame: 0.885496
+
+training:
+  initialization: yolo11m.pt
+  seed: 20260723
+  fold: 0
+  confirmation_fold: 1
+  imgsz: 640
+  batch: 1
+  nominal_batch_size: 64
+  workers: 2
+  optimizer: AdamW
+  lr0: 0.0002
+  lrf: 0.10
+  weight_decay: 0.0005
+  amp: false
+  deterministic: true
+  total_epochs: 20
+  save_period: 1
+  augmentations:
+    hsv_h: 0.0
+    hsv_s: 0.0
+    hsv_v: 0.0
+    degrees: 0.0
+    translate: 0.0
+    scale: 0.0
+    shear: 0.0
+    perspective: 0.0
+    flipud: 0.0
+    fliplr: 0.0
+    mosaic: 0.0
+    mixup: 0.0
+    copy_paste: 0.0
+
+evaluation:
+  confidence_threshold: 0.07
+  iou_threshold: 0.50
+  evaluator_tolerance: 0.0001
+  zero_shot_frames: 20
+  technical_batches: 20
+
+hard_negative_sampler:
+  target_background_fraction: 0.25
+  inference_confidence: 0.001
+  maximum_frame_weight: 1
+  train_only: true
+
+successive_halving:
+  level_1:
+    cumulative_epochs: 5
+    maximum_promotions: 2
+    reject:
+      simultaneous_delta_mAP50_max: -0.03
+      simultaneous_delta_recall_max: -0.03
+      delta_small_recall_max: -0.03
+      no_improvement_evaluations: 3
+    promote:
+      delta_mAP50_min: -0.01
+      delta_recall_min: -0.01
+      any_primary_delta_min: 0.02
+      delta_small_recall_min: 0.0
+  level_2:
+    cumulative_epochs: 10
+    maximum_promotions: 1
+    promote:
+      delta_mAP50_min: 0.03
+      delta_recall_min: 0.03
+      delta_small_recall_min: 0.04
+      relative_FP_per_frame_max: 1.25
+  level_3:
+    cumulative_epochs: 20
+    fold_0_gate:
+      mAP50_min: 0.30
+      recall_min: 0.28
+      small_recall_min: 0.20
+      improved_primary_metrics_min: 2
+  level_4:
+    fold: 1
+    cumulative_epochs: 20
+    two_fold_gate:
+      macro_mAP50_min: 0.45
+      macro_recall_min: 0.45
+      macro_small_recall_min: 0.30
+      worst_fold_recall_min: 0.30
+
+outputs:
+  root: outputs/person_canonical_v5/screening
+  screening_status: screening_status.json
+  decision_trace: decision_trace.json
+  leaderboard: candidate_leaderboard.csv
+

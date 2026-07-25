@@ -95,6 +95,9 @@
 - Never add StarBlock to current V5-B or V5-D. Activate the separate
   `feat/person-canonical-v5b-starcoord` protocol only after all four primary
   v5 candidates receive terminal two-fold FAIL; v5b excludes P2.
+- `canonical-v5-expedited-screening-v1` is compute screening only: C0/C1/C2
+  use 5/10/20-epoch successive halving and cannot open test or support article
+  claims. Every derived `nc: 1` label file must be re-encoded as class 0.
 
 ## Notes
 

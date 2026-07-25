@@ -12,9 +12,15 @@ from torch import nn
 
 from scripts.person_canonical_v5.lock_protocol import validate
 from scripts.person_canonical_v5.materialize_pasting import (
+    audit_person_only_labels,
     candidate_anchors,
     encode_labels,
     read_labels,
+)
+from scripts.person_canonical_v5.screening_runner import (
+    _level1_eligible,
+    _level2_eligible,
+    _output_tensors,
 )
 from src.augmentation.person_pasting import (
     AuditFlag,
@@ -197,6 +203,35 @@ class RangeAssignmentTest(unittest.TestCase):
 
 
 class PersonPastingTest(unittest.TestCase):
+    def test_multiclass_source_is_filtered_to_person_only(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source.txt"
+            output = Path(directory) / "labels" / "output.txt"
+            source.write_text(
+                "0 0.5 0.5 0.2 0.4\n3 0.4 0.4 0.1 0.1\n",
+                encoding="utf-8",
+            )
+            boxes = read_labels(source, 100, 100)
+            output.parent.mkdir()
+            output.write_text(encode_labels(boxes, 100, 100), encoding="utf-8")
+            self.assertEqual(len(boxes), 1)
+            self.assertTrue(output.read_text(encoding="utf-8").startswith("0 "))
+            self.assertNotIn("\n3 ", output.read_text(encoding="utf-8"))
+            self.assertEqual(
+                audit_person_only_labels(output.parent)["invalid_class_rows"],
+                0,
+            )
+
+    def test_person_only_label_audit_rejects_nonzero_class(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "bad.txt").write_text(
+                "2 0.5 0.5 0.2 0.4\n",
+                encoding="utf-8",
+            )
+            audit = audit_person_only_labels(root)
+            self.assertEqual(audit["invalid_class_rows"], 1)
+
     def test_generated_labels_roundtrip(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "labels.txt"
@@ -209,6 +244,48 @@ class PersonPastingTest(unittest.TestCase):
                 (10, 20, 30, 60),
             ):
                 self.assertAlmostEqual(observed, reference)
+
+
+class ExpeditedScreeningTest(unittest.TestCase):
+    def test_screening_claim_boundary_and_fidelities_are_frozen(self) -> None:
+        screening = yaml.safe_load(
+            (
+                ROOT / "configs/person_v5/expedited_screening.yaml"
+            ).read_text(encoding="utf-8")
+        )
+        self.assertFalse(screening["article_evidence"])
+        self.assertTrue(screening["candidate_screening_only"])
+        self.assertEqual(screening["test_status"], "SEALED")
+        self.assertEqual(
+            [
+                screening["successive_halving"][name]["cumulative_epochs"]
+                for name in ("level_1", "level_2", "level_3")
+            ],
+            [5, 10, 20],
+        )
+
+    def test_output_tensors_walks_training_result(self) -> None:
+        one = torch.ones(1, requires_grad=True)
+        two = torch.ones(2, requires_grad=True)
+        self.assertEqual(_output_tensors({"one": one, "nested": [two]}), [one, two])
+
+    def test_level_gates_use_all_required_improvements(self) -> None:
+        passing = {
+            "candidate": "C1",
+            "fold": 0,
+            "delta_mAP50": 0.04,
+            "delta_recall": 0.04,
+            "delta_small_recall": 0.05,
+            "relative_FP_per_frame": 1.0,
+            "evaluator_consistency": "PASS",
+            "lost_GT": 0,
+            "NaN": 0,
+            "Inf": 0,
+        }
+        self.assertTrue(_level1_eligible(passing)[0])
+        self.assertTrue(_level2_eligible(passing)[0])
+        failing = {**passing, "delta_small_recall": 0.03}
+        self.assertFalse(_level2_eligible(failing)[0])
 
     def test_candidate_anchors_stay_in_image(self) -> None:
         anchors = candidate_anchors(Box(40, 20, 50, 60), 100, 100)
