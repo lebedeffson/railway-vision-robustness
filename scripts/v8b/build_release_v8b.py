@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import subprocess
 import zipfile
 from pathlib import Path
 from typing import Iterable
@@ -191,6 +192,28 @@ def main() -> int:
         raise RuntimeError("Release blocked: test access is nonzero")
     if prerequisites["activation_passed"]:
         raise RuntimeError("Unexpected V9 activation in V8b negative release")
+    commit = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+    ).strip()
+    (FINAL / "RELEASE_INFO.json").write_text(
+        json.dumps(
+            {
+                "repository": "railway-vision-robustness",
+                "version": "0.8b",
+                "tag": "v0.8b-negative-result",
+                "commit": commit,
+                "v8b_status": "FINALIZED_NEGATIVE_RESULT",
+                "v9_status": "BLOCKED_PREREQUISITES",
+                "test_status": "SEALED",
+                "test_access_count": 0,
+                "license_added_by_release": False,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     entries = selected_files()
     failures = scan_public_text(entries)
     if failures:
