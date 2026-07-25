@@ -1,0 +1,23 @@
+{
+  "protocol_id": "canonical-v9-person-residual-temporal-v1",
+  "lock_type": "PROSPECTIVE_DESIGN_LOCK",
+  "status": "BLOCKED_PREREQUISITES",
+  "design_commit": "881db87168d348c8f569240f0c1a86904f31dbe4",
+  "primary_endpoint": "scene_macro_MAE_fn_per_frame",
+  "candidate": "V3_residual_temporal_tnorm",
+  "model_family_primary": "hierarchical_mixed_effects_regression",
+  "gate_version": "v9-regression-gate-1",
+  "test_status": "SEALED",
+  "test_access_count": 0,
+  "execution_status": "NOT_STARTED",
+  "locked_sha256": {
+    "configs/canonical_v9_person_residual_temporal.yaml": "364bdce7310b9b6af2bbf9e0e2927b11c09081ebb085916d132830ce7f33197b",
+    "protocol/v9/V9_PROTOCOL.md": "d941084ec1461f6a585b0619a65547e150de05e92be827f9f6421c84559ffc87",
+    "protocol/v9/V9_PREREQUISITES.json": "ea8647719e2693b9a905e343247018cccd82b95844479ec968111ff52effaa53",
+    "scripts/person_v9/proxy.py": "6b2c8a5691518beb857ffbe4cf7333f35c10d754959f9f1e8f6a6a4b13b5c275",
+    "tests/test_v8b_finalization_v9.py": "bf80f808b51a5af1c1f66f94a305e5a00b2935bcafe99f7243f511a8ea952f6b"
+  },
+  "activation_rule": "five_new_independent_scenes_OR_detector_OOF_all_15_scenes",
+  "activation_passed": false,
+  "proxy_article_evidence": false
+}
