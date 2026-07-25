@@ -110,9 +110,11 @@ systemctl --user status tnorm-person-v5-candidates.service --no-pager
 journalctl --user -u tnorm-person-v5-candidates.service -f
 ```
 
-Runtime `person-canonical-v5-candidate-runtime-v1a` заморожен до первого
+Runtime `person-canonical-v5-candidate-runtime-v1c` заморожен до первого
 candidate training. Он ограничивает вставки двумя экземплярами на исходный
-кадр, выбирает долю 25%/50% только на fold 0 и не содержит test/атак.
+кадр, достигает точного числа изменённых кадров, выбирает долю 25%/50% только
+на fold 0 и не содержит test/атак. Все pre-result amendments сохранены в
+`protocols/person_canonical_v5_range_aware_v1/`.
 
 ## Предыдущий протокол: person v5 data-first
 
