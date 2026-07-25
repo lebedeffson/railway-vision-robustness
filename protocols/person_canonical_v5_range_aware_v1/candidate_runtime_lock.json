@@ -5,22 +5,22 @@
     "V5-C",
     "V5-D"
   ],
-  "config_sha256": "f6c2df00c17420507ffe24a87d52845b51dd5254c4224fec05c1906b020cd589",
-  "created_at": "2026-07-25T10:53:48.105856+00:00",
+  "config_sha256": "c08dad39d41dd524d8ab75af234dfd85557e29b845065ca2205cc3e57ae75056",
+  "created_at": "2026-07-25T10:59:15.048279+00:00",
   "diagnostic_decision_sha256": "b8ceecbd511ab3287950d60b1e25e8f103677bd2356d616772687fafe4928fe1",
   "excluded_candidates": [
     "V5-E",
     "V5-S"
   ],
-  "git_commit": "f3e169dd0856d25a71125d66b48a93694755467c",
+  "git_commit": "990137736ab1c16edfb89cd2fe11082a0c3311a1",
   "implementation_sha256": {
-    "configs/person_v5/candidate_runtime.yaml": "f6c2df00c17420507ffe24a87d52845b51dd5254c4224fec05c1906b020cd589",
+    "configs/person_v5/candidate_runtime.yaml": "c08dad39d41dd524d8ab75af234dfd85557e29b845065ca2205cc3e57ae75056",
     "scripts/person_canonical_v5/build_instance_bank.py": "c5c2b95bd13be5443e078919095fb87eb63946cb91b2253b16b78f3a997551ee",
     "scripts/person_canonical_v5/candidate_gate.py": "90d13e4fa56e25c0075a9c0f2a0d829e1f3f20120377c1ad7c50eaa2d5d2d068",
     "scripts/person_canonical_v5/evaluate_candidate.py": "04859dbf0021851f393e1971af300dd88ad542af0d8c7301ab12a4f57e14193a",
     "scripts/person_canonical_v5/materialize_pasting.py": "e447f6bbe8bfb7353860ece09dfb60137fd8a07e8b3b1ba9f01df6dc0a1c6dc3",
     "scripts/person_canonical_v5/render_pasting_audit.py": "98b8712442e6502f64557085bf9712e1af9dac3e32a1e113f79b5e8f07eb2579",
-    "scripts/person_canonical_v5/run_candidate_pipeline.py": "879d94fc88b66c16c80c904530642bcf8ea987b94b3488e1f09e4efdb9d8a30e",
+    "scripts/person_canonical_v5/run_candidate_pipeline.py": "d952478392aa61ba043b62294a3f6f09eb12b108b2e9d1d3de726ff865325db3",
     "scripts/person_canonical_v5/train_candidates.py": "e3359eefc23d7bb32ef6118a84b92ca80c906fac3d88b8d1376bc1b740fdc8a4",
     "src/augmentation/person_pasting.py": "123e08ece221bf3d0d9f734741e70dad8150adf72c09c25d228f723b348aa632",
     "src/data/openlabel_person_geometry.py": "abe10f955fa2be0027f499b0c2600cffea0134af54b91b6f390d8437e972d187",
@@ -28,7 +28,7 @@
     "src/models/p2_head.py": "fcb5c1b98510664fd51fe2d7379d35e56865ee344c563da3d26e73b0ecc4b177",
     "systemd/tnorm-person-v5-candidates.service": "a311c67636f5db9e3a7b4baeff17691930df5ed5823b8e20420ec24e8f4f29f7"
   },
-  "protocol_id": "person-canonical-v5-candidate-runtime-v1b",
+  "protocol_id": "person-canonical-v5-candidate-runtime-v1c",
   "status": "LOCKED",
   "test_sealed": true,
   "training_allowed": true
