@@ -1,0 +1,125 @@
+protocol_id: railway-person-temporal-safety-v1
+parent_commit: 8d70d7598d4e6dde41fb50f6fa58d724fb3da5a3
+article_evidence: false
+
+v8b:
+  status: FINAL_NEGATIVE_RESULT
+  source_commit: a26ae85
+  release: v0.8b-negative-result
+  immutable: true
+
+target_class:
+  id: 0
+  name: person
+
+data:
+  manifest: data/yolo_osdar23_rescue_v1/manifest.csv
+  development_manifest: outputs/person_v3/protocol/development_manifest.csv
+  sealed_test_manifest: outputs/person_v3/protocol/sealed_test_manifest.csv
+  folds: outputs/person_v3/protocol/folds.json
+  development_scenes: 15
+  test_scenes: 5
+  test_sealed: true
+  preserve_frame_order: true
+  independent_unit: grouped_scene_id
+  temporal_unit: subsequence_id
+  timestamp_source: source_image_filename
+  timestamp_fallback: frame_number
+  expected_nominal_fps: 10.0
+
+detector:
+  source_protocol: canonical-v3-person-safety-v1
+  recipe_frozen: true
+  candidate_floor: 0.001
+  operating_threshold: 0.07
+  iou_threshold: 0.50
+  fold_0:
+    checkpoint: outputs/person_v3/scene_cv/fold_0/seed_20260723/stage2/weights/best.pt
+    checkpoint_sha256: 5a8483b1d40938f49b05225cfe4b3c92414e874fe72008746396ea32bcfb0a79
+    tuning_predictions: outputs/person_v7_tracklet_verifier/fold_0/train_inference/predictions_and_ground_truth.csv
+    heldout_predictions: outputs/person_v3/scene_cv/fold_0/seed_20260723/evaluation/predictions_and_ground_truth.csv
+  fold_1:
+    checkpoint: outputs/person_v3/scene_cv/fold_1/seed_20260723/stage2/weights/best.pt
+    checkpoint_sha256: 66c84c3e66b82ff722dac5f76647d5526aef4af2091f8f83f3429a489a934695
+    heldout_predictions: outputs/person_v3/scene_cv/fold_1/seed_20260723/evaluation/predictions_and_ground_truth.csv
+
+selection:
+  fit_role: fold_0_train_scenes
+  fit_excluded_folds: [0, 1]
+  fit_note: tracker parameters use only fold-0 detector train scenes outside both screening and confirmation folds
+  screening_fold: 0
+  confirmation_fold: 1
+  maximum_tracker_candidates: 2
+  maximum_configurations_per_tracker: 12
+  tune_only_on_fit_role: true
+  no_retuning_after_screening: true
+
+temporal_logic:
+  causal: true
+  confirmation_window: 5
+  accumulated_score_decay: 0.80
+  missing_score_decay: 0.60
+  accumulated_score_threshold: 0.12
+  interpolation_score_decay: 0.85
+  maximum_interpolation_gap: 1
+  interpolation_uncertainty_max: 1.0
+  fusion_nms_iou: 0.60
+
+tracker_grids:
+  bytetrack:
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.01, match_iou_threshold: 0.10, track_buffer: 1, minimum_confirmed_length: 2, maximum_lost_frames: 1}
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.01, match_iou_threshold: 0.20, track_buffer: 1, minimum_confirmed_length: 2, maximum_lost_frames: 1}
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.01, match_iou_threshold: 0.30, track_buffer: 1, minimum_confirmed_length: 2, maximum_lost_frames: 1}
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.03, match_iou_threshold: 0.10, track_buffer: 1, minimum_confirmed_length: 2, maximum_lost_frames: 1}
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.03, match_iou_threshold: 0.20, track_buffer: 1, minimum_confirmed_length: 2, maximum_lost_frames: 1}
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.03, match_iou_threshold: 0.30, track_buffer: 1, minimum_confirmed_length: 2, maximum_lost_frames: 1}
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.01, match_iou_threshold: 0.10, track_buffer: 2, minimum_confirmed_length: 3, maximum_lost_frames: 1}
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.01, match_iou_threshold: 0.20, track_buffer: 2, minimum_confirmed_length: 3, maximum_lost_frames: 1}
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.01, match_iou_threshold: 0.30, track_buffer: 2, minimum_confirmed_length: 3, maximum_lost_frames: 1}
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.03, match_iou_threshold: 0.10, track_buffer: 2, minimum_confirmed_length: 3, maximum_lost_frames: 1}
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.03, match_iou_threshold: 0.20, track_buffer: 2, minimum_confirmed_length: 3, maximum_lost_frames: 1}
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.03, match_iou_threshold: 0.30, track_buffer: 2, minimum_confirmed_length: 3, maximum_lost_frames: 1}
+  ocsort:
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.01, match_iou_threshold: 0.10, track_buffer: 1, minimum_confirmed_length: 2, maximum_lost_frames: 1, direction_weight: 0.20}
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.01, match_iou_threshold: 0.20, track_buffer: 1, minimum_confirmed_length: 2, maximum_lost_frames: 1, direction_weight: 0.20}
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.01, match_iou_threshold: 0.30, track_buffer: 1, minimum_confirmed_length: 2, maximum_lost_frames: 1, direction_weight: 0.20}
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.03, match_iou_threshold: 0.10, track_buffer: 1, minimum_confirmed_length: 2, maximum_lost_frames: 1, direction_weight: 0.20}
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.03, match_iou_threshold: 0.20, track_buffer: 1, minimum_confirmed_length: 2, maximum_lost_frames: 1, direction_weight: 0.20}
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.03, match_iou_threshold: 0.30, track_buffer: 1, minimum_confirmed_length: 2, maximum_lost_frames: 1, direction_weight: 0.20}
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.01, match_iou_threshold: 0.10, track_buffer: 2, minimum_confirmed_length: 3, maximum_lost_frames: 1, direction_weight: 0.40}
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.01, match_iou_threshold: 0.20, track_buffer: 2, minimum_confirmed_length: 3, maximum_lost_frames: 1, direction_weight: 0.40}
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.01, match_iou_threshold: 0.30, track_buffer: 2, minimum_confirmed_length: 3, maximum_lost_frames: 1, direction_weight: 0.40}
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.03, match_iou_threshold: 0.10, track_buffer: 2, minimum_confirmed_length: 3, maximum_lost_frames: 1, direction_weight: 0.40}
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.03, match_iou_threshold: 0.20, track_buffer: 2, minimum_confirmed_length: 3, maximum_lost_frames: 1, direction_weight: 0.40}
+    - {high_conf_threshold: 0.07, low_conf_threshold: 0.001, new_track_threshold: 0.03, match_iou_threshold: 0.30, track_buffer: 2, minimum_confirmed_length: 3, maximum_lost_frames: 1, direction_weight: 0.40}
+
+primary_endpoints: [recall, FN_per_frame, false_alarms_per_minute, track_recall]
+secondary_endpoints: [f1, precision, time_to_first_detection, ID_switches, track_fragmentation, latency]
+
+triage_gate:
+  absolute_recall_improvement_min: 0.07
+  relative_FN_reduction_min: 0.10
+  relative_false_alarms_increase_max: 0.25
+  F1_degradation_max: 0.03
+  maximum_scene_recall_degradation: 0.10
+
+development_gate:
+  absolute_macro_recall_improvement_min: 0.10
+  relative_macro_FN_reduction_min: 0.15
+  relative_false_alarms_increase_max: 0.20
+  F1_degradation_max: 0.03
+  worst_scene_recall_must_not_decrease: true
+  improved_scene_fraction_min: 0.70
+  bootstrap_iterations: 10000
+  bootstrap_seed: 20260726
+  require_recall_CI_above_zero: true
+  lost_frames: 0
+  duplicate_frames: 0
+  evaluator_consistency: PASS
+  NaN_Inf: 0
+
+test_access:
+  marker: outputs/temporal_safety_v1/test/TEST_OPENED.json
+  legacy_marker: outputs/person_v3/test/TEST_OPENED.json
+  allowed_only_after_gate: true
+  maximum_access_count: 1

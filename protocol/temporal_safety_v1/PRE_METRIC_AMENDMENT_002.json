@@ -1,0 +1,21 @@
+{
+  "amendment_id": "railway-person-temporal-safety-v1-pre-metric-002",
+  "status": "TECHNICAL_FIX_BEFORE_ANY_METRIC_READ",
+  "reason": "Prediction CSV files omit frames with neither GT nor detector rows. Leakage validation now requires table paths to be a subset of role paths, not equal to all indexed frames.",
+  "scope": [
+    "scripts/temporal_safety/generate_detector_predictions.py: path-set contract only"
+  ],
+  "unchanged": [
+    "tracker candidates",
+    "tracker grids",
+    "selection scenes",
+    "screening and confirmation folds",
+    "endpoints",
+    "gates",
+    "detector predictions",
+    "test seal"
+  ],
+  "pre_amendment_lock_sha256": "4ba824a434669675f7e006073b93138d56ab9f1f311aff4fb7c9fc5810ec6072",
+  "development_metrics_read": false,
+  "test_access_count": 0
+}

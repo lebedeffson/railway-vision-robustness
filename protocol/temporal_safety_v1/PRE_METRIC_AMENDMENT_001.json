@@ -1,0 +1,21 @@
+{
+  "amendment_id": "railway-person-temporal-safety-v1-pre-metric-001",
+  "status": "TECHNICAL_FIX_BEFORE_ANY_METRIC_READ",
+  "reason": "The timestamp parser escaped decimal dots twice and returned null for official OSDaR23 filenames.",
+  "scope": [
+    "src/temporal_safety/sequence_loader.py: timestamp regex only"
+  ],
+  "unchanged": [
+    "tracker candidates",
+    "tracker grids",
+    "selection scenes",
+    "screening and confirmation folds",
+    "endpoints",
+    "gates",
+    "detector predictions",
+    "test seal"
+  ],
+  "pre_amendment_lock_sha256": "176445e08289047110588afd0160f3392baf7dd01078f8d8a79f66889bdd547a",
+  "development_metrics_read": false,
+  "test_access_count": 0
+}

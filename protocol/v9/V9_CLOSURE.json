@@ -1,0 +1,9 @@
+{
+  "protocol_id": "canonical-v9-person-residual-temporal-v1",
+  "status": "ABANDONED_BEFORE_EXECUTION",
+  "execution_started": false,
+  "development_metrics_read": false,
+  "test_status": "SEALED",
+  "test_access_count": 0,
+  "reason": "Owner-directed separation of the final V8b negative T-norm study from the practical temporal-safety product"
+}
