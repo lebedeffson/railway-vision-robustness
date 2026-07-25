@@ -30,7 +30,8 @@ test и запуска атак.
 | Person v3 | two-fold hard FAIL | не открывался |
 | Person v4 DG/NWD | A1/A3 expedited selection FAIL | не открывался |
 | Person v4 train-only proxy | FAIL; подтвердил отказ от сложного DG-стека | не открывался |
-| Person v5 data-first | protocol freeze; CrowdHuman acquisition ещё не выполнен | запечатан |
+| Person v5 data-first | CrowdHuman pretraining завершён; railway D1 gate FAIL | не открывался |
+| Person v5 range-aware | B0/B1/D1 diagnostic PASS; V5-A/B/C/D выполняются | запечатан |
 
 Зафиксированный person-v3 baseline на folds 0/1:
 
@@ -78,7 +79,42 @@ Git-репозиторий**. Для воспроизведения необхо
 принять условия его распространения и построить локальное представление
 скриптами проекта. Каталог `data/` исключён через `.gitignore`.
 
-## Текущий протокол: person v5 data-first
+## Текущий протокол: person v5 range-aware
+
+`person-canonical-v5-range-aware-v1` проверяет узкую абляцию поверх YOLO11m:
+
+```text
+B0: исходный person baseline
+V5-A: B0 + P2
+V5-B: B0 + P2 + Coordinate Attention
+V5-C: B0 + perspective-aware masked person pasting
+V5-D: B0 + P2 + person pasting
+```
+
+Предварительная диагностика B0/B1/D1-best/D1-last выполнена одним evaluator
+при одинаковых tiling, fusion, threshold, IoU и folds. Она прошла проверку
+воспроизводимости, но CrowdHuman zero-shot уступил D1-best по macro Recall
+(`0.24242` против `0.33264`) и worst-fold Recall (`0.09098` против
+`0.18196`). Поэтому gradual transfer V5-E исключён заранее зафиксированным
+правилом.
+
+Для train-only instance bank RGB bbox и LiDAR cuboid связываются только по
+одному OpenLABEL object UUID. Если такой связи нет, объект получает явную
+метку `bbox_area_scale_fallback`; размер рамки не называется дальностью.
+Railway inference остаётся RGB-only.
+
+Активный resumable запуск:
+
+```bash
+systemctl --user status tnorm-person-v5-candidates.service --no-pager
+journalctl --user -u tnorm-person-v5-candidates.service -f
+```
+
+Runtime `person-canonical-v5-candidate-runtime-v1a` заморожен до первого
+candidate training. Он ограничивает вставки двумя экземплярами на исходный
+кадр, выбирает долю 25%/50% только на fold 0 и не содержит test/атак.
+
+## Предыдущий протокол: person v5 data-first
 
 `canonical-v5-person-data-first-v1` возвращается к простому ERM и меняет
 источник предобучения, а не формулу loss:
@@ -91,7 +127,7 @@ COCO YOLO11m
 → только при gate — folds 2–4
 ```
 
-CrowdHuman используется только в рамках его условий для некоммерческих
+CrowdHuman использован только в рамках его условий для некоммерческих
 исследований и образования. Выбраны `vbox` (видимая область человека);
 `mask` и записи с `extra.ignore=1` исключаются. Изображения CrowdHuman,
 архивы и производное YOLO-представление не входят в Git или release bundle.
@@ -149,9 +185,10 @@ systemctl --user daemon-reload
 systemctl --user enable --now tnorm-person-v5-training.service
 ```
 
-Training-service сначала выполняет CrowdHuman pretraining, затем ровно D1
-folds 0/1 с train-only hard mining и независимым global evaluator. При
-двухфолдовом FAIL test и атаки остаются заблокированными.
+Training-service выполнил CrowdHuman pretraining, затем ровно D1 folds 0/1 с
+train-only hard mining и независимым global evaluator. Двухфолдовый D1 gate
+завершился FAIL; test и атаки остались заблокированными. Эти результаты не
+перезаписываются новой range-aware веткой.
 
 Первичный v5-кандидат только один: YOLO11m с CrowdHuman pretraining.
 RT-DETR отложен до отдельного prospective amendment; NWD/QFL, GroupDRO,
@@ -249,6 +286,8 @@ PYTHONPATH="$PWD:$PWD/scripts" \
 configs/                 frozen scientific protocols
 scripts/person_v4/       training, evaluator and expedited decision pipeline
 scripts/person_v5/       data-first protocol lock and CrowdHuman conversion
+scripts/person_canonical_v5/
+                         P2, range linkage, person pasting and candidate gates
 systemd/                 resumable user services
 tests/                   protocol, math and leakage checks
 data/                    local datasets and manifests; not a release artifact
