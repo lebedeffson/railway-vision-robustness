@@ -1,0 +1,94 @@
+protocol_id: person-canonical-v5-candidate-runtime-v1c
+execution_lock: protocol/v5/V5_EXECUTION_LOCK.json
+implementation_commit: a50fc967f42d3607fe684f2ae545feb7ea433305
+test_marker: outputs/person_v3/test/TEST_OPENED.json
+
+evaluation:
+  confidence_threshold: 0.07
+  iou_threshold: 0.50
+  AP_IoU: [0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95]
+  evaluator_tolerance: 0.0001
+  small_object_definition: normalized_area_lt_0.001
+  medium_object_definition: normalized_area_ge_0.001_lt_0.01
+  large_object_definition: normalized_area_ge_0.01
+
+matrix:
+  primary:
+    V5-A: {runtime_name: V5-A, folds: [0, 1], reference: B0}
+    V5-B: {runtime_name: V5-B, folds: [0, 1], reference: V5-A}
+    V5-C: {runtime_name: V5-C-fraction25, folds: [0, 1], reference: B0}
+    V5-D: {runtime_name: V5-D-fraction25, folds: [0, 1], reference: B0}
+  sensitivity:
+    V5-C50: {runtime_name: V5-C-fraction50, folds: [0], descriptive_only: true}
+    V5-D50: {runtime_name: V5-D-fraction50, folds: [0], descriptive_only: true}
+  rejected:
+    V5-E:
+      status: REJECTED_PRE_RUN
+      reason: CrowdHuman zero-shot did not justify gradual transfer
+
+checkpoint_selection:
+  candidates: [stage2_best, stage2_last]
+  validation_only: true
+  lexicographic:
+    - maximum_recall
+    - maximum_small_recall
+    - maximum_mAP50
+    - minimum_FN_per_frame
+    - earlier_source_epoch
+
+gate:
+  absolute:
+    macro_mAP50_min: 0.45
+    macro_recall_min: 0.45
+    macro_small_recall_min: 0.30
+    worst_fold_recall_min: 0.30
+    evaluator_consistency: PASS
+    lost_GT: 0
+    NaN: 0
+    Inf: 0
+    source_leakage: 0
+  comparison_to_B0:
+    delta_macro_recall_min_any: 0.03
+    delta_macro_small_recall_min_any: 0.05
+    delta_macro_mAP50_min: -0.01
+    worst_fold_recall_strictly_better: true
+  coordinate_attention:
+    delta_small_recall_min_any: 0.02
+    delta_worst_fold_recall_min_any: 0.02
+    delta_mAP50_min: -0.01
+  pasting:
+    relative_FP_per_frame_increase_max: 0.15
+  oof:
+    macro_mAP50_min: 0.45
+    macro_recall_min: 0.45
+    macro_small_recall_min: 0.30
+    worst_fold_recall_min: 0.30
+    folds_with_recall_ge_0_40_min: 4
+
+statistics:
+  bootstrap_iterations: 10000
+  bootstrap_seed: 20260725
+  cluster: grouped_scene_id
+  confidence: 0.95
+  correction: Holm
+
+selection:
+  primary_candidates_only: true
+  sensitivity_candidates_excluded: [V5-C50, V5-D50]
+  lexicographic:
+    - absolute_gate
+    - comparative_gate
+    - maximum_worst_fold_recall
+    - maximum_macro_small_recall
+    - maximum_macro_recall
+    - maximum_macro_mAP50
+    - minimum_FN_per_frame
+    - minimum_FP_per_frame
+    - minimum_latency
+    - minimum_complexity
+
+isolation:
+  test_status: SEALED
+  attacks_status: BLOCKED
+  test_access_count: 0
+  attack_runs: 0

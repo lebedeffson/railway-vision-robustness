@@ -89,6 +89,9 @@
   `feat/person-canonical-v5-range-aware`: V5-E is excluded by the common
   B0/B1/D1 diagnostic, V5-A/B/C/D run under the user service, and railway test
   and attacks stay sealed until a full development gate passes.
+- Preserve `protocol/v5/V5_EXECUTION_LOCK.json` for official person-v5 runs:
+  25% pasting is primary, 50% is fold-0 sensitivity only, evaluation uses
+  confidence 0.07, and test/attacks stay blocked until full OOF PASS.
 
 ## Notes
 

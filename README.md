@@ -31,7 +31,7 @@ test и запуска атак.
 | Person v4 DG/NWD | A1/A3 expedited selection FAIL | не открывался |
 | Person v4 train-only proxy | FAIL; подтвердил отказ от сложного DG-стека | не открывался |
 | Person v5 data-first | CrowdHuman pretraining завершён; railway D1 gate FAIL | не открывался |
-| Person v5 range-aware | B0/B1/D1 diagnostic PASS; V5-A/B/C/D выполняются | запечатан |
+| Person v5 range-aware | execution matrix V5-A/B/C25/D25 выполняется; C50/D50 только sensitivity | запечатан |
 
 Зафиксированный person-v3 baseline на folds 0/1:
 
@@ -110,10 +110,24 @@ systemctl --user status tnorm-person-v5-candidates.service --no-pager
 journalctl --user -u tnorm-person-v5-candidates.service -f
 ```
 
-Runtime `person-canonical-v5-candidate-runtime-v1c` заморожен до первого
-candidate training. Он ограничивает вставки двумя экземплярами на исходный
-кадр, достигает точного числа изменённых кадров, выбирает долю 25%/50% только
-на fold 0 и не содержит test/атак. Все pre-result amendments сохранены в
+Runtime `person-canonical-v5-candidate-runtime-v1c` защищён implementation
+lock, pre-result execution lock и runtime hash. Основной подтверждающий режим
+pasting заранее зафиксирован как `25%`; `50%` выполняется только на fold 0 как
+описательная чувствительность и исключён из выбора кандидата. Все кандидаты
+оцениваются при едином confidence threshold `0.07` и IoU `0.50`. До полного
+OOF PASS test и атаки физически заблокированы.
+
+Официальное состояние исполнения:
+
+```text
+runtime/v5/RUN_STATE.json
+runtime/v5/heartbeat.json
+runtime/v5/completed/
+```
+
+Итог двух folds автоматически формирует scene-level результаты, 10 000
+парных cluster-bootstrap выборок, Holm correction и решение gate в
+`results/v5/`. Все pre-result amendments сохранены в `protocol/v5/` и
 `protocols/person_canonical_v5_range_aware_v1/`.
 
 ## Предыдущий протокол: person v5 data-first
