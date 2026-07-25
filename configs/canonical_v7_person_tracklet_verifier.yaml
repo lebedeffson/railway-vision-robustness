@@ -1,0 +1,176 @@
+protocol_id: canonical-v7-person-tracklet-verifier-v1
+parent_protocol: canonical-v6-person-temporal-tnorm-v1
+parent_result: T0_FAIL
+article_evidence: false
+test_status: SEALED
+attacks_status: BLOCKED
+test_marker: outputs/person_v3/test/TEST_OPENED.json
+
+data:
+  manifest: data/yolo_osdar23_rescue_v1/manifest.csv
+  folds: outputs/person_v3/protocol/folds.json
+  development_splits: [train, val]
+  independent_unit: grouped_scene_id
+  temporal_unit: subsequence_id
+  development_fold: 0
+  confirmation_fold: 1
+  test_read_permitted: false
+
+baseline:
+  name: B0
+  candidate_floor: 0.001
+  operating_threshold: 0.07
+  iou_threshold: 0.50
+  fusion_nms_iou: 0.60
+  fold_0:
+    checkpoint: outputs/person_v3/scene_cv/fold_0/seed_20260723/stage2/weights/best.pt
+    checkpoint_sha256: 5a8483b1d40938f49b05225cfe4b3c92414e874fe72008746396ea32bcfb0a79
+    heldout_predictions: outputs/person_v3/scene_cv/fold_0/seed_20260723/evaluation/predictions_and_ground_truth.csv
+  fold_1:
+    checkpoint: outputs/person_v3/scene_cv/fold_1/seed_20260723/stage2/weights/best.pt
+    checkpoint_sha256: 66c84c3e66b82ff722dac5f76647d5526aef4af2091f8f83f3429a489a934695
+    heldout_predictions: outputs/person_v3/scene_cv/fold_1/seed_20260723/evaluation/predictions_and_ground_truth.csv
+
+tracklets:
+  source: ByteTrack_style_T0_B
+  temporal_config: configs/canonical_v6_person_temporal_tnorm.yaml
+  positive:
+    minimum_iou: 0.50
+    minimum_matched_frames: 2
+    minimum_matched_fraction: 0.50
+  negative:
+    maximum_iou_exclusive: 0.30
+  ambiguous_policy: EXCLUDE_FROM_TRAINING
+  maximum_propagated_gap: 1
+
+features:
+  version: v7-tracklet-features-1
+  crop_score_available_in_v0: false
+  ordered:
+    - confidence_mean
+    - confidence_median
+    - confidence_max
+    - confidence_q10
+    - confidence_q25
+    - confidence_q75
+    - confidence_slope
+    - count_above_0_01
+    - count_above_0_03
+    - count_above_0_05
+    - track_length
+    - hits
+    - gaps
+    - max_consecutive_hits
+    - detection_fraction
+    - velocity_variance
+    - acceleration_variance
+    - compensated_iou_mean
+    - compensated_iou_median
+    - center_motion_residual
+    - scale_variation
+    - aspect_ratio_variation
+    - border_fraction
+    - box_area_mean
+    - appearance_cosine_mean
+    - appearance_cosine_min
+    - embedding_variance
+    - product_reliability
+    - lukasiewicz_reliability
+    - membership_min
+    - membership_mean
+    - membership_variance
+  monotonic_direction:
+    confidence_mean: 1
+    confidence_median: 1
+    confidence_max: 1
+    confidence_q10: 1
+    confidence_q25: 1
+    confidence_q75: 1
+    confidence_slope: 0
+    count_above_0_01: 1
+    count_above_0_03: 1
+    count_above_0_05: 1
+    track_length: 1
+    hits: 1
+    gaps: -1
+    max_consecutive_hits: 1
+    detection_fraction: 1
+    velocity_variance: -1
+    acceleration_variance: -1
+    compensated_iou_mean: 1
+    compensated_iou_median: 1
+    center_motion_residual: -1
+    scale_variation: -1
+    aspect_ratio_variation: -1
+    border_fraction: -1
+    box_area_mean: 0
+    appearance_cosine_mean: 1
+    appearance_cosine_min: 1
+    embedding_variance: -1
+    product_reliability: 1
+    lukasiewicz_reliability: 1
+    membership_min: 1
+    membership_mean: 1
+    membership_variance: -1
+
+models:
+  candidate_order: [V0-A_monotone_rank_logistic, V0-B_monotone_hist_gradient_boosting]
+  inner_group_folds: 5
+  selection_metric_order: [mAP50, F1, Recall, small_recall, negative_FP_per_frame]
+  calibration: train_scene_OOF_isotonic
+  logistic:
+    seed: 20260725
+    epochs: 400
+    learning_rate: 0.03
+    weight_decay: 0.0001
+    ranking_weight: 0.25
+    maximum_pairs_per_epoch: 4096
+  gradient_boosting:
+    seed: 20260725
+    learning_rate: 0.05
+    max_iter: 180
+    max_leaf_nodes: 15
+    min_samples_leaf: 12
+    l2_regularization: 0.10
+
+reranking:
+  detector_weight_alpha: 0.25
+  propagated_gap_max: 1
+  threshold_grid_points: 501
+  standard:
+    objective: maximum_F1
+    maximum_FP_multiplier_vs_B0: 1.50
+  safety:
+    objective: maximum_Recall
+    minimum_Precision: 0.40
+    maximum_FP_per_frame: 2.50
+
+gate:
+  fold_0_v0:
+    mAP50_min: 0.26
+    Recall_min: 0.25
+    small_recall_min: 0.22
+    FP_per_frame_max: 2.0
+    F1_strictly_greater_than_B0: true
+    evaluator_consistency: PASS
+    lost_GT: 0
+    NaN_Inf: 0
+  confirmation_runs_only_after_fold_0_pass: true
+  two_fold:
+    macro_mAP50_min: 0.40
+    macro_Recall_min: 0.40
+    macro_F1_min: 0.45
+    macro_small_recall_min: 0.28
+    worst_fold_Recall_min: 0.28
+    FP_per_frame_max: 2.0
+  comparative_alternative:
+    delta_mAP50_min: 0.04
+    delta_Recall_min: 0.08
+    delta_small_recall_min: 0.08
+    delta_F1_min: 0.05
+
+outputs:
+  root: outputs/person_v7_tracklet_verifier
+  fold_0_gate: outputs/person_v7_tracklet_verifier/fold_0/V0_GATE.json
+  decision_trace: outputs/person_v7_tracklet_verifier/decision_trace.json
+
