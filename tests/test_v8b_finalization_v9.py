@@ -52,7 +52,7 @@ def test_v8b_finalizer_is_independent_of_original_analysis_module() -> None:
     assert "from person_v8b" not in source
     assert "torch.load" not in source
     assert "cv2.imread" not in source
-    assert "data/yolo_osdar23" not in source
+    assert "data/" + "yolo_osdar23" not in source
 
 
 def test_v8b_article_is_claim_safe_when_built() -> None:

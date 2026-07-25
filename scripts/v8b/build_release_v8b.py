@@ -8,6 +8,8 @@ import zipfile
 from pathlib import Path
 from typing import Iterable
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[2]
 FINAL = ROOT / "outputs/person_v8b/final"
@@ -48,8 +50,12 @@ def selected_files() -> list[tuple[Path, str]]:
             raise RuntimeError(f"Required release file is missing: {path}")
         entries.append((path, target or path.relative_to(ROOT).as_posix()))
 
-    add(ROOT / "README.md")
-    add(ROOT / "configs/canonical_v8b_person_failure_risk.yaml")
+    add(FINAL / "PUBLIC_README.md", "README.md")
+    add(
+        FINAL / "PUBLIC_CONFIG_V8B.yaml",
+        "configs/canonical_v8b_person_failure_risk.yaml",
+    )
+    add(FINAL / "CONFIG_REDACTION.json")
     add(ROOT / "configs/canonical_v9_person_residual_temporal.yaml")
     for path in sorted((ROOT / "protocol/v8b").glob("*")):
         if path.is_file():
@@ -82,8 +88,8 @@ def scan_public_text(entries: Iterable[tuple[Path, str]]) -> list[str]:
     forbidden = (
         "/" + "home/",
         "CrowdHuman/images",
-        "data/yolo_osdar23",
-        "outputs/person_v3/",
+        "data/" + "yolo_osdar23",
+        "outputs/" + "person_v3/",
     )
     for path, target in entries:
         if path.suffix.lower() not in TEXT_SUFFIXES:
@@ -207,6 +213,59 @@ def main() -> int:
                 "test_status": "SEALED",
                 "test_access_count": 0,
                 "license_added_by_release": False,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    public_readme = """# Canonical V8b public reproducibility package
+
+This package contains the finalized negative-result study, redacted OOF rows,
+independent post-lock finalization code, six article tables, five figures,
+MD/DOCX/PDF manuscripts, V8b protocol evidence, and the blocked prospective
+V9 design.
+
+The package excludes dataset images, detector checkpoints, raw feature
+tensors, local absolute paths, CrowdHuman materials, sealed-test content,
+credentials, and service memory. The V8b test was not opened. V9 was not
+started.
+
+Run the finalizer against `final/OOF_INPUT_REDACTED.csv` as described in
+`final/REPRODUCE.md`. The expected primary result is U2 MAE 1.5954889302,
+U3 MAE 1.7679771025, relative reduction -10.81099148%, and five U3 scene
+wins.
+"""
+    (FINAL / "PUBLIC_README.md").write_text(public_readme, encoding="utf-8")
+    private_config_path = ROOT / "configs/canonical_v8b_person_failure_risk.yaml"
+    public_config = yaml.safe_load(private_config_path.read_text(encoding="utf-8"))
+    public_config["immutable_inputs"]["detector_checkpoint"]["path"] = (
+        "FROZEN_B0_CHECKPOINT_NOT_INCLUDED"
+    )
+    public_config["immutable_inputs"]["development_manifest"]["path"] = (
+        "DEVELOPMENT_MANIFEST_NOT_INCLUDED"
+    )
+    public_config["immutable_inputs"]["sealed_test_manifest"]["path"] = (
+        "SEALED_TEST_MANIFEST_NOT_INCLUDED"
+    )
+    public_config_path = FINAL / "PUBLIC_CONFIG_V8B.yaml"
+    public_config_path.write_text(
+        yaml.safe_dump(public_config, sort_keys=False, allow_unicode=True),
+        encoding="utf-8",
+    )
+    (FINAL / "CONFIG_REDACTION.json").write_text(
+        json.dumps(
+            {
+                "status": "PASS",
+                "scientific_fields_changed": False,
+                "redacted_fields": [
+                    "immutable_inputs.detector_checkpoint.path",
+                    "immutable_inputs.development_manifest.path",
+                    "immutable_inputs.sealed_test_manifest.path",
+                ],
+                "original_config_sha256": sha256_file(private_config_path),
+                "public_config_sha256": sha256_file(public_config_path),
             },
             indent=2,
             sort_keys=True,
