@@ -1,9 +1,9 @@
-protocol_id: person-canonical-v5-candidate-runtime-v1b
+protocol_id: person-canonical-v5-candidate-runtime-v1c
 parent_protocol: person-canonical-v5-range-aware-v1
 amendment:
-  timing: after_partial_V5_A_without_completion_marker_or_metrics
-  reason: enforce_requested_changed_frame_fraction_after_geometric_rejections
-  supersedes: person-canonical-v5-candidate-runtime-v1a
+  timing: after_partial_V5_A_without_completed_epoch_or_metrics
+  reason: bind_resumable_status_to_current_locked_runtime_id
+  supersedes: person-canonical-v5-candidate-runtime-v1b
   preserved:
     - candidate_models
     - training_recipe

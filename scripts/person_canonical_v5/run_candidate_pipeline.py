@@ -25,17 +25,24 @@ RUNTIME = PROJECT / "configs/person_v5/candidate_runtime.yaml"
 
 
 def update(stage: str, state: str, **values: Any) -> None:
+    protocol_id = yaml.safe_load(
+        RUNTIME.read_text(encoding="utf-8")
+    )["protocol_id"]
     payload = (
         json.loads(STATUS.read_text(encoding="utf-8"))
         if STATUS.is_file()
         else {
-            "protocol_id": yaml.safe_load(
-                RUNTIME.read_text(encoding="utf-8")
-            )["protocol_id"],
+            "protocol_id": protocol_id,
             "test_opened": False,
             "stages": {},
         }
     )
+    previous = payload.get("protocol_id")
+    if previous and previous != protocol_id:
+        payload.setdefault("superseded_protocol_ids", [])
+        if previous not in payload["superseded_protocol_ids"]:
+            payload["superseded_protocol_ids"].append(previous)
+    payload["protocol_id"] = protocol_id
     payload["updated_at"] = now()
     payload["current_stage"] = stage
     payload["stages"][stage] = {"status": state, **values}
