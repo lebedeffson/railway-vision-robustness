@@ -19,8 +19,9 @@ feature-distance baseline на независимых `grouped_scene_id`.
 
 ## Текущий научный статус
 
-Основная задача сейчас — получить переносимый person-only baseline до открытия
-test и запуска атак.
+V8b завершён как воспроизводимый отрицательный научный результат. Отдельный
+практический temporal-safety эксперимент также завершил development-gate без
+открытия test.
 
 | Ветка | Статус | Test |
 |---|---|---|
@@ -37,7 +38,8 @@ test и запуска атак.
 | Person v7 tracklet verifier | V0 и frozen-crop V1/V2: fold-0 FAIL; fold 1 skipped | запечатан |
 | Person v8 active data | BLOCKED_NO_NEW_DATA; GPU_NOT_STARTED | запечатан |
 | Person v8b failure risk | FINALIZED_NEGATIVE_RESULT; U3 worsened primary FN/frame MAE | не открывался |
-| Person v9 residual-temporal | BLOCKED_PREREQUISITES; design frozen, execution not started | запечатан |
+| Person v9 residual-temporal | ABANDONED_BEFORE_EXECUTION; заменён отдельным practical scope | запечатан |
+| Temporal safety v1 | DEVELOPMENT_FAIL; Recall вырос, false-alarm/F1 gate не пройден | не открывался |
 
 Зафиксированный person-v3 baseline на folds 0/1:
 
@@ -155,21 +157,53 @@ PYTHONPATH="$PWD/scripts" python scripts/v8b/build_release_v8b.py
 изображения, checkpoint, сырые признаки, test и локальные пути в архив не
 включаются.
 
-## Prospective protocol: person v9
+## Закрытый протокол: person v9
 
 `canonical-v9-person-residual-temporal-v1` проверяет уникальный остаточный
 T-нормовый сигнал после train-only residualization и причинные временные
 признаки. Primary endpoint остаётся `FN/frame`.
 
-V9 не запущен. Его активация разрешена только после одного из условий:
+V9 не запускался и закрыт как `ABANDONED_BEFORE_EXECUTION`. Его prospective
+design сохранён для аудита, но не является активным планом. Для будущего
+независимого исследования всё равно потребовалось бы одно из условий:
 
 - не менее пяти новых независимых railway development-сцен; либо
 - detector-OOF predictions/features для всех 15 сцен, где held-out сцена
   исключена из обучения соответствующего детектора.
 
-До этого `V9_PREREQUISITES.json` сохраняет
-`BLOCKED_PREREQUISITES`, `execution_status=NOT_STARTED` и
+Фактический closure записан в `protocol/v9/V9_CLOSURE.json`;
 `test_access_count=0`.
+
+## Практический протокол: temporal safety v1
+
+`railway-person-temporal-safety-v1` отделён от V8b и не использует T-нормы.
+Замороженные low-confidence predictions одного detector-рецепта подавались в
+ByteTrack- и OC-SORT-style causal adapters. Параметры выбирались только на
+девяти support-сценах, исключающих screening fold 0 и confirmation fold 1.
+
+Зафиксированный двухфолдовый результат:
+
+| Tracker | ΔRecall | FN/frame reduction | False alarms/min increase | ΔF1 | Gate |
+|---|---:|---:|---:|---:|---|
+| ByteTrack | +0.13772 | 18.78% | 390.87% | -0.07406 | FAIL |
+| OC-SORT | +0.13277 | 18.20% | 341.32% | -0.06229 | FAIL |
+
+Paired scene bootstrap на шести held-out сценах подтвердил положительный
+Recall-сигнал: CI `ByteTrack [0.02585, 0.16135]`,
+`OC-SORT [0.02618, 0.14862]`. Но оба кандидата нарушили заранее
+зафиксированные ограничения по ложным тревогам и F1. Поэтому full development,
+положительная статья и test заблокированы; `test_access_count=0`.
+
+Воспроизведение development-части:
+
+```bash
+PYTHONPATH="$PWD/scripts" python -m scripts.temporal_safety.build_sequence_index
+PYTHONPATH="$PWD/scripts" python -m scripts.temporal_safety.generate_detector_predictions
+PYTHONPATH="$PWD/scripts" python -m scripts.temporal_safety.run_tracker_triage
+PYTHONPATH="$PWD/scripts" python -m scripts.temporal_safety.run_development_evaluation
+PYTHONPATH="$PWD/scripts" python -m scripts.temporal_safety.finalize_article
+PYTHONPATH="$PWD/scripts" python -m scripts.temporal_safety.finalize_development_fail
+```
 
 ## Данные и статистическая единица
 

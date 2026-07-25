@@ -121,10 +121,14 @@
 - Final V8b publication artifacts must be regenerated only from the saved OOF
   table with `scripts/v8b/finalize_v8b.py`; the independent audit, article
   validation and public-bundle redaction must all pass before release.
-- Canonical v9 is prospective and `BLOCKED_PREREQUISITES`. Do not execute it
-  until five new independent scenes or detector-OOF features for all 15 scenes
-  pass audit; its primary endpoint is still scene-macro `FN/frame` MAE.
+- Canonical v9 was closed `ABANDONED_BEFORE_EXECUTION` by owner direction.
+  Preserve its prospective design files, but do not resume it under the old
+  protocol ID even if its former data prerequisites later become available.
+- `railway-person-temporal-safety-v1` is a separate non-T-norm practical study.
+  Its two-fold gate failed: Recall/FN improved, but false alarms rose over 340%
+  and F1 fell. Keep full development and railway test blocked.
 
 ## Notes
 
 - `.codex/notes/final-practice.md` — protocol decisions, data footprint and run order.
+- `.codex/notes/temporal-safety-v1.md` — frozen tracker split, results and release scope.
