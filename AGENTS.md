@@ -85,6 +85,10 @@
 - CrowdHuman images are non-commercial research/education only and may not be
   redistributed. Require explicit terms acknowledgement; never place its images,
   archives or derived dataset in Git or release bundles.
+- Person canonical v5 range-aware candidate runtime `v1c` is locked on
+  `feat/person-canonical-v5-range-aware`: V5-E is excluded by the common
+  B0/B1/D1 diagnostic, V5-A/B/C/D run under the user service, and railway test
+  and attacks stay sealed until a full development gate passes.
 
 ## Notes
 
