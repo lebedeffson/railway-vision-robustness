@@ -1,0 +1,37 @@
+{
+  "created_at": "2026-07-25T10:26:01.147295+00:00",
+  "diagnostic_allowed": true,
+  "fixed_confidence_threshold": 0.07,
+  "fixed_iou_threshold": 0.5,
+  "frozen_input_sha256": {
+    "data/yolo_osdar23_rescue_v1/manifest.csv": "14ebd490d9c0be7dc4b305031dafa2c329b710c258b8c194b21bd15952330331",
+    "outputs/canonical_m4/tiling_audit/tile_manifest.csv": "3821295bdf84524d71aecf786921cfda5b1ea3d76968e9a04e3a6161f071721c",
+    "outputs/person_v3/protocol/folds.json": "ff5a6268c394d396c05440b8d309cf5256f998b6c371c66bc52ac9c9bccb14bf",
+    "outputs/person_v3/scene_cv/fold_0/seed_20260723/stage2/weights/best.pt": "5a8483b1d40938f49b05225cfe4b3c92414e874fe72008746396ea32bcfb0a79",
+    "outputs/person_v3/scene_cv/fold_1/seed_20260723/stage2/weights/best.pt": "66c84c3e66b82ff722dac5f76647d5526aef4af2091f8f83f3429a489a934695",
+    "outputs/person_v5/external_pretraining/run/weights/best.pt": "c16f796a297b0418cf315212a7d12a00b25825d857782da84f24653909723de6",
+    "outputs/person_v5/railway/fold_0/full/weights/best.pt": "29bf49f751639a7a4572bf465140a67e61f93325ad94bd20e975cd07fd9e2a64",
+    "outputs/person_v5/railway/fold_0/full/weights/last.pt": "43f2d363391c86b44d76e461f480efbe9be1e506d53924d430edeb4f3bbd6ce3",
+    "outputs/person_v5/railway/fold_1/full/weights/best.pt": "de5560daea845254c5f1b586bc8245965a0a2edbc2d4e180ed8c9f6bf39a9cf3",
+    "outputs/person_v5/railway/fold_1/full/weights/last.pt": "2f5e0a58c3afc8a6dffcf67ca3c83852d220d6464c4820abff249dbdfaf7608e",
+    "yolo11m.pt": "d5ffc1a674953a08e11a8d21e022781b1b23a19b730afc309290bd9fb5305b95"
+  },
+  "git_commit": "655928dcdf64130fe5850b28880cf141b357c06f",
+  "implementation_sha256": {
+    "configs/person_v5/models/yolo11m-p2-ca.yaml": "a40dedbd0bf46e3584882ee978b716c6892d4ff68c7c57eafd4e531bc4b23530",
+    "configs/person_v5/models/yolo11m-p2.yaml": "746fdcf09c735be674753eec6df1e190952365a2a106abee259de868eb296199",
+    "scripts/person_canonical_v5/development_diagnostic.py": "64c91ebd475c68c11f8d3cb5e301f469f4b4187fdbc88b9aaa1583cf8652789f",
+    "src/augmentation/person_pasting.py": "123e08ece221bf3d0d9f734741e70dad8150adf72c09c25d228f723b348aa632",
+    "src/data/range_assignment.py": "7019070afa7a13d9aec6b65ca0808d1d8bfbc26c330638bad19cf1668442ad96",
+    "src/models/coordinate_attention.py": "f17d890fd476af3187c37eed6c4ca95958216c36a57339895253c3dd5bc6bef5",
+    "src/models/p2_head.py": "fcb5c1b98510664fd51fe2d7379d35e56865ee344c563da3d26e73b0ecc4b177",
+    "src/training/gradual_transfer.py": "ba38aa0f6d0cf12917fe90ae13b77950cb63e54702a0e2987e959b5e60b634a4"
+  },
+  "protocol_id": "person-canonical-v5-range-aware-v1",
+  "protocol_path": "configs/person_v5/protocol.yaml",
+  "protocol_sha256": "463ae6a498c7e69ff85a89200b234c5eee5a66ad00ebbb50256b5e5d4921dc0a",
+  "reason": "development_diagnostic_must_run_before_candidate_training",
+  "status": "LOCKED",
+  "test_sealed": true,
+  "training_allowed": false
+}
