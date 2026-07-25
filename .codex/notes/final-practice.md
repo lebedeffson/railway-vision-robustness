@@ -262,6 +262,14 @@ development decision; fold 1 remains unread unless T0-D clears every frozen
 delta/FP/integrity check. Learned P3/P4 heatmap aggregation is T1 and remains
 blocked before T0 PASS.
 
+Canonical v6 T0 completed fold 0 in 2m38s. All 125 consecutive homographies
+passed (minimum inlier ratio 0.616). ByteTrack-style propagation raised Recall
+from 0.20129 to 0.30676 and small Recall from 0.14656 to 0.25916, but FP/frame
+rose from 0.88550 to 4.45802. Product-gated Bayesian fusion controlled FP
+(0.90840) but improved Recall only +0.00322 and small Recall +0.00357. The
+frozen T0-D gate therefore failed; fold 1 was not read, T1 stayed blocked, and
+test/attacks remained sealed.
+
 The final canonical contract supersedes the earlier post-gate ordering: after
 v2 calibration and quality gate, fit/select N1 or the predeclared N2 fallback on
 clean validation, run the five-scene deterministic frame-order pilot, compute

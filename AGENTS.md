@@ -101,6 +101,8 @@
 - Canonical v6 T0 is causal and development-only: temporal windows never cross
   `subsequence_id`, invalid homographies contribute zero evidence, and fold 1
   must not be read unless T0-D passes the frozen fold-0 gate.
+- Canonical v6 T0 ended at fold-0 FAIL: Product fusion improved Recall only
+  +0.00322 and small Recall +0.00357. Keep fold 1, T1, test and attacks blocked.
 
 ## Notes
 

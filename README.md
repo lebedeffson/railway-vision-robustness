@@ -33,7 +33,7 @@ test и запуска атак.
 | Person v5 data-first | CrowdHuman pretraining завершён; railway D1 gate FAIL | не открывался |
 | Person v5 range-aware | V5-A и V5-B: two-fold FAIL; официальный V5-C остановлен до первой эпохи из-за label-integrity defect | запечатан |
 | Person v5 expedited screening | C0/C1/C2 successive halving, только compute screening | запечатан |
-| Person v6 temporal T-norm | T0 causal postprocessor; fold 1 доступен только после fold-0 PASS | запечатан |
+| Person v6 temporal T-norm | T0 fold-0 FAIL; fold 1 skipped, T1 blocked | запечатан |
 
 Зафиксированный person-v3 baseline на folds 0/1:
 
@@ -154,6 +154,11 @@ T0-D: Bayesian fusion + Product T-norm reliability gate
 quality gate преобразование получает нулевой temporal weight. Fold 0 является
 development-решением. Fold 1 физически не читается runner-ом при fold-0 FAIL.
 Test и атаки остаются закрытыми.
+
+Фактический T0 завершён с `FAIL`. ByteTrack-style вариант поднял Recall, но
+увеличил FP/frame примерно в пять раз. Bayesian + Product дал только
+`ΔRecall=+0.0032` и `Δsmall Recall=+0.0036`, что существенно ниже frozen gate.
+Полный отчёт: [`reports/v6/V6_T0_FINAL_REPORT.md`](reports/v6/V6_T0_FINAL_REPORT.md).
 
 Запуск после создания frozen lock:
 
