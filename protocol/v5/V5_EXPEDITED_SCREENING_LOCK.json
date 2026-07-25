@@ -1,0 +1,33 @@
+{
+  "article_evidence": false,
+  "attacks_status": "BLOCKED",
+  "candidate_screening_only": true,
+  "candidates": [
+    "C0",
+    "C1",
+    "C2"
+  ],
+  "config_sha256": "86508a1dcb90e116e55f83a271105496e65a6d0b519db47e0ff9e3d59b42f93c",
+  "confirmation_fold": 1,
+  "created_at": "2026-07-25T17:41:14.459408+00:00",
+  "fidelities": [
+    0,
+    5,
+    10,
+    20
+  ],
+  "formal_v5_results_modified": false,
+  "implementation_commit": "576ac51609cda86b3661fe33879fc79a86c066b0",
+  "implementation_sha256": {
+    "configs/person_v5/expedited_screening.yaml": "86508a1dcb90e116e55f83a271105496e65a6d0b519db47e0ff9e3d59b42f93c",
+    "protocol/v5/V5_EXPEDITED_SCREENING_AMENDMENT.md": "c86a12bfaa79fa2e38e246d0be944e664dcf8153965f8dc63f9a01a5c4a646d0",
+    "scripts/person_canonical_v5/materialize_pasting.py": "92494ecccb29f2c67f8bdbe66d094dc9260143dbe5bfb3bbbd151a63552ba660",
+    "scripts/person_canonical_v5/screening_common.py": "7cf9a974085364435857ac22679d309eea98c100245fac38937cf80dc87fbd8e",
+    "scripts/person_canonical_v5/screening_data.py": "a3bfd99856904080498c7e118ed7448910a4c91486927b49485d546794da8995",
+    "scripts/person_canonical_v5/screening_runner.py": "ce20bfb57464a49d13abc573a40c5de582a8f6e2a71e2fd93036d1415324c129",
+    "systemd/tnorm-person-v5-screening.service": "92a618b194ce2738dfd44a3bd62eaf0831b38cc0efcb4202667ef9d4f563aebd"
+  },
+  "protocol_id": "canonical-v5-expedited-screening-v1",
+  "test_status": "SEALED",
+  "test_used": false
+}
