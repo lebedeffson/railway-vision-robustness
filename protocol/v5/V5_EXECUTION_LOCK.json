@@ -1,0 +1,42 @@
+{
+  "protocol_id": "person-canonical-v5-candidate-runtime-v1c",
+  "implementation_commit": "a50fc967f42d3607fe684f2ae545feb7ea433305",
+  "candidate_order": [
+    "V5-A",
+    "V5-B",
+    "V5-C",
+    "V5-D"
+  ],
+  "primary_pasting_fraction": 0.25,
+  "sensitivity_pasting_fraction": 0.5,
+  "sensitivity_folds": [
+    0
+  ],
+  "folds_for_candidate_gate": [
+    0,
+    1
+  ],
+  "candidate_confidence_threshold": 0.07,
+  "candidate_iou_threshold": 0.5,
+  "test_status": "SEALED",
+  "attacks_status": "BLOCKED",
+  "gradual_transfer_status": "REJECTED",
+  "V5_E_status": "REJECTED_PRE_RUN",
+  "V5_E_reason": "CrowdHuman zero-shot did not justify gradual transfer",
+  "gate_version": "v5-gate-1",
+  "bootstrap_iterations": 10000,
+  "bootstrap_cluster": "grouped_scene_id",
+  "multiple_testing": "Holm",
+  "primary_candidate_mapping": {
+    "V5-A": "P2_original_train",
+    "V5-B": "P2_coordinate_attention_original_train",
+    "V5-C": "baseline_primary_pasting_25pct",
+    "V5-D": "P2_primary_pasting_25pct"
+  },
+  "sensitivity_candidate_mapping": {
+    "V5-C50": "baseline_sensitivity_pasting_50pct_fold0_only",
+    "V5-D50": "P2_sensitivity_pasting_50pct_fold0_only"
+  },
+  "test_access_count": 0,
+  "attack_runs": 0
+}
