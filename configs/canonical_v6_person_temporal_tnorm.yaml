@@ -1,0 +1,101 @@
+protocol_id: canonical-v6-person-temporal-tnorm-v1
+stage: T0
+article_evidence: false
+test_status: SEALED
+attacks_status: BLOCKED
+test_marker: outputs/person_v3/test/TEST_OPENED.json
+abandoned_protocol:
+  protocol_id: canonical-v6-person-active-data-v1
+  status: ABANDONED_BEFORE_EXECUTION
+
+data:
+  manifest: data/yolo_osdar23_rescue_v1/manifest.csv
+  folds: outputs/person_v3/protocol/folds.json
+  development_splits: [train, val]
+  independent_unit: grouped_scene_id
+  temporal_unit: subsequence_id
+  ordering: [subsequence_id, frame_id, output_image]
+  confirmation:
+    development_fold: 0
+    confirmation_fold: 1
+  test_read_permitted: false
+
+baseline:
+  name: B0
+  candidate_floor: 0.001
+  operating_threshold: 0.07
+  iou_threshold: 0.50
+  fold_0:
+    predictions: outputs/person_v3/scene_cv/fold_0/seed_20260723/evaluation/predictions_and_ground_truth.csv
+    checkpoint_sha256: 5a8483b1d40938f49b05225cfe4b3c92414e874fe72008746396ea32bcfb0a79
+  fold_1:
+    predictions: outputs/person_v3/scene_cv/fold_1/seed_20260723/evaluation/predictions_and_ground_truth.csv
+    checkpoint_sha256: 66c84c3e66b82ff722dac5f76647d5526aef4af2091f8f83f3429a489a934695
+
+temporal:
+  causal: true
+  window_frames: 5
+  maximum_gap_frames: 2
+  minimum_confirmed_hits: 2
+  roi_embedding:
+    method: normalized_RGB_and_gradient_histogram
+    color_bins_per_channel: 8
+    gradient_bins: 8
+    note: P3_P4_feature_maps_and_score_heatmaps_are_deferred_to_T1
+  camera_compensation:
+    method: ORB_RANSAC_homography
+    maximum_width: 960
+    orb_features: 1600
+    ratio_test: 0.75
+    ransac_threshold_px: 3.0
+    minimum_matches: 20
+    minimum_inliers: 15
+    minimum_inlier_ratio: 0.25
+    invalid_transform_temporal_weight: 0.0
+  association:
+    method: Hungarian
+    maximum_cost: 0.82
+    motion_sigma: 2.5
+    scale_sigma: 0.70
+    weights:
+      motion: 0.45
+      compensated_iou: 0.15
+      appearance: 0.25
+      scale: 0.15
+  bayesian:
+    survival_probability: 0.95
+    birth_probability: 0.005
+    candidate_prior: 0.001
+    temporal_gain: 0.35
+    minimum_reliability: 0.05
+    maximum_posterior: 0.999
+  bytetrack:
+    high_threshold: 0.07
+    low_threshold: 0.001
+    confirmed_score_decay: 0.85
+  fusion_nms_iou: 0.60
+
+ablations:
+  - T0-A_B0
+  - T0-B_ByteTrack
+  - T0-C_Bayesian
+  - T0-D_Bayesian_Product
+
+gate:
+  T0_D_vs_B0:
+    delta_recall_min: 0.05
+    delta_small_recall_min: 0.08
+    delta_mAP50_min: -0.02
+    relative_FP_per_frame_max: 1.25
+    worst_fold_recall_min: 0.25
+    lost_GT: 0
+    sequence_leakage: 0
+  fold_1_runs_only_after_fold_0_pass: true
+  T1_status_before_T0_pass: BLOCKED
+
+outputs:
+  root: outputs/person_v6_temporal
+  decision_trace: outputs/person_v6_temporal/decision_trace.json
+  fold_0_gate: outputs/person_v6_temporal/fold_0/T0_GATE.json
+  fold_1_gate: outputs/person_v6_temporal/fold_1/T0_CONFIRMATION.json
+

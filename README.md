@@ -33,6 +33,7 @@ test и запуска атак.
 | Person v5 data-first | CrowdHuman pretraining завершён; railway D1 gate FAIL | не открывался |
 | Person v5 range-aware | V5-A и V5-B: two-fold FAIL; официальный V5-C остановлен до первой эпохи из-за label-integrity defect | запечатан |
 | Person v5 expedited screening | C0/C1/C2 successive halving, только compute screening | запечатан |
+| Person v6 temporal T-norm | T0 causal postprocessor; fold 1 доступен только после fold-0 PASS | запечатан |
 
 Зафиксированный person-v3 baseline на folds 0/1:
 
@@ -134,6 +135,32 @@ Amendment защищён отдельным hash-lock. Все кандидаты
 checkpoint, seed, fold, размер входа, tiling и evaluator. Решения записываются
 в append-only `decision_trace.json`. До отдельного полного OOF PASS test и
 атаки физически заблокированы.
+
+## Текущий протокол: person v6 temporal T-norm
+
+После отрицательного frame-only цикла `canonical-v6-person-temporal-tnorm-v1`
+проверяет дополнительную информацию уже существующих видеопоследовательностей,
+не меняя B0:
+
+```text
+T0-A: raw B0
+T0-B: ByteTrack-style causal association
+T0-C: Bayesian temporal existence fusion
+T0-D: Bayesian fusion + Product T-norm reliability gate
+```
+
+Окно содержит текущий и не более четырёх прошлых кадров и никогда не пересекает
+`subsequence_id`. Камера компенсируется ORB/RANSAC homography; не прошедшее
+quality gate преобразование получает нулевой temporal weight. Fold 0 является
+development-решением. Fold 1 физически не читается runner-ом при fold-0 FAIL.
+Test и атаки остаются закрытыми.
+
+Запуск после создания frozen lock:
+
+```bash
+systemctl --user status tnorm-person-v6-t0.service --no-pager
+journalctl --user -u tnorm-person-v6-t0.service -f
+```
 
 Официальное состояние исполнения:
 
@@ -322,6 +349,8 @@ scripts/person_v4/       training, evaluator and expedited decision pipeline
 scripts/person_v5/       data-first protocol lock and CrowdHuman conversion
 scripts/person_canonical_v5/
                          P2, range linkage, person pasting and candidate gates
+scripts/person_v6/       causal temporal T0 runner and protocol lock
+src/temporal/            camera compensation and temporal evidence aggregation
 systemd/                 resumable user services
 tests/                   protocol, math and leakage checks
 data/                    local datasets and manifests; not a release artifact

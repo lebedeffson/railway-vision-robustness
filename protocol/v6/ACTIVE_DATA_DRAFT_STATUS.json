@@ -1,0 +1,7 @@
+{
+  "protocol_id": "canonical-v6-person-active-data-v1",
+  "status": "ABANDONED_BEFORE_EXECUTION",
+  "training_runs": 0,
+  "test_used": false,
+  "reason": "Temporal evidence aggregation was selected before any active-data v6 execution."
+}

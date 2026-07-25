@@ -252,6 +252,16 @@ negatives), with cumulative 5/10/20-epoch successive halving. It is not article
 evidence and stops after fold-1 confirmation; even a screening PASS needs a new
 locked full OOF continuation before test or attacks.
 
+Canonical v6 changes the task from frame-only detection to causal video
+postprocessing without changing B0 weights. `canonical-v6-person-temporal-tnorm-v1`
+uses saved B0 detections down to confidence 0.001, resets state at every
+`subsequence_id`, compensates consecutive frames with a quality-gated
+ORB/RANSAC homography, and compares raw B0, ByteTrack-style association,
+Bayesian fusion and Bayesian fusion with Product reliability. Fold 0 is the
+development decision; fold 1 remains unread unless T0-D clears every frozen
+delta/FP/integrity check. Learned P3/P4 heatmap aggregation is T1 and remains
+blocked before T0 PASS.
+
 The final canonical contract supersedes the earlier post-gate ordering: after
 v2 calibration and quality gate, fit/select N1 or the predeclared N2 fallback on
 clean validation, run the five-scene deterministic frame-order pilot, compute

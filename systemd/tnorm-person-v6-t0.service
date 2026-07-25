@@ -1,0 +1,13 @@
+[Unit]
+Description=Canonical v6 causal temporal T-norm T0 evaluation
+ConditionPathExists=/home/lebedeffson/Code/андрей/TNormFilter_handoff/protocol/v6/V6_T0_PROTOCOL_LOCK.json
+ConditionPathExists=!/home/lebedeffson/Code/андрей/TNormFilter_handoff/outputs/person_v3/test/TEST_OPENED.json
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/lebedeffson/Code/андрей/TNormFilter_handoff
+Environment=PYTHONPATH=/home/lebedeffson/Code/андрей/TNormFilter_handoff:/home/lebedeffson/Code/андрей/TNormFilter_handoff/scripts
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/lebedeffson/Code/андрей/TNormFilter_handoff/.venv/bin/python -u -m scripts.person_v6.run_t0
+Nice=5
+
