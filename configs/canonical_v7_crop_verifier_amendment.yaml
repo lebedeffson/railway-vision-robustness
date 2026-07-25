@@ -1,0 +1,84 @@
+protocol_id: canonical-v7-person-tracklet-crop-verifier-v1
+parent_protocol: canonical-v7-person-tracklet-verifier-v1
+parent_result: V0_FAIL
+parent_gate: outputs/person_v7_tracklet_verifier/fold_0/V0_GATE.json
+test_status: SEALED
+attacks_status: BLOCKED
+test_marker: outputs/person_v3/test/TEST_OPENED.json
+
+inputs:
+  train_observations: outputs/person_v7_tracklet_verifier/fold_0/train_tracklets/tracklet_observations.csv
+  train_features: outputs/person_v7_tracklet_verifier/fold_0/train_tracklets/tracklet_features.csv
+  train_labels: outputs/person_v7_tracklet_verifier/fold_0/train_tracklets/tracklet_labels.csv
+  heldout_observations: outputs/person_v7_tracklet_verifier/fold_0/heldout_tracklets/tracklet_observations.csv
+  heldout_features: outputs/person_v7_tracklet_verifier/fold_0/heldout_tracklets/tracklet_features.csv
+  v0_selected_model: V0-B_monotone_hist_gradient_boosting
+  v0_model_artifact: outputs/person_v7_tracklet_verifier/fold_0/models/V0-B_monotone_hist_gradient_boosting/model.pkl
+
+encoder:
+  source: CrowdHuman_visible_person_pretraining
+  checkpoint: outputs/person_v5/external_pretraining/run/weights/best.pt
+  checkpoint_sha256: c16f796a297b0418cf315212a7d12a00b25825d857782da84f24653909723de6
+  crowdhuman_test_used: false
+  frozen: true
+  backbone_last_layer_index: 10
+  crop_context_multiplier: 1.75
+  selected_crops: [highest_detector_confidence, median_detector_confidence, lowest_detector_confidence]
+  input_size: 224
+  padding_value: 114
+  batch_size: 64
+  aggregate: ordered_concatenation
+
+crop_classifier:
+  name: V1_frozen_crowdhuman_crop_mlp
+  hidden_units: 64
+  epochs: 5
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  ranking_weight: 0.25
+  maximum_pairs_per_epoch: 4096
+  seed: 20260725
+  calibration: train_scene_OOF_isotonic
+  inner_group_folds: 5
+
+fusion:
+  name: V2_monotone_tabular_crop_fusion
+  inputs: [V0_B_tabular_probability, V1_crop_probability]
+  directions: [1, 1]
+  epochs: 200
+  learning_rate: 0.03
+  weight_decay: 0.0001
+  ranking_weight: 0.25
+  maximum_pairs_per_epoch: 4096
+  seed: 20260725
+  inner_group_folds: 5
+  detector_weight_alpha: 0.25
+  score_quantization_decimals: 12
+
+selection:
+  candidates: [V1_frozen_crowdhuman_crop_mlp, V2_monotone_tabular_crop_fusion]
+  scope: train_scene_grouped_OOF_only
+  metric_order: [mAP50, F1, Recall, small_recall, negative_FP_per_frame]
+  standard:
+    objective: maximum_F1
+    maximum_FP_multiplier_vs_B0: 1.50
+  safety:
+    objective: maximum_Recall
+    minimum_Precision: 0.40
+    maximum_FP_per_frame: 2.50
+
+gate:
+  mAP50_min: 0.26
+  Recall_min: 0.25
+  small_recall_min: 0.22
+  FP_per_frame_max: 2.0
+  F1_strictly_greater_than_B0: true
+  evaluator_consistency: PASS
+  lost_GT: 0
+  NaN_Inf: 0
+  fold_1_runs_only_after_fold_0_pass: true
+
+outputs:
+  root: outputs/person_v7_crop_verifier
+  gate: outputs/person_v7_crop_verifier/fold_0/V1_V2_GATE.json
+
