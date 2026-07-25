@@ -1,0 +1,231 @@
+protocol_id: canonical-v8b-person-failure-risk-v1
+parent_protocol: canonical-v8-person-active-data-v1
+parent_commit: 0288e381f7921417ec4268f3a610c85d369acf45
+study_type: frozen_detector_failure_risk_estimation
+status: PROSPECTIVE_LOCK
+
+scope:
+  target_class_id: 0
+  target_class_name: person
+  development_group_key: grouped_scene_id
+  development_scene_count: 15
+  detector_training: forbidden
+  adversarial_attacks: out_of_scope
+
+immutable_inputs:
+  detector_checkpoint:
+    path: outputs/person_v3/scene_cv/fold_0/seed_20260723/stage2/weights/best.pt
+    sha256: 5a8483b1d40938f49b05225cfe4b3c92414e874fe72008746396ea32bcfb0a79
+    role: frozen_B0
+    detector_training_heldout_scenes:
+      - 10_station_suelldorf_10
+      - 18_vegetation_switch_18
+      - 3_fire_site_3
+    detector_development_overlap_disclosed: true
+  development_manifest:
+    path: outputs/person_v3/protocol/development_manifest.csv
+    sha256: b07be14110e0eb068de0aaa055759b2ac0123d531948200fa39e636638a7fcba
+  sealed_test_manifest:
+    path: outputs/person_v3/protocol/sealed_test_manifest.csv
+    sha256: 883c26446c50dab53653f4be35468d8ad359dfe0e3071bba919a09bdfff90584
+  tiling_protocol:
+    path: configs/canonical_v2_m4_full_protocol.yaml
+    sha256: 17871a1b911ecc29b3e22eb978ccb9eb5aff6bb13e89472e3cbf1c0f0e7a6c29
+  v8_closure:
+    path: protocol/v8/V8_CLOSURE.json
+    sha256: 9bf8d01df9e68ba65a3f56265c785ec4775eaf254b6c19ccf5c15f9580959ed7
+
+test:
+  sealed: true
+  readable_before_development_pass: false
+  opened_marker: outputs/person_v8b/test/TEST_OPENED.json
+  access_count_required_before_pass: 0
+  single_evaluation_after_freeze: true
+  selection_forbidden:
+    - feature_selection
+    - normalization
+    - prototype
+    - model_family
+    - hyperparameters
+    - unsafe_threshold
+    - operating_point
+
+detector:
+  confidence_floor: 0.001
+  operating_threshold: 0.07
+  match_iou: 0.50
+  input_size: 640
+  tiling: frozen_M4_2x2
+  fusion: frozen_M4_class_aware_NMS
+  new_training: false
+
+outcomes:
+  primary_regression: fn_per_frame
+  secondary_regression:
+    - recall_gt_positive_frames
+  descriptive:
+    - fp_per_frame
+    - f1
+    - gt_person_count
+    - small_gt_fraction
+  recall_for_zero_gt_frames: excluded_from_recall_regression
+  unsafe_frame:
+    rule: fn_at_least_one_or_gt_positive_recall_below_half
+    fn_minimum: 1
+    recall_below: 0.50
+    recall_clause_requires_gt: true
+  unsafe_scene:
+    recall_below: 0.35
+    map50_below: 0.25
+    role: descriptive_only
+
+feature_extraction:
+  layers: [P3, P4, P5]
+  regions:
+    deployable:
+      - global
+      - predicted_person_proposal
+      - background
+    oracle_supplementary:
+      - gt_person
+  gt_regions_forbidden_in_U0_U1_U2_U3: true
+  proposal_confidence_minimum: 0.001
+  store_channel_means: true
+  finite_values_required: true
+  feature_hooks_must_match_detect_inputs: true
+
+normalization:
+  fit_scope: outer_LOSO_train_scenes_only
+  inner_selection_refit_required: true
+  method: train_quantile_minmax
+  q_low: 0.01
+  q_high: 0.99
+  clip: [0.0, 1.0]
+  epsilon: 1.0e-8
+  prototype: train_scene_equal_weight_median
+
+tnorm_features:
+  operators:
+    - Product
+    - Lukasiewicz
+  similarity: fuzzy_jaccard
+  epsilon: 1.0e-8
+  derived:
+    - per_layer_per_region
+    - proposal_minus_background
+    - interlayer_consistency
+  operator_selection_by_results: forbidden
+
+model_hierarchy:
+  U0:
+    features:
+      - mean_confidence
+      - max_confidence
+  U1:
+    includes: U0
+    features:
+      - prediction_count
+      - confidence_entropy
+      - low_confidence_fraction
+      - mean_prediction_area_ratio
+      - small_prediction_fraction
+  U2:
+    includes: U1
+    features:
+      - cosine_similarity
+      - l1_distance
+      - l2_distance
+      - mse
+      - mae
+      - pearson_correlation
+      - feature_entropy_shift
+      - activation_norm
+  U3:
+    includes: U2
+    features:
+      - product_fuzzy_jaccard
+      - lukasiewicz_fuzzy_jaccard
+      - proposal_minus_background
+      - interlayer_consistency
+
+models:
+  regression_primary:
+    family: Ridge
+    alpha_grid: [0.01, 0.1, 1.0, 10.0, 100.0]
+    selection_metric: inner_scene_macro_MAE
+  regression_sensitivity:
+    family: ElasticNet
+    alpha_grid: [0.001, 0.01, 0.1, 1.0]
+    l1_ratio: 0.5
+  classification:
+    family: logistic_regression
+    C_grid: [0.01, 0.1, 1.0, 10.0]
+    class_weight: balanced
+    selection_metric: inner_scene_macro_AUPRC
+    calibration: train_scene_OOF_isotonic
+  neural_models: forbidden
+  boosting_primary: forbidden
+
+validation:
+  outer: leave_one_grouped_scene_out
+  outer_folds: 15
+  inner: leave_one_grouped_scene_out
+  fit_rows: frames
+  statistical_unit: grouped_scene_id
+  aggregate_scene_first: true
+  random_seed: 20260726
+  bootstrap_iterations: 10000
+  bootstrap_seed: 20260726
+  same_bootstrap_indices_for_models: true
+  holm_correction: true
+
+metrics:
+  primary:
+    - scene_macro_MAE_fn_per_frame
+  regression_secondary:
+    - scene_macro_MAE_recall
+    - R2
+    - absolute_Spearman
+  classification_secondary:
+    - AUROC
+    - AUPRC
+    - Brier
+    - ECE_10_equal_width_bins
+    - sensitivity_at_specificity_0.80
+  selective_operation:
+    coverage_grid: [1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
+    accept_lowest_risk_first: true
+    outputs:
+      - accepted_frame_recall
+      - accepted_fn_per_frame
+      - operator_referral_fraction
+
+development_gate:
+  confirmatory_comparison: U3_minus_U2
+  primary_endpoint: scene_macro_MAE_fn_per_frame
+  relative_MAE_reduction_minimum_percent: 5.0
+  paired_scene_bootstrap_delta_MAE_CI_upper_below: 0.0
+  scene_win_count_minimum: 10
+  leave_one_scene_out_relative_reduction_minimum_percent: 0.0
+  calibration_noninferiority:
+    Brier_maximum_increase: 0.01
+    ECE_maximum_increase: 0.02
+  required:
+    - all_15_scenes_present
+    - no_scene_leakage
+    - train_only_normalization
+    - train_only_prototypes
+    - nested_train_only_hyperparameter_selection
+    - no_nan_or_inf
+    - evaluator_consistency_PASS
+    - test_access_count_zero
+  secondary_endpoints_cannot_rescue_primary_failure: true
+
+interpretation:
+  H1: U3 improves FN_per_frame prediction over U2
+  H2: predicted-person-region T-norm consistency is more informative than global consistency
+  H3: U3 risk enables lower FN_per_frame among automatically accepted frames
+  H4: U3 improvement is stable across outer LOSO scenes
+  gt_region_claim_role: oracle_supplementary_only
+  detector_quality_claims: forbidden
+  adversarial_robustness_claims: forbidden

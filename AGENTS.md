@@ -112,6 +112,9 @@
   frozen scene splits and `V8_EXECUTION_LOCK`; old fold 0 is tuning-only.
 - Canonical v8 closed as `BLOCKED_NO_NEW_DATA` before GPU execution. Preserve
   its acquisition lock; do not reopen it or substitute old/synthetic scenes.
+- Canonical v8b freezes B0 and predicts `FN/frame`; U3-vs-U2 scene-macro MAE is
+  primary. GT regions are oracle-only, nested LOSO refits train-only statistics,
+  and secondary metrics cannot rescue a primary FAIL or open test.
 
 ## Notes
 

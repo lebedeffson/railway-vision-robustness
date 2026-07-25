@@ -1,0 +1,13 @@
+[Unit]
+Description=Canonical v8b frozen-B0 person failure-risk pipeline
+After=network.target
+ConditionPathExists=%h/Code/андрей/TNormFilter_handoff/protocol/v8b/V8B_PROTOCOL_LOCK.json
+ConditionPathExists=!%h/Code/андрей/TNormFilter_handoff/outputs/person_v8b/test/TEST_OPENED.json
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/Code/андрей/TNormFilter_handoff
+Environment=PYTHONPATH=%h/Code/андрей/TNormFilter_handoff:%h/Code/андрей/TNormFilter_handoff/scripts
+ExecStart=%h/Code/venv/bin/python scripts/person_v8b/run_pipeline.py
+Nice=5
+

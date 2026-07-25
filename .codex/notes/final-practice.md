@@ -398,3 +398,15 @@ grouped in five-fold OOF. V8 reuses simple YOLO11m ERM and forbids the rejected
 NWD/QFL, GroupDRO, MixStyle, SWAD, P2, attention, pasting, temporal and verifier
 extensions. Test and attacks remain physically blocked until full OOF PASS and
 a separate pre-test freeze.
+
+Canonical v8 was subsequently closed as `BLOCKED_NO_NEW_DATA` before an
+execution lock or GPU run. V8b changes the question rather than the detector:
+the frozen person-v3 fold-0 B0 checkpoint predicts its own `FN/frame` risk.
+Nested 15-scene LOSO compares U0 confidence, U1 output statistics, U2 standard
+P3/P4/P5 distances and U3 Product/Lukasiewicz consistency. The confirmatory
+endpoint is U3-vs-U2 scene-macro FN MAE with at least 5% reduction, paired
+scene-bootstrap CI below zero, at least 10 scene wins and leave-one-scene-out
+stability. Secondary endpoints cannot rescue failure. B0 was trained on 12 of
+the 15 risk-development scenes, so this LOSO concerns the risk estimator rather
+than uniformly detector-OOF performance. Deployable regions use B0 proposals;
+GT regions are oracle-only. Test and attacks remain sealed/out of scope.

@@ -36,6 +36,7 @@ test и запуска атак.
 | Person v6 temporal T-norm | T0 fold-0 FAIL; fold 1 skipped, T1 blocked | запечатан |
 | Person v7 tracklet verifier | V0 и frozen-crop V1/V2: fold-0 FAIL; fold 1 skipped | запечатан |
 | Person v8 active data | BLOCKED_NO_NEW_DATA; GPU_NOT_STARTED | запечатан |
+| Person v8b failure risk | protocol implemented; development LOSO not evaluated | запечатан |
 
 Зафиксированный person-v3 baseline на folds 0/1:
 
@@ -86,6 +87,42 @@ Test, attacks и H1-H4 остаются закрытыми до полного O
 операционные TP/FP/Recall/F1 при повторной проверке совпали, однако frozen
 AP-parity формально остался `FAIL` из-за различия порядка ties после
 сериализации (`<1e-5`); этот статус не переписан задним числом.
+
+## Текущий протокол: person v8b failure risk
+
+`canonical-v8b-person-failure-risk-v1` не улучшает и не переобучает детектор.
+Он проверяет, позволяют ли Product/Łukasiewicz consistency-признаки P3/P4/P5
+предсказывать `FN/frame` замороженного B0 лучше стандартных representation
+distances.
+
+```text
+U0: confidence
+U1: U0 + detector outputs
+U2: U1 + standard representation distances
+U3: U2 + Product/Lukasiewicz consistency
+```
+
+Первичный endpoint зафиксирован заранее: scene-macro MAE прогноза `FN/frame`
+для `U3 − U2`. Вторичные AUROC/AUPRC/R²/Spearman не могут заменить провал
+первичного endpoint. Normalization, prototypes, hyperparameters и isotonic
+calibration пересчитываются только на train-сценах каждого внешнего и
+внутреннего LOSO.
+
+Deployable object-region features строятся по B0 proposals. GT-person regions
+разрешены только как oracle supplement и не входят в U0–U3. Замороженный B0
+был обучен на 12 из 15 development-сцен; это явно раскрыто, поэтому LOSO
+проверяет переносимость risk estimator, а не единообразный detector-OOF
+результат.
+
+Порядок:
+
+```text
+F0 audit -> F1 frozen-B0 features -> F2 nested 15-scene LOSO
+-> paired scene bootstrap/Holm -> development gate
+-> только при PASS один risk-only test
+```
+
+FGSM/PGD и заявления об adversarial robustness исключены из v8b.
 
 ## Данные и статистическая единица
 
