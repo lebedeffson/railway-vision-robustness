@@ -384,3 +384,17 @@ small Recall, non-negative worst-split Recall delta, at least two improved
 splits and all technical checks. It permits only an external scene fold and is
 never article evidence. Synthetic four-domain results are implementation
 evidence only.
+
+Canonical v8 is the prospective active-data continuation after all v2-v7
+same-pool model, transfer, augmentation, temporal and verifier candidates failed
+to improve the weak independent scene. The acquisition lock is intentionally
+separate from the execution lock: missing new data is
+`WAITING_FOR_NEW_DATA`, not a scientific failure. At least three genuinely new
+railway scenes, 300 manually verified frames, 500 person boxes and 40% small
+persons must pass exact/perceptual duplicate, annotation, scene-leakage and
+frozen-tiling audits. Old fold 0 is tuning-only. A new scene is reserved for
+screening, another new scene is untouched confirmation, and all scene IDs remain
+grouped in five-fold OOF. V8 reuses simple YOLO11m ERM and forbids the rejected
+NWD/QFL, GroupDRO, MixStyle, SWAD, P2, attention, pasting, temporal and verifier
+extensions. Test and attacks remain physically blocked until full OOF PASS and
+a separate pre-test freeze.

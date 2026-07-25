@@ -1,0 +1,12 @@
+[Unit]
+Description=Canonical v8 person active-data screening authorization
+After=network.target
+ConditionPathExists=%h/Code/андрей/TNormFilter_handoff/outputs/person_v8/protocol/V8_EXECUTION_LOCK.json
+ConditionPathExists=!%h/Code/андрей/TNormFilter_handoff/outputs/person_v8/test/TEST_OPENED.json
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/Code/андрей/TNormFilter_handoff
+Environment=PYTHONPATH=%h/Code/андрей/TNormFilter_handoff:%h/Code/андрей/TNormFilter_handoff/scripts
+ExecStart=%h/Code/venv/bin/python scripts/person_v8/run_screening.py --check-only
+

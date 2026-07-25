@@ -1,0 +1,229 @@
+protocol_id: canonical-v8-person-active-data-v1
+parent_protocol: canonical-v7-person-tracklet-verifier-v1
+parent_commit: 88fb73e8fc6b31e332eb687c79d5b88dadaf475d
+status: WAITING_FOR_NEW_DATA
+
+target:
+  class_id: 0
+  class_name: person
+
+test:
+  source: original_test
+  sealed: true
+  readable: false
+  reusable: false
+  access_count_required: 0
+  opened_marker: outputs/person_v8/test/TEST_OPENED.json
+
+immutable_inputs:
+  prior_development_manifest:
+    path: outputs/person_v3/protocol/development_manifest.csv
+    sha256: b07be14110e0eb068de0aaa055759b2ac0123d531948200fa39e636638a7fcba
+  sealed_test_manifest:
+    path: outputs/person_v3/protocol/sealed_test_manifest.csv
+    sha256: 883c26446c50dab53653f4be35468d8ad359dfe0e3071bba919a09bdfff90584
+  prior_folds:
+    path: outputs/person_v3/protocol/folds.json
+    sha256: ff5a6268c394d396c05440b8d309cf5256f998b6c371c66bc52ac9c9bccb14bf
+  tiling_protocol:
+    path: configs/canonical_v2_m4_full_protocol.yaml
+    sha256: 17871a1b911ecc29b3e22eb978ccb9eb5aff6bb13e89472e3cbf1c0f0e7a6c29
+  b0_initialization:
+    path: yolo11m.pt
+    sha256: d5ffc1a674953a08e11a8d21e022781b1b23a19b730afc309290bd9fb5305b95
+
+acquisition:
+  independent_new_scene_minimum: 3
+  preferred_independent_new_scenes: 5
+  selected_frame_minimum: 300
+  preferred_selected_frames: 600
+  person_box_minimum: 500
+  preferred_person_boxes: 1500
+  small_or_distant_fraction_minimum: 0.40
+  small_or_distant_operationalization: small_by_frozen_area_definition
+  source_frame_width: 4112
+  source_frame_height: 2504
+  require_new_scene_flag: true
+  require_manual_verification: true
+  allowed_annotation_status: VERIFIED
+  selection_reasons:
+    - low_confidence
+    - predictive_uncertainty
+    - small_person
+    - distant_person
+    - occlusion
+    - hard_false_positive
+    - feature_novelty
+    - visual_novelty
+  prohibited_sources:
+    - sealed_test
+    - synthetic_copy_paste
+    - duplicate_existing_subsequence
+
+deduplication:
+  exact_sha256_required: true
+  dhash_hamming_maximum: 4
+  minimum_time_separation_seconds: 1.0
+  reject_cross_split_duplicates: true
+
+annotation:
+  format: yolo_normalized_xywh
+  allowed_class_ids: [0]
+  allow_empty_negative_frames: true
+  correction_log_required_for_every_frame: true
+  unchanged_action: UNCHANGED_VERIFIED
+
+size_definition:
+  coordinate_space: original_frame
+  small_area_ratio_below: 0.001
+  medium_area_ratio_below: 0.01
+
+audit_gate:
+  missing_images: 0
+  missing_labels: 0
+  invalid_geometry: 0
+  invalid_class_ids: 0
+  cross_split_duplicates: 0
+  scene_leakage: 0
+  lost_gt_after_tiling: 0
+  sealed_test_access: 0
+
+split:
+  group_key: grouped_scene_id
+  seed: 20260725
+  search_candidates: 10000
+  oof_folds: 5
+  new_scene_roles:
+    screening_heldout: 1
+    untouched_confirmation: 1
+    training_support_minimum: 1
+  frames_from_one_scene_must_stay_together: true
+  fold_balance_fields:
+    - frame_count
+    - person_gt
+    - small_gt
+    - medium_gt
+    - large_gt
+    - illumination
+    - camera_id
+    - occlusion_level
+
+model:
+  architecture: YOLO11m
+  initialization: COCO
+  loss: standard_ultralytics
+  training: ERM
+  screening_seed: 20260725
+  image_size: 640
+  tiling: frozen_m4
+  fusion: frozen_m4
+  checkpoint_selection:
+    - max_validation_recall
+    - max_validation_small_recall
+    - max_validation_map50
+    - min_fn_per_frame
+    - earliest_epoch
+  forbidden:
+    - NWD
+    - QFL
+    - GroupDRO
+    - MixStyle
+    - SWAD
+    - P2
+    - attention
+    - temporal_fusion
+    - tracklet_verifier
+    - instance_pasting
+
+augmentation:
+  horizontal_flip: 0.5
+  brightness_contrast: limited
+  scale: limited
+  translate: limited
+  reject_if_gt_lost: true
+  reject_if_box_below_pixels: 4
+  reject_invalid_geometry: true
+
+screening:
+  epoch_levels: [5, 10, 20]
+  level_5:
+    map50_minimum: 0.25
+    recall_minimum: 0.25
+    small_recall_minimum: 0.18
+  level_10:
+    map50_minimum: 0.32
+    recall_minimum: 0.32
+    small_recall_minimum: 0.23
+    nondegrading_last_evaluations: 3
+  level_20:
+    map50_minimum: 0.35
+    recall_minimum: 0.35
+    small_recall_minimum: 0.25
+
+two_fold_gate:
+  macro_map50_minimum: 0.45
+  macro_recall_minimum: 0.45
+  macro_small_recall_minimum: 0.30
+  worst_fold_recall_minimum: 0.30
+  evaluator_consistency: PASS
+  lost_gt: 0
+  nan_count: 0
+  inf_count: 0
+
+oof_gate:
+  macro_map50_minimum: 0.45
+  macro_recall_minimum: 0.45
+  macro_small_recall_minimum: 0.30
+  worst_fold_recall_minimum: 0.30
+  folds_passing_original_gate_minimum: 4
+  original_fold_map50_minimum: 0.25
+  original_fold_recall_minimum: 0.35
+  desired_macro_map50: 0.55
+  desired_macro_recall: 0.55
+
+post_oof:
+  standard_threshold: OOF_MAX_F1
+  safety_threshold: OOF_ONLY
+  attack_budgets: OOF_ONLY
+  final_training: all_development_scenes
+  test_open_once: true
+
+canonical_test:
+  evaluations:
+    - clean
+    - FGSM
+    - PGD
+    - adaptive_PGD
+  input_transforms:
+    - none
+    - Product_preprocessing
+    - median
+  feature_layers: [P3, P4, P5]
+  diagnostics:
+    - Product
+    - Lukasiewicz
+    - D2
+    - D3
+    - R2
+    - R3
+    - object_vs_global
+    - latency
+    - LOSO
+    - scene_cluster_bootstrap
+  forbidden_test_selection:
+    - checkpoint
+    - threshold
+    - attack_budget
+    - tnorm
+    - D2_D3_features
+    - R2_R3_features
+    - architecture
+
+tnorm_effect_gate:
+  relative_mae_reduction_minimum_percent: 5.0
+  delta_r2_minimum: 0.05
+  delta_absolute_spearman_minimum: 0.05
+  paired_scene_bootstrap_ci_excludes_zero: true
+  holm_correction: true
+  require_loso_stability: true
+  adaptive_pgd_required: true

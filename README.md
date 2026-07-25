@@ -35,6 +35,7 @@ test и запуска атак.
 | Person v5 expedited screening | C0/C1/C2 successive halving, только compute screening | запечатан |
 | Person v6 temporal T-norm | T0 fold-0 FAIL; fold 1 skipped, T1 blocked | запечатан |
 | Person v7 tracklet verifier | V0 и frozen-crop V1/V2: fold-0 FAIL; fold 1 skipped | запечатан |
+| Person v8 active data | acquisition protocol frozen; WAITING_FOR_NEW_DATA | запечатан |
 
 Зафиксированный person-v3 baseline на folds 0/1:
 
@@ -44,6 +45,45 @@ test и запуска атак.
 - worst-fold Recall: `0.20129`.
 
 Эти числа — development evidence, а не итоговый test-результат.
+
+## Текущий протокол: person v8 active data
+
+`canonical-v8-person-active-data-v1` не добавляет новую архитектурную или
+математическую надстройку. Он разрешает продолжение только после добавления
+минимум трёх действительно новых railway-сцен, 300 вручную проверенных кадров
+и 500 person boxes, из которых не менее 40% относятся к small/distant people.
+
+Протокол замораживается в два этапа:
+
+1. acquisition-lock фиксирует критерии отбора, схемы manifest/correction log,
+   CPU-аудит и правила split до сбора данных;
+2. execution-lock создаётся только после `CPU_GATE: PASS` и хеширует реальные
+   данные, аудит и новые scene-disjoint folds.
+
+Без execution-lock GPU screening физически заблокирован. Отсутствие новых
+данных имеет статус `WAITING_FOR_NEW_DATA`, а не `FAIL`.
+
+```bash
+PYTHONPATH="$PWD:$PWD/scripts" /home/lebedeffson/Code/venv/bin/python \
+  scripts/person_v8/audit_active_data.py
+```
+
+Шаблоны:
+
+- [`acquisition_manifest.csv`](protocol/v8/templates/acquisition_manifest.csv);
+- [`correction_log.csv`](protocol/v8/templates/correction_log.csv).
+
+После поступления новых сцен порядок фиксирован:
+
+```text
+manual annotation -> CPU audit -> frozen splits -> execution lock
+-> B0 5/10/20 screening -> untouched confirmation -> five-fold OOF
+```
+
+Test, attacks и H1-H4 остаются закрытыми до полного OOF PASS. Для v7
+операционные TP/FP/Recall/F1 при повторной проверке совпали, однако frozen
+AP-parity формально остался `FAIL` из-за различия порядка ties после
+сериализации (`<1e-5`); этот статус не переписан задним числом.
 
 ## Данные и статистическая единица
 

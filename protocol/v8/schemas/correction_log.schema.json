@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Canonical v8 annotation correction log CSV contract",
+  "type": "object",
+  "required_columns": [
+    "image_id",
+    "old_annotation_sha256",
+    "new_annotation_sha256",
+    "reason",
+    "action",
+    "reviewer_role",
+    "timestamp",
+    "commit"
+  ],
+  "allowed_actions": [
+    "UNCHANGED_VERIFIED",
+    "BOX_ADDED",
+    "BOX_REMOVED",
+    "BOX_CORRECTED",
+    "MULTIPLE_CORRECTIONS"
+  ],
+  "additional_columns_allowed": true
+}
+

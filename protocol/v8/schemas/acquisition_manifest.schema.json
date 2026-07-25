@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Canonical v8 acquisition manifest CSV contract",
+  "type": "object",
+  "required_columns": [
+    "image_id",
+    "image_path",
+    "label_path",
+    "grouped_scene_id",
+    "subsequence_id",
+    "frame_timestamp",
+    "source_video_id",
+    "camera_id",
+    "station_id",
+    "scene_type",
+    "illumination",
+    "occlusion_level",
+    "selection_reasons",
+    "b0_max_confidence",
+    "predictive_uncertainty",
+    "feature_novelty_score",
+    "dedup_cluster_id",
+    "annotation_status",
+    "reviewer_role",
+    "review_timestamp",
+    "source_license",
+    "new_scene"
+  ],
+  "additional_columns_allowed": true
+}
+
