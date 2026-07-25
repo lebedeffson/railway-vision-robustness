@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 /data/
 outputs/
+/runtime/v5/
 
 # Local runtime/provenance artifacts. Keep them on the experiment host, but do
 # not publish them in the source repository.
