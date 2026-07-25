@@ -1,0 +1,28 @@
+{
+  "attacks_status": "BLOCKED",
+  "config_sha256": "242939de7eb76c627ac046301d0c942917b788c974b89fac51c090194f5fc1d4",
+  "crowdhuman_checkpoint_sha256": "c16f796a297b0418cf315212a7d12a00b25825d857782da84f24653909723de6",
+  "encoder_frozen": true,
+  "fold_1_runs_only_after_fold_0_pass": true,
+  "heldout_read_after_new_freeze_only": true,
+  "implementation_commit": "c567fc1115b560dc146ffad4fdc04c7a6da025ae",
+  "implementation_sha256": {
+    "configs/canonical_v7_crop_verifier_amendment.yaml": "242939de7eb76c627ac046301d0c942917b788c974b89fac51c090194f5fc1d4",
+    "protocol/v7/V7_CROP_AMENDMENT.md": "fb8ad16cb363522e26967ff024ca0e6e007d7ee1d6b079155d85bbcc09385288",
+    "scripts/person_v7/run_v0.py": "317b6cbbc6d77b76f4ea6af297f0f9a37b4b92433c4ef945c112e806fc86b9d6",
+    "scripts/person_v7_crop/common.py": "595c935d8410d457a443235c3c025a9817255ba100766d950fa840f92e841f86",
+    "scripts/person_v7_crop/lock_protocol.py": "6273a1f15eab886c4df829934c2ab553ae064a22a5bae93142037195bacaeacb",
+    "scripts/person_v7_crop/run_crop.py": "73f926c76b11a0089ebafc76d84afaad78d07c22a2a7ddded26f3ff3ee75fc7a",
+    "src/crop_verifier/__init__.py": "37f12ca1a64a3d53fa6347301335ce756b2d5c94f8bd45c6fe15018974760ada",
+    "src/crop_verifier/crop_model.py": "8ff6eb413e98627c1dec5ac904760c2d8a8c1dc13567a7d904e161906ebdcd92",
+    "src/tracklet_verifier/verifier.py": "9e13dc3bb9c80afd165f3fab4bb4d674a042b03e7a2cf2bd2a9238a4833d8ebc",
+    "systemd/tnorm-person-v7-crop.service": "a36ec93d8688eb926ea56d28db863d2de5090baef612abc8deb48fd152d60400",
+    "tests/test_person_v7_crop_verifier.py": "2302e54aee35f0e5bfc8b253fd9e4f9d38f2a1262a54b47df5046318a128b2fe"
+  },
+  "parent_gate_sha256": "7f5f45ec95d7877d5303b7c2a7d25fa4da1ed340e6d253a7bba6d3ddfc5037f0",
+  "parent_result": "canonical-v7-person-tracklet-verifier-v1:V0_FAIL",
+  "protocol_id": "canonical-v7-person-tracklet-crop-verifier-v1",
+  "selection_uses_train_scene_oof_only": true,
+  "test_status": "SEALED",
+  "test_used": false
+}
