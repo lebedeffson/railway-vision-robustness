@@ -21,6 +21,17 @@ from scripts.person_canonical_v5.execution_common import (
 
 
 BUNDLE_ROOT = PROJECT / "release/v5"
+FINALIZER_LOCK = PROJECT / "protocol/v5/V5_FINALIZER_LOCK.json"
+
+
+def _assert_finalizer_locked() -> None:
+    if not FINALIZER_LOCK.is_file():
+        raise RuntimeError("Person-v5 finalizer is not locked")
+    lock = json.loads(FINALIZER_LOCK.read_text(encoding="utf-8"))
+    for relative, expected in lock["implementation_sha256"].items():
+        path = PROJECT / relative
+        if not path.is_file() or sha256(path) != expected:
+            raise RuntimeError(f"Finalizer implementation changed: {relative}")
 
 
 def _terminal_gate() -> tuple[str, dict[str, Any]] | None:
@@ -188,6 +199,7 @@ def _bundle(status: str) -> Path:
 
 def finalize() -> dict[str, Any]:
     assert_execution_locked()
+    _assert_finalizer_locked()
     terminal = _terminal_gate()
     if terminal is None:
         return {"status": "WAITING_FOR_TERMINAL_GATE"}
