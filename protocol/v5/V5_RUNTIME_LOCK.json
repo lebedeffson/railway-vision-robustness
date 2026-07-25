@@ -1,0 +1,26 @@
+{
+  "status": "LOCKED",
+  "protocol_id": "person-canonical-v5-candidate-runtime-v1c",
+  "created_at": "2026-07-25T14:22:51+03:00",
+  "implementation_commit": "a50fc967f42d3607fe684f2ae545feb7ea433305",
+  "execution_commit": "f19567bd1a4c02e1aea32e1c1ffb7635f9a5e20d",
+  "execution_lock_sha256": "3b20af44f30727121133bce833269dfa2b9a6b1254e269d449d4b9b12f8a3468",
+  "config_sha256": "cc875ba089a943047d56596eba317e0bdf3c6e6ca392e971c272a7d51396c0ac",
+  "implementation_sha256": {
+    "configs/person_v5/execution_v5.yaml": "cc875ba089a943047d56596eba317e0bdf3c6e6ca392e971c272a7d51396c0ac",
+    "scripts/person_canonical_v5/execution_common.py": "6453d930d2d3b9bc8269f83c1696a097783032ff62f839c6eafe5ff9d73b4c8d",
+    "scripts/person_canonical_v5/execution_train.py": "6af3df87e379872346c0c4b72ef1691b84d64fe0afb7621120fd2f1ba20ae3d5",
+    "scripts/person_canonical_v5/execution_evaluate.py": "9e66edeb6a47156a124c395e2c310f0aff07ede867c583b5e0b4bdd62b2d4d35",
+    "scripts/person_canonical_v5/execution_analysis.py": "d66f30adff76c1890a8e211195a76a81a430a591ca7d0f15dbba9ee3c7ad41e3",
+    "scripts/person_canonical_v5/run_execution_pipeline.py": "c1612022c7049c54726d3cf4de211237cf5c5f70b9f6778b36eb46c8c0297184",
+    "systemd/tnorm-person-v5-candidates.service": "6a4b696f654051d05e5dd02d1954bb777f539ed796ddcf144c5f311ed9167b28"
+  },
+  "primary_pasting_fraction": 0.25,
+  "sensitivity_pasting_fraction": 0.50,
+  "candidate_threshold": 0.07,
+  "candidate_iou": 0.50,
+  "test_status": "SEALED",
+  "attacks_status": "BLOCKED",
+  "test_access_count": 0,
+  "attack_runs": 0
+}
