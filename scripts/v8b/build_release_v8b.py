@@ -87,7 +87,7 @@ def scan_public_text(entries: Iterable[tuple[Path, str]]) -> list[str]:
     )
     forbidden = (
         "/" + "home/",
-        "CrowdHuman/images",
+        "CrowdHuman/" + "images",
         "data/" + "yolo_osdar23",
         "outputs/" + "person_v3/",
     )
