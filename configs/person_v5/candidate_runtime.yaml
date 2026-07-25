@@ -1,5 +1,9 @@
-protocol_id: person-canonical-v5-candidate-runtime-v1
+protocol_id: person-canonical-v5-candidate-runtime-v1a
 parent_protocol: person-canonical-v5-range-aware-v1
+amendment:
+  timing: before_first_candidate_training
+  reason: enforce_frozen_maximum_two_insertions_per_source_frame
+  supersedes: person-canonical-v5-candidate-runtime-v1
 test_sealed: true
 test_marker: outputs/person_v3/test/TEST_OPENED.json
 diagnostic_decision: protocols/person_canonical_v5_range_aware_v1/development_diagnostic_decision.json
@@ -75,6 +79,10 @@ pasting_fraction_selection:
     - lower_fraction
   freeze_before_fold1: true
 
+instance_pasting_contract:
+  maximum_insertions_per_source_frame: 2
+  source_frame_match: exact_frame_token
+
 evaluation:
   confidence_min: 0.001
   confidence_max: 0.500
@@ -102,4 +110,3 @@ gate:
     test: sealed
     attacks: blocked
     H1_H4: not_evaluated
-

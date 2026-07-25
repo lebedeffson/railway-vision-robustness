@@ -118,6 +118,12 @@ class PersonCanonicalV5ProtocolTest(unittest.TestCase):
             runtime["pasting_fraction_selection"]["candidates"],
             [0.25, 0.50],
         )
+        self.assertEqual(
+            runtime["instance_pasting_contract"][
+                "maximum_insertions_per_source_frame"
+            ],
+            2,
+        )
 
 
 class P2AndCoordinateAttentionTest(unittest.TestCase):

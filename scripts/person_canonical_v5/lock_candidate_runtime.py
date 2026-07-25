@@ -78,7 +78,7 @@ def lock() -> dict[str, Any]:
         raise RuntimeError(f"Candidate runtime implementation missing: {missing}")
     payload = {
         "status": "LOCKED",
-        "protocol_id": "person-canonical-v5-candidate-runtime-v1",
+        "protocol_id": validate()["config"]["protocol_id"],
         "created_at": now(),
         "git_commit": git("rev-parse", "HEAD"),
         "config_sha256": sha256(CONFIG),

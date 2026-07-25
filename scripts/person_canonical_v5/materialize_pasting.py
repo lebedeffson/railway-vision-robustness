@@ -155,6 +155,7 @@ def materialize(fold: int, changed_fraction: float) -> dict[str, Any]:
     used_by_frame: dict[str, set[str]] = {}
     output_images: list[str] = []
     accepted_frames: set[str] = set()
+    inserted_by_frame: dict[str, int] = {}
     original_gt = generated_gt = inserted_gt = 0
     bank_records = list(bank.to_dict("records"))
     for row in tiles.sort_values(["source_image", "tile_id"]).itertuples(index=False):
@@ -167,15 +168,20 @@ def materialize(fold: int, changed_fraction: float) -> dict[str, Any]:
         original_gt += len(boxes)
         accepted = False
         attempts = []
-        if str(row.source_image) in selected and boxes:
+        frame_key = str(row.source_image)
+        if (
+            frame_key in selected
+            and boxes
+            and inserted_by_frame.get(frame_key, 0) < 2
+        ):
             ordered_boxes = sorted(boxes, key=lambda box: (box.height, box.x1))
             for existing in ordered_boxes:
                 for anchor in candidate_anchors(existing, image.width, image.height):
                     candidate = bank_records[int(rng.integers(0, len(bank_records)))]
                     if (
                         str(candidate["source_scene_id"]) == str(row.grouped_scene_id)
-                        or str(candidate["source_frame_id"])
-                        in Path(str(row.source_image)).stem
+                        or f"__{candidate['source_frame_id']}_"
+                        in Path(frame_key).stem
                     ):
                         continue
                     instance = Image.open(candidate["instance_image"]).convert("RGB")
@@ -220,7 +226,10 @@ def materialize(fold: int, changed_fraction: float) -> dict[str, Any]:
                         boxes.append(result.box)
                         used.add(str(candidate["instance_id"]))
                         accepted = True
-                        accepted_frames.add(str(row.source_image))
+                        accepted_frames.add(frame_key)
+                        inserted_by_frame[frame_key] = (
+                            inserted_by_frame.get(frame_key, 0) + 1
+                        )
                         inserted_gt += 1
                         audit_rows.append(
                             {
@@ -287,6 +296,8 @@ def materialize(fold: int, changed_fraction: float) -> dict[str, Any]:
         output_images.append(str(output_image.absolute()))
     if generated_gt != original_gt + inserted_gt:
         raise RuntimeError("Generated GT count does not match accepted pastes")
+    if max(inserted_by_frame.values(), default=0) > 2:
+        raise RuntimeError("Frozen maximum of two insertions per frame exceeded")
     train_list = destination / "train.txt"
     atomic_text(train_list, "\n".join(output_images) + "\n")
     validation = PERSON_DATASET / f"folds/fold_{fold}/val.txt"
@@ -309,6 +320,9 @@ def materialize(fold: int, changed_fraction: float) -> dict[str, Any]:
         "selected_frames": len(selected),
         "accepted_frames": len(accepted_frames),
         "inserted_GT": inserted_gt,
+        "maximum_insertions_per_frame": max(
+            inserted_by_frame.values(), default=0
+        ),
         "original_GT": original_gt,
         "generated_GT": generated_gt,
         "perspective_model": {
@@ -332,4 +346,3 @@ if __name__ == "__main__":
     parser.add_argument("--fraction", type=float, required=True, choices=(0.25, 0.50))
     args = parser.parse_args()
     print(json.dumps(materialize(args.fold, args.fraction), indent=2))
-
