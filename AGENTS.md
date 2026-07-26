@@ -164,3 +164,5 @@
 - `.codex/notes/article-evidence-v1.md` — frozen calculation inputs, generated evidence and explicit blocked fields.
 - `.codex/notes/operator-assistant-evidence-v2.md` — reproducible candidate
   trace, GT episode benchmark, event sensitivity and fail-safe amendment.
+- `.codex/notes/operator-assistant-evidence-v3.md` — hierarchical event
+  semantics, five-scene streams, exact loss stages and explicit v3 blockers.

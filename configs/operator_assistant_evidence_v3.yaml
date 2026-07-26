@@ -1,0 +1,41 @@
+protocol_id: operator-assistant-evidence-v3
+parent_protocol: operator-assistant-evidence-v2
+constraints:
+  test_status: SEALED
+  test_access_count: 0
+  training: FORBIDDEN
+  operator_study: OUT_OF_SCOPE
+  multistream: DEFERRED
+scene_selection:
+  - scene_id: 3_fire_site_3
+    source_sequence_id: 3_fire_site_3.1
+  - scene_id: 4_station_pedestrian_bridge_4
+    source_sequence_id: 4_station_pedestrian_bridge_4.3
+  - scene_id: 6_station_klein_flottbek_6
+    source_sequence_id: 6_station_klein_flottbek_6.2
+  - scene_id: 8_station_altona_8
+    source_sequence_id: 8_station_altona_8.2
+  - scene_id: 12_vegetation_steady_12
+    source_sequence_id: 12_vegetation_steady_12.1
+event:
+  join_time_seconds: 3
+  close_after_seconds: 3
+  minimum_iou: 0.20
+  maximum_center_distance_ratio: 0.10
+  reopen_window_seconds: 30
+  temporal_minimum_observations: 2
+  pre_roll_seconds: 3
+  post_roll_seconds: 3
+sensitivity:
+  join_time_seconds: [1, 2, 3, 5]
+  minimum_iou: [0.10, 0.20, 0.30]
+  maximum_center_distance_ratio: [0.05, 0.10, 0.15]
+  reopen_window_seconds: [10, 30, 60]
+  expected_per_method_scene: 108
+evaluation:
+  gt_match_iou: 0.50
+  hazard_annotation_required: true
+runtime:
+  warmup_frames: 100
+  measured_frames: 1000
+  modes: [FULL_SYNC, CACHED_SYNC, DEFERRED_BATCH]
