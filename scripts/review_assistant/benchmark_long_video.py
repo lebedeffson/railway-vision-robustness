@@ -24,13 +24,22 @@ from src.review_assistant.processor import ReviewProcessor, merge_review_candida
 
 def _summary(samples: list[float]) -> dict[str, float]:
     if not samples:
-        return {"mean_ms": 0.0, "median_ms": 0.0, "p95_ms": 0.0}
+        return {
+            "mean_ms": 0.0,
+            "median_ms": 0.0,
+            "p95_ms": 0.0,
+            "p99_ms": 0.0,
+            "max_ms": 0.0,
+        }
     ordered = sorted(samples)
     p95 = ordered[min(int(round((len(ordered) - 1) * 0.95)), len(ordered) - 1)]
+    p99 = ordered[min(int(round((len(ordered) - 1) * 0.99)), len(ordered) - 1)]
     return {
         "mean_ms": statistics.fmean(samples),
         "median_ms": statistics.median(samples),
         "p95_ms": p95,
+        "p99_ms": p99,
+        "max_ms": max(samples),
     }
 
 
@@ -103,6 +112,7 @@ def main() -> None:
         )
     torch.cuda.reset_peak_memory_stats() if torch.cuda.is_available() else None
     peak_ram = 0
+    queue_lengths: list[int] = []
     frame_number = -1
     observed = 0
     started = time.perf_counter()
@@ -123,6 +133,7 @@ def main() -> None:
         aggregate_started = time.perf_counter()
         rows = merge_review_candidates(baseline, temporal_rows)
         aggregator.observe(frame_number, frame_number / fps, rows)
+        queue_length = len(aggregator.accepted_events())
         aggregate_ms = (time.perf_counter() - aggregate_started) * 1000.0
         encode_started = time.perf_counter()
         if writer is not None:
@@ -137,6 +148,7 @@ def main() -> None:
             timings["event_aggregation"].append(aggregate_ms)
             timings["video_encoding"].append(encode_ms)
             timings["end_to_end"].append(end_to_end_ms)
+            queue_lengths.append(queue_length)
         observed += 1
         peak_ram = max(peak_ram, int(psutil.Process().memory_info().rss))
         previous_tick = time.perf_counter()
@@ -167,6 +179,10 @@ def main() -> None:
         ),
         "peak_ram_bytes": peak_ram,
         "events": len(aggregator.finalize()),
+        "mean_queue_length": (
+            statistics.fmean(queue_lengths) if queue_lengths else 0.0
+        ),
+        "maximum_queue_length": max(queue_lengths, default=0),
         "full_wall_seconds_including_warmup": elapsed,
         "stages": {key: _summary(value) for key, value in timings.items()},
         "real_time_claim": False,

@@ -32,6 +32,11 @@ def technical_summary() -> str:
     false = _load("false_tracks/FALSE_TRACK_AUDIT.json")
     event = _load("operator_assistant/EVENT_AGGREGATION_SUMMARY.json")
     event_parameters = _load("operator_assistant/EVENT_PARAMETERS_ACTUAL.json")
+    event_sensitivity = _load(
+        "operator_assistant/EVENT_SENSITIVITY_AUDIT.json"
+    )
+    failsafe = _load("operator_assistant/FAILSAFE_AUDIT.json")
+    scaling = _load("scaling/SCALING_AUDIT.json")
     runtime = _load("runtime/RUNTIME_FINAL.json")
     environment = _load("runtime/RUNTIME_ENVIRONMENT.json")
     tnorm = _load("tnorm/TNORM_AUDIT.json")
@@ -111,21 +116,35 @@ def technical_summary() -> str:
 - peak RAM MiB: `{runtime['peak_ram_mib']:.3f}`
 - mean / p95 tracks per frame: `{runtime['mean_tracks_per_frame']:.3f} / {runtime['p95_tracks_per_frame']:.3f}`
 
-## 9. Created files
+## 9. Event engineering extension
+
+- locked sensitivity configurations: `{event_sensitivity['number_of_configurations']}`
+- full pre-aggregation sensitivity status: `{event_sensitivity['status']}`
+- persisted accepted observations: `{event_sensitivity['aggregator_input_observations']}`
+- published / partial-replay default events: `{event_sensitivity['published_unique_events']} / {event_sensitivity['default_replay_unique_events']}`
+- true-episode fragmentation, false merges and coverage: `BLOCKED_MISSING_ARTIFACT`
+- fail-safe checks / current implementation failures: `{failsafe['checks']} / {failsafe['fail_current_implementation']}`
+- stream scaling status: `{scaling['status']}`
+- blocked stream counts: `{scaling.get('blocked_streams', [])}`
+
+## 10. Created files
 
 {chr(10).join(f'- `{name}`' for name in files)}
 
-## 10. Tests
+## 11. Tests
 
 ```text
 {test_results}
 ```
 
-## 11. Blocked computations
+## 12. Blocked computations
 
 - `BLOCKED_MISSING_ARTIFACT`: complete human-verified semantic labels separating signal, catenary support, pole/sign and train-part for all 288 false tracks were not stored. Existing deterministic categories and binary geometry flags were preserved; no visual class was invented.
 - `BLOCKED_MISSING_ARTIFACT`: the prior 1,000-frame event benchmark stored total event count and FPS but not the per-event raw-track/detection decomposition. The available long-run values were retained without approximation.
 - `BLOCKED_PUBLICATION_RIGHTS`: false-track source images were excluded; `FIG_07_FALSE_TRACK_EXAMPLES` was not generated.
+- `BLOCKED_MISSING_PRE_AGGREGATION_STREAM`: the product database retains 62 observations belonging to accepted events, not the full pre-aggregation candidate stream. Replaying those rows gives four default events instead of the published three; the 108-row sweep is retained only as a diagnostic partial-input calculation.
+- `BLOCKED_MISSING_ARTIFACT`: the encoded 100-frame product video has no immutable exact frame-to-GT-episode mapping, so true-episode fragmentation, erroneous merges and episode coverage were not approximated.
+- `BLOCKED_RESOURCE_LIMIT`: two- and four-stream GPU loads were stopped after interactive-host instability. The verified one-stream 1,000-frame measurement is retained; no parallel throughput values were imputed.
 """
 
 
@@ -171,7 +190,11 @@ def main() -> None:
         "track_verifier/TRACK_VERIFIER_AUDIT.json",
         "false_tracks/FALSE_TRACK_AUDIT.json",
         "operator_assistant/EVENT_AUDIT.json",
+        "operator_assistant/EVENT_ENGINEERING_LOCK.json",
+        "operator_assistant/EVENT_SENSITIVITY_AUDIT.json",
+        "operator_assistant/FAILSAFE_AUDIT.json",
         "runtime/RUNTIME_AUDIT.json",
+        "scaling/SCALING_AUDIT.json",
         "tnorm/TNORM_AUDIT.json",
     ]
     missing = [name for name in required if not (OUTPUT / name).is_file()]
@@ -190,6 +213,9 @@ Use the repository environment and the frozen saved development artifacts:
 /home/lebedeffson/Code/venv/bin/python -m scripts.article_evidence_v1.threshold_baseline
 /home/lebedeffson/Code/venv/bin/python -m scripts.article_evidence_v1.runtime_analysis
 /home/lebedeffson/Code/venv/bin/python -m scripts.article_evidence_v1.plot_figures
+/home/lebedeffson/Code/venv/bin/python -m scripts.article_evidence_v1.lock_event_engineering
+/home/lebedeffson/Code/venv/bin/python -m scripts.article_evidence_v1.event_engineering_analysis
+/home/lebedeffson/Code/venv/bin/python -m scripts.article_evidence_v1.scaling_analysis --safe-finalize
 /home/lebedeffson/Code/venv/bin/python -m scripts.article_evidence_v1.finalize
 ```
 

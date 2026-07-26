@@ -24,3 +24,14 @@ Protocol: `article-evidence-computation-v1`
   observed `20 passed`; manifest verification passed.
 - Railway test remains `SEALED`, access count zero. No training or article edit
   is part of this protocol.
+- Event-sensitivity evidence requires the complete pre-aggregation candidate
+  stream. The product SQLite retains only 62 observations from accepted events;
+  replaying them yields four default events rather than the published three, so
+  the 108-configuration diagnostic is explicitly
+  `BLOCKED_MISSING_PRE_AGGREGATION_STREAM`.
+- The 100-frame encoded smoke video has no immutable exact frame-to-GT-episode
+  mapping. Fragmentation, false merges and episode coverage remain
+  `BLOCKED_MISSING_ARTIFACT` rather than being inferred from the default events.
+- One-stream scaling reuses the verified 1,000-frame run. Two- and four-stream
+  loads are `BLOCKED_RESOURCE_LIMIT` after interactive-host instability; do not
+  impute parallel throughput.

@@ -1,0 +1,41 @@
+protocol_id: event-engineering-evidence-v1
+parent_protocol: article-evidence-computation-v1
+
+constraints:
+  test_status: SEALED
+  test_access_count: 0
+  training: FORBIDDEN
+  new_data: FORBIDDEN
+  article_editing: OUT_OF_SCOPE
+
+inputs:
+  event_database: outputs/review_assistant_product_smoke_v2/review.sqlite
+  source_video: outputs/review_assistant_product_smoke/development_train_100.mp4
+  long_benchmark_video: outputs/review_assistant_release_v1/benchmark/development_train_repeated_1100.mp4
+  review_config: configs/review_assistant_v1.yaml
+  event_aggregator_source: src/review_assistant/event_aggregator.py
+  processor_source: src/review_assistant/processor.py
+
+sensitivity:
+  join_time_seconds: [1, 2, 3, 5]
+  minimum_iou: [0.10, 0.20, 0.30]
+  maximum_center_distance_ratio: [0.05, 0.10, 0.15]
+  reopen_window_seconds: [10, 30, 60]
+  expected_configurations: 108
+  clip_pre_roll_seconds: 3
+  clip_post_roll_seconds: 3
+  statistical_unit: stored_development_video
+
+scaling:
+  streams: [1, 2, 4]
+  warmup_frames: 20
+  measured_frames_per_stream: 1000
+  encode_video: false
+  timeout_seconds: 1200
+
+ground_truth_episode_metrics:
+  required_mapping: exact_video_frame_to_development_gt_frame
+  missing_policy: BLOCKED_MISSING_ARTIFACT
+
+outputs:
+  root: outputs/article_evidence_v1

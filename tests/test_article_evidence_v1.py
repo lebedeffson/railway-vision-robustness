@@ -177,7 +177,7 @@ def test_csv_numbers_finite() -> None:
 def test_figures_png_dpi_and_svg_open() -> None:
     pngs = sorted((OUTPUT / "figures").glob("*.png"))
     svgs = sorted((OUTPUT / "figures").glob("*.svg"))
-    assert len(pngs) == 6 and len(svgs) == 6
+    assert len(pngs) >= 9 and len(svgs) >= 9
     for path in pngs:
         with Image.open(path) as image:
             dpi = image.info.get("dpi", (0, 0))
