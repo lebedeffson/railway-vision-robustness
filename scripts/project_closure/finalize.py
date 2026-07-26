@@ -711,6 +711,7 @@ def public_entries() -> list[tuple[Path, str]]:
     for directory in (
         ROOT / "src/final_demo",
         ROOT / "src/crop_verifier_v1",
+        ROOT / "src/temporal",
         ROOT / "src/temporal_safety",
         ROOT / "scripts/final_demo",
         ROOT / "scripts/project_closure",
