@@ -1,0 +1,150 @@
+protocol_id: railway-person-crop-verifier-v1
+parent_protocol: railway-person-temporal-verifier-v1
+parent_status: DEVELOPMENT_FAIL
+parent_final_commit: 7822c7b7b9c285b2e612150306330c3d6f2e3cd4
+scope: final_local_temporal_experiment
+
+frozen_inputs:
+  detector_predictions: outputs/temporal_safety_v1/baseline/raw_predictions.parquet
+  tracker: ocsort
+  tracker_parameters: outputs/temporal_safety_v1/selection/SELECTED_TRACKER_CONFIGS.json
+  parent_protocol_lock: outputs/temporal_verifier_v1/protocol/protocol_lock.json
+  parent_decision: outputs/temporal_verifier_v1/decision_trace.json
+  tracks_root: outputs/temporal_verifier_v1/tracks/ocsort
+  test_status: SEALED
+  test_access_count: 0
+
+data:
+  independent_unit: grouped_scene_id
+  temporal_unit: subsequence_id
+  support_role: support
+  screening_role: screening
+  confirmation_role: confirmation
+  screening_fold: 0
+  confirmation_fold: 1
+  interpolated_crops_allowed: false
+  ambiguous_tracks_used_for_training: false
+  adjacent_crop_cross_fold_duplicates_allowed: false
+
+encoder:
+  source: CrowdHuman_visible_person_pretraining
+  checkpoint: outputs/person_v5/external_pretraining/run/weights/best.pt
+  checkpoint_sha256: c16f796a297b0418cf315212a7d12a00b25825d857782da84f24653909723de6
+  frozen: true
+  backbone_last_layer_index: 10
+  input_size: 224
+  crop_context_multiplier: 1.75
+  padding_value: 114
+  batch_size: 64
+  crop_slots:
+    - first_stable_real_hit
+    - maximum_confidence_real_hit
+    - latest_real_hit
+  insufficient_real_hits: repeat_existing_real_crop_and_audit
+  track_aggregation: mean
+  crowdhuman_test_used: false
+
+models:
+  candidates:
+    - track_only
+    - visual_only
+    - combined
+  track_features:
+    - mean_confidence
+    - max_confidence
+    - track_length
+    - detection_fraction
+    - interpolation_fraction
+  primary_family: l2_logistic
+  sensitivity_mlp:
+    status: DEFERRED
+    allowed_only_after_logistic_triage_pass: true
+  logistic:
+    C: 1.0
+    class_weight: balanced
+    max_iter: 3000
+    seed: 20260726
+  nested_scene_cv:
+    group: grouped_scene_id
+    maximum_inner_folds: 5
+  calibration:
+    method: platt
+    fit: support_scene_OOF_only
+
+threshold_selection:
+  role: screening_fold_0
+  grid_points: 201
+  global_not_per_scene: true
+  objective: maximum_F1_subject_to_triage_constraints
+  fallback: maximum_F1_subject_to_recall_and_FN_then_maximum_F1
+  model_tie_order:
+    - visual_only
+    - combined
+    - track_only
+
+triage_gate:
+  absolute_recall_improvement_min: 0.10
+  relative_FN_reduction_min: 0.15
+  relative_false_alarms_increase_max: 0.75
+  F1_degradation_max: 0.03
+  folds: [0, 1]
+  evaluator_consistency: PASS
+  lost_frames: 0
+  NaN_Inf: 0
+
+full_development:
+  run_only_after_triage_pass: true
+  scenes: 15
+  model: frozen_after_triage
+  threshold: frozen_global_triage_threshold
+  cross_fit_by: grouped_scene_id
+
+development_gate:
+  absolute_macro_recall_improvement_min: 0.10
+  relative_macro_FN_reduction_min: 0.15
+  relative_false_alarms_increase_max: 0.20
+  F1_degradation_max: 0.03
+  worst_scene_recall_must_not_decrease: true
+  improved_scene_fraction_min: 0.70
+  bootstrap_iterations: 10000
+  bootstrap_seed: 20260726
+  require_recall_CI_above_zero: true
+  evaluator_consistency: PASS
+  lost_frames: 0
+  NaN_Inf: 0
+
+confusion_audit:
+  maximum_gallery_per_cell: 50
+  cells:
+    - true_accepted
+    - true_rejected
+    - false_accepted
+    - false_rejected
+  false_categories:
+    - short_single_noise
+    - static_vertical_object
+    - signal_or_pole
+    - image_or_tile_border
+    - jumping_box
+    - persistent_hard_negative
+    - duplicate_track
+    - incorrect_interpolation
+    - other_false_track
+  public_gallery_allowed: false
+
+stop:
+  on_triage_fail: CLOSED_NO_PRACTICAL_GATE
+  on_development_fail: CLOSED_NO_PRACTICAL_GATE
+  prohibited_after_fail:
+    - new_trackers
+    - additional_threshold_grids
+    - deeper_heads
+    - new_tnorm_variant
+    - tuning_on_same_six_scenes
+
+test_access:
+  marker: outputs/crop_verifier_v1/test/TEST_OPENED.json
+  legacy_marker: outputs/person_v3/test/TEST_OPENED.json
+  allowed_only_after_full_development_pass: true
+  maximum_access_count: 1
+
