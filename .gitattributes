@@ -1,0 +1,6 @@
+/configs/new_scenes_v1.yaml text eol=lf
+/configs/independent_data_v1.yaml text eol=lf
+/protocol/new_scenes_v1/** text eol=lf
+/protocol/independent_data_v1/** text eol=lf
+/scripts/new_scenes/** text eol=lf
+/tests/test_new_scenes_v1.py text eol=lf
