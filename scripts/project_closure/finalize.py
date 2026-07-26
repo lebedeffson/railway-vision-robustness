@@ -5,6 +5,7 @@ import hashlib
 import json
 import re
 import subprocess
+import tempfile
 import zipfile
 from pathlib import Path
 from typing import Any, Iterable
@@ -43,6 +44,18 @@ def read_json(relative: str) -> dict[str, Any]:
 def atomic_csv(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(rows).to_csv(path, index=False)
+
+
+def current_git_commit() -> str:
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=ROOT,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    return result.stdout.strip() if result.returncode == 0 else "RELEASE_ARCHIVE"
 
 
 def validate_sources() -> dict[str, Any]:
@@ -164,9 +177,7 @@ def experiment_rows() -> list[dict[str, Any]]:
         {
             "experiment_id": "railway-vision-final-closure-v1",
             "branch": "feat/railway-vision-final-closure-v1",
-            "commit": subprocess.check_output(
-                ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
-            ).strip(),
+            "commit": current_git_commit(),
             "release_tag": "v1.0-final-project-closure",
             "hypothesis": "freeze evidence and expose practical limitations",
             "primary_endpoint": "closure completeness",
@@ -628,22 +639,24 @@ safety system.
         check=True,
         cwd=REPORT,
     )
-    subprocess.run(
-        [
-            "libreoffice",
-            "--headless",
-            "--convert-to",
-            "pdf",
-            "--outdir",
-            str(REPORT),
-            str(REPORT / "FINAL_PROJECT_REPORT.docx"),
-        ],
-        check=True,
-        cwd=ROOT,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
+    with tempfile.TemporaryDirectory(prefix="closure-libreoffice-") as profile:
+        subprocess.run(
+            [
+                "libreoffice",
+                f"-env:UserInstallation=file://{profile}",
+                "--headless",
+                "--convert-to",
+                "pdf",
+                "--outdir",
+                str(REPORT),
+                str(REPORT / "FINAL_PROJECT_REPORT.docx"),
+            ],
+            check=True,
+            cwd=ROOT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
 
 
 def write_support_files() -> None:
