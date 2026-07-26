@@ -1,0 +1,118 @@
+protocol_id: railway-person-new-scenes-v1
+status: WAITING_FOR_NEW_SCENES
+scope: data_only
+
+frozen_parent:
+  state: protocol/new_scenes_v1/PARENT_STATE_FREEZE.json
+  release: v0.11-crop-verifier-closed-no-practical-gate
+  release_recalculation_allowed: false
+
+target:
+  class_name: person
+  annotation_format: absolute_xyxy
+
+inputs:
+  manifest: data/new_scenes_v1/NEW_SCENES_MANIFEST.csv
+  annotations: data/new_scenes_v1/NEW_SCENES_ANNOTATIONS.csv
+  hard_negatives: data/new_scenes_v1/HARD_NEGATIVE_AUDIT.csv
+  review_log: data/new_scenes_v1/ANNOTATION_REVIEW_LOG.csv
+
+immutable_old_data:
+  development_manifest: outputs/person_v3/protocol/development_manifest.csv
+  sealed_test_manifest: outputs/person_v3/protocol/sealed_test_manifest.csv
+  test_images_readable: false
+  test_labels_readable: false
+
+acquisition_gate:
+  independent_scenes_minimum: 8
+  independent_scenes_maximum: 12
+  distinct_camera_or_capture_points_minimum: 3
+  illumination_conditions_minimum: 2
+  frames_per_scene_minimum: 100
+  frames_per_scene_maximum: 300
+  total_frames_minimum: 1500
+  total_frames_maximum: 3000
+  continuous_fragment_minimum_frames: 20
+  continuous_fragment_target_maximum_frames: 100
+  require_temporal_fragment_per_scene: true
+  require_manual_verification: true
+  allowed_annotation_status: VERIFIED
+  required_split_roles:
+    train_support: 4
+    heldout: 2
+    confirmation: 2
+  required_strata:
+    - person_present
+    - no_person_hard_negative
+    - small_person
+    - occlusion
+    - entry_exit
+
+scene_independence:
+  scene_key: scene_id
+  sequence_key: sequence_id
+  source_video_key: source_video_id
+  prohibit_old_development_scene_or_sequence: true
+  prohibit_sealed_test_scene_or_sequence: true
+  one_scene_per_sequence: true
+  one_split_per_scene: true
+  one_split_per_sequence: true
+  adjacent_old_video_fragments_are_new_scenes: false
+
+annotation:
+  occlusion_levels: [none, partial, heavy, unknown]
+  person_size_bins: [small, medium, large]
+  border_values: [true, false]
+  hard_negative_categories:
+    - signal
+    - pole
+    - catenary_structure
+    - train_part
+    - shadow
+    - sign
+    - tile_border
+    - other_vertical_object
+  hard_negative_counts_are_reported_not_optimized: true
+
+deduplication:
+  exact_sha256_required: true
+  cross_split_perceptual_hash_required: true
+  dhash_hamming_maximum: 4
+  adjacent_frames_within_one_sequence_allowed: true
+
+cpu_gate:
+  missing_images: 0
+  missing_annotation_rows: 0
+  invalid_bbox: 0
+  invalid_metadata: 0
+  exact_duplicates: 0
+  cross_split_near_duplicates: 0
+  scene_leakage: 0
+  sequence_leakage: 0
+  source_video_fragment_leakage: 0
+  source_video_split_leakage: 0
+  duplicate_frame_number: 0
+  non_monotonic_timestamp: 0
+  old_development_leakage: 0
+  sealed_test_leakage: 0
+  train_validation_intersections: 0
+  test_access_count: 0
+
+outputs:
+  root: outputs/new_scenes_v1
+  audit: outputs/new_scenes_v1/NEW_SCENES_AUDIT.json
+  hard_negative_counts: outputs/new_scenes_v1/HARD_NEGATIVE_COUNTS.csv
+  dataset_card: outputs/new_scenes_v1/DATASET_CARD.md
+  status: outputs/new_scenes_v1/STATUS.json
+
+next_protocol:
+  id: railway-person-independent-data-v1
+  config: configs/independent_data_v1.yaml
+  execution_lock: outputs/independent_data_v1/protocol/EXECUTION_LOCK.json
+  activation_requires_new_scenes_audit_pass: true
+
+test:
+  status: SEALED
+  access_count: 0
+  marker: outputs/independent_data_v1/test/TEST_OPENED.json
+  legacy_marker: outputs/person_v3/test/TEST_OPENED.json

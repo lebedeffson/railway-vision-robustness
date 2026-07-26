@@ -1,0 +1,2 @@
+image_id,image_path,scene_id,sequence_id,frame_number,timestamp,nominal_fps,camera_id,capture_point_id,illumination,weather,scene_type,source_video_id,source_license,split_role,strata,temporal_eval_eligible,annotation_status,reviewer_role,review_timestamp,new_scene
+

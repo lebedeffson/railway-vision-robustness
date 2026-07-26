@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Railway hard-negative audit CSV contract",
+  "required_columns": [
+    "audit_id",
+    "image_id",
+    "category",
+    "x1",
+    "y1",
+    "x2",
+    "y2",
+    "review_status"
+  ],
+  "additional_columns_allowed": false
+}
+

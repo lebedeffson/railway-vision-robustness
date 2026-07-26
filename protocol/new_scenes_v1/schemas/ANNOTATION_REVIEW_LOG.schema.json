@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Manual annotation review log CSV contract",
+  "required_columns": [
+    "image_id",
+    "annotation_sha256",
+    "action",
+    "reason",
+    "reviewer_role",
+    "timestamp",
+    "commit"
+  ],
+  "allowed_actions": [
+    "VERIFIED",
+    "BOX_ADDED",
+    "BOX_REMOVED",
+    "BOX_CORRECTED",
+    "MULTIPLE_CORRECTIONS"
+  ],
+  "additional_columns_allowed": false
+}
+

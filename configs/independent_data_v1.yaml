@@ -1,0 +1,55 @@
+protocol_id: railway-person-independent-data-v1
+status: BLOCKED_BY_NEW_SCENES_GATE
+parent_data_protocol: railway-person-new-scenes-v1
+
+candidates:
+  B0:
+    description: frozen current frame detector
+    training: none
+  B1:
+    description: detector fine-tuned on accepted new train scenes
+    architecture: frozen_existing_recipe
+    loss: standard_ultralytics
+    training: ERM
+  B2:
+    description: B1 plus frozen temporal pipeline
+    run_only_after: B1_DETECTOR_GATE_PASS
+  B3:
+    description: B2 plus frozen crop verifier
+    run_only_after: B2_TEMPORAL_GATE_PASS
+
+forbidden_simultaneous_changes:
+  - detector_architecture
+  - custom_loss
+  - tracker_parameters
+  - crop_backbone
+
+detector_gate:
+  absolute_macro_recall_improvement_min: 0.10
+  relative_FN_per_frame_reduction_min: 0.15
+  absolute_F1_improvement_min: 0.05
+  relative_false_alarms_increase_max: 0.20
+  worst_scene_recall_must_not_decrease: true
+
+full_system_gate:
+  absolute_macro_recall_improvement_min: 0.10
+  relative_FN_per_frame_reduction_min: 0.15
+  relative_false_alarms_increase_max: 0.20
+  F1_degradation_max: 0.03
+  improved_scene_fraction_min: 0.70
+  paired_scene_bootstrap_recall_CI_above_zero: true
+
+selection:
+  train_roles: [train_support]
+  heldout_roles: [heldout]
+  confirmation_roles: [confirmation]
+  group_key: scene_id
+  temporal_group_key: sequence_id
+  thresholds: development_only
+  test_selection_forbidden: true
+
+test:
+  status: SEALED
+  access_count: 0
+  open_only_after_full_system_gate_pass: true
+

@@ -1,0 +1,32 @@
+{
+  "freeze_id": "railway-person-new-scenes-v1-parent-state",
+  "v8b": {
+    "status": "FINAL_NEGATIVE_RESULT",
+    "protocol_status": "DEVELOPMENT_FAIL",
+    "artifact": "outputs/person_v8b/final/FINAL_METRICS.json",
+    "sha256": "96712609c9f44c5547cbf64111cdcfb25bef4c93f91f5c810359dd81b160f604"
+  },
+  "temporal_safety_v1": {
+    "status": "DEVELOPMENT_FAIL",
+    "artifact": "outputs/temporal_safety_v1/FINAL_DEVELOPMENT_SUMMARY.json",
+    "sha256": "7e5203788e342ff069e64cb605f37a1cd60ff5c277af140daf086ab52da301e5"
+  },
+  "temporal_verifier_v1": {
+    "status": "DEVELOPMENT_FAIL",
+    "artifact": "outputs/temporal_verifier_v1/FINAL_SUMMARY.json",
+    "sha256": "02755607e6e224829a9b66b8d111a1352ec1ec45ed643d343a9e81f7414f7913"
+  },
+  "crop_verifier_v1": {
+    "status": "CLOSED_NO_PRACTICAL_GATE",
+    "artifact": "outputs/crop_verifier_v1/FINAL_SUMMARY.json",
+    "sha256": "798af51de19d1255f3991977fc7c2e3190b076eda87dfeed316e6125dd9310af"
+  },
+  "release_v0_11": {
+    "tag": "v0.11-crop-verifier-closed-no-practical-gate",
+    "recalculation_allowed": false,
+    "bundle_sha256": "5786681cf95771202f006d41c5d55d4a3e63818599107eb8023252201fbe384a"
+  },
+  "test_status": "SEALED",
+  "test_access_count": 0
+}
+
