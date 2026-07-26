@@ -1,0 +1,34 @@
+{
+  "package_status": "COLLECTION_STARTER_READY",
+  "generated_utc": "2026-07-26",
+  "accepted_scenes": 0,
+  "training_allowed": false,
+  "test_status": "SEALED",
+  "actually_collected_in_this_package": [
+    "official source register",
+    "RAIL-BENCH data_overview.csv",
+    "balanced train/val static candidate list",
+    "download scripts",
+    "access-request drafts",
+    "protocol-aligned scene slots"
+  ],
+  "not_included": [
+    "raw images",
+    "annotations archives",
+    "checkpoints",
+    "test data"
+  ],
+  "next_machine_actions": [
+    "run scripts/download_open_sources.sh",
+    "request RailEye3D images",
+    "inventory sequences",
+    "fill project manifest templates",
+    "run existing CPU audit"
+  ],
+  "blocking_conditions": [
+    "RAIL-BENCH terms acceptance by user/organization",
+    "RailEye3D access approval",
+    "illumination conditions audit",
+    "old development/test overlap audit"
+  ]
+}

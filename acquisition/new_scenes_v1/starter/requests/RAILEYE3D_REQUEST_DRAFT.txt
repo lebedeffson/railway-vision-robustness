@@ -1,0 +1,17 @@
+Subject: Request for RailEye3D image sequences for non-commercial railway safety research
+
+Dear RailEye3D dataset team,
+
+My name is [FULL NAME], affiliated with [AFFILIATION]. I am conducting a non-commercial research project on person detection and temporal safety monitoring in railway scenes.
+
+I would like to request access to the RailEye3D image data corresponding to the public annotations. The intended use is to evaluate scene-disjoint person detection and tracking under a frozen protocol. Raw images and modified datasets will not be redistributed. Any publication will cite the RailEye3D dataset and the recommended paper, and usage will follow the repository licence.
+
+We are particularly interested in sequences from multiple stations and, where available, differing illumination or weather conditions. The external benchmark test in our project remains sealed and RailEye3D would be used only as newly acquired development data after an independent leakage and integrity audit.
+
+Full name: [FULL NAME]
+Affiliation: [AFFILIATION]
+Project/repository: https://github.com/lebedeffson/railway-vision-robustness
+Intended use: non-commercial academic research and scientific publication
+
+Kind regards,
+[FULL NAME]

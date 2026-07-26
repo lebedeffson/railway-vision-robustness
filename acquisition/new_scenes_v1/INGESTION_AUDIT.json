@@ -1,0 +1,45 @@
+{
+  "protocol_id": "railway-person-new-scenes-v1",
+  "starter_package": {
+    "filename": "railway_new_scenes_acquisition_starter.zip",
+    "sha256": "14a56ecbd9b6b449fe2441c37e5c53fee97e5e7e3ef8aea5bdb6fa5822b3909c",
+    "internal_manifest": "PASS",
+    "path_traversal_entries": 0,
+    "symlink_entries": 0,
+    "accepted_scenes_contributed": 0
+  },
+  "source_verification": {
+    "railgoerl24": {
+      "status": "OPEN_DOWNLOAD_VERIFIED",
+      "frames": 12205,
+      "person_boxes": 33556,
+      "faces_blurred": false,
+      "official_archive_expected_bytes": 4055218180,
+      "raw_data_publication_allowed_by_project": false
+    },
+    "raileye3d": {
+      "status": "ANNOTATIONS_PUBLIC_IMAGES_REQUEST_REQUIRED",
+      "sequences": 10,
+      "stations": 6,
+      "commercial_use": false,
+      "redistribution": false
+    },
+    "railbench_object": {
+      "status": "BLOCKED_PENDING_EXPLICIT_TERMS_ACCEPTANCE",
+      "images": 2500,
+      "benchmark_test_allowed_in_acquisition": false
+    },
+    "rawped": {
+      "status": "ACCESS_REQUEST_REQUIRED",
+      "reported_volume": "171.1 GB",
+      "commercial_use": false,
+      "redistribution": false
+    }
+  },
+  "project_state": {
+    "status": "WAITING_FOR_NEW_SCENES",
+    "training_authorized": false,
+    "test_status": "SEALED",
+    "test_access_count": 0
+  }
+}

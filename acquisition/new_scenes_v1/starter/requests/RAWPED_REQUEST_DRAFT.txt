@@ -1,0 +1,7 @@
+Request message for Zenodo RAWPED access
+
+I request access to RAWPED for non-commercial academic research on person detection in railway scenes. The dataset would be used only as a possible fallback source of independent development scenes after scene/sequence leakage auditing. I agree to cite the original RAWPED publication, not redistribute the dataset or modified versions, and not use the data or derivatives for commercial purposes. Raw images will remain local and will not be included in public repositories or archives.
+
+Name: [FULL NAME]
+Affiliation: [AFFILIATION]
+Project: https://github.com/lebedeffson/railway-vision-robustness
