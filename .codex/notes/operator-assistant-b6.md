@@ -11,9 +11,9 @@
 - B6 logistic association models were trained only on automatic pseudo-pairs
   in five LOSO folds. GT PersonEpisode identifiers were assigned only after
   feature extraction and were used only for evaluation.
-- B6-FULL versus B5: macro association F1 0.26561 versus 0.19959;
-  cross-person merge rate 0.10466 versus 0.19667; split recovery 0.23741
-  versus 0.12218; coverage was unchanged at 0.90462. B6-FULL improved
+- B6-FULL versus B5: macro association F1 0.26557 versus 0.19387;
+  cross-person merge rate 0.13978 versus 0.23667; split recovery 0.23754
+  versus 0.11915; coverage was unchanged at 0.90462. B6-FULL improved
   association F1 on only 3/5 scenes and median pairwise perturbation ARI was
   0.53446, below the frozen 0.90 gate.
 - Final decision is `FAIL`. Direct/replay matched, all 646 TrackFragment were

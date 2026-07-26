@@ -106,6 +106,7 @@ def public_bundle() -> None:
         "B6_REPLAY_AUDIT.json",
         "B6_DECISION.json",
         "B6_MODEL_PROVENANCE.json",
+        "B6_CROSS_PROCESS_DETERMINISM.json",
         "B6_INPUT_AUDIT.json",
         "B6_PERTURBATION_AUDIT.json",
         "COMPUTE_FREEZE.json",

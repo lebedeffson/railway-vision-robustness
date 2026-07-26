@@ -303,7 +303,10 @@ def assign_gt(fragments_by_scene: dict[str, list[TrackFragment]]) -> None:
                     ) >= 0.5:
                         matches.append(str(candidate.episode_id))
             if matches:
-                fragment.gt_episode_id = max(set(matches), key=matches.count)
+                fragment.gt_episode_id = max(
+                    sorted(set(matches)),
+                    key=lambda episode_id: (matches.count(episode_id), episode_id),
+                )
 
 
 def _pseudo_fragment(
@@ -646,11 +649,16 @@ def review_bundles(
         for line in (V3 / f"streams/{scene}/HAZARD_EVENTS.jsonl").read_text().splitlines()
     ]
     candidate_event: dict[str, int] = {}
+    event_candidates: dict[str, set[str]] = {}
     for event_index, event in enumerate(events):
+        bundle_id = f"{scene}:RB{event_index:04d}"
+        event_candidates[bundle_id] = set(map(str, event["candidate_ids"]))
         for candidate_id in event["candidate_ids"]:
             candidate_event[candidate_id] = event_index
     fragment_lookup = {fragment.fragment_id: fragment for fragment in fragments}
-    assigned: dict[str, list[dict[str, Any]]] = {}
+    assigned: dict[str, list[dict[str, Any]]] = {
+        bundle_id: [] for bundle_id in event_candidates
+    }
     for cluster_index, cluster in enumerate(clusters):
         counts: dict[int, int] = {}
         for fragment_id in cluster:
@@ -673,15 +681,25 @@ def review_bundles(
                 ),
             }
         )
-    return [
-        {
-            "review_bundle_id": bundle_id,
-            "scene_id": scene,
-            "semantics": "SPATIOTEMPORAL_REVIEW_CARD_NOT_HAZARD_GROUND_TRUTH",
-            "person_episodes": children,
+    output = []
+    for bundle_id, children in sorted(assigned.items()):
+        represented_candidates = {
+            candidate_id
+            for child in children
+            for candidate_id in child["candidate_ids"]
         }
-        for bundle_id, children in sorted(assigned.items())
-    ]
+        output.append(
+            {
+                "review_bundle_id": bundle_id,
+                "scene_id": scene,
+                "semantics": "SPATIOTEMPORAL_REVIEW_CARD_NOT_HAZARD_GROUND_TRUTH",
+                "person_episodes": children,
+                "rejected_candidates": sorted(
+                    event_candidates.get(bundle_id, set()) - represented_candidates
+                ),
+            }
+        )
+    return output
 
 
 def run() -> None:

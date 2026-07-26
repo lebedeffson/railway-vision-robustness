@@ -81,8 +81,13 @@ def test_b6_metrics_include_bcubed_and_uncertainty() -> None:
 
 def test_direct_and_replay_are_identical() -> None:
     replay = json.loads((OUTPUT / "B6_REPLAY_AUDIT.json").read_text())
+    cross_process = json.loads(
+        (OUTPUT / "B6_CROSS_PROCESS_DETERMINISM.json").read_text()
+    )
     assert replay["exact_match"] is True
     assert all(record["exact_match"] for record in replay["records"])
+    assert cross_process["independent_replay_runs"] == 2
+    assert cross_process["exact_match"] is True
 
 
 def test_compute_is_frozen_after_b6() -> None:
