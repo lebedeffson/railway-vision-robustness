@@ -131,9 +131,14 @@
   The rule and nested logistic verifiers retained Recall/FN gains but did not
   control false alarms or F1. Do not tune it further under the same protocol;
   a crop verifier requires a new amendment and test stays sealed.
+- `railway-person-crop-verifier-v1` is the terminal local temporal amendment.
+  Track-only, visual-only and combined L2 heads all failed two-fold triage;
+  status is `CLOSED_NO_PRACTICAL_GATE`. Do not add MLPs, trackers or thresholds
+  on the same scenes. Keep test sealed and require new independent railway data.
 
 ## Notes
 
 - `.codex/notes/final-practice.md` — protocol decisions, data footprint and run order.
 - `.codex/notes/temporal-safety-v1.md` — frozen tracker split, results and release scope.
 - `.codex/notes/temporal-verifier-v1.md` — verifier lock, two-fold result and stop rule.
+- `.codex/notes/crop-verifier-v1.md` — frozen visual ablation and terminal temporal status.

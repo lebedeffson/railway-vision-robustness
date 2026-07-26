@@ -41,6 +41,7 @@ V8b завершён как воспроизводимый отрицатель�
 | Person v9 residual-temporal | ABANDONED_BEFORE_EXECUTION; заменён отдельным practical scope | запечатан |
 | Temporal safety v1 | DEVELOPMENT_FAIL; Recall вырос, false-alarm/F1 gate не пройден | не открывался |
 | Temporal verifier v1 | DEVELOPMENT_FAIL; rule/logistic не подавили false tracks до gate | не открывался |
+| Crop verifier v1 | CLOSED_NO_PRACTICAL_GATE; visual embeddings не решили FP/F1 | не открывался |
 
 Зафиксированный person-v3 baseline на folds 0/1:
 
@@ -244,6 +245,61 @@ amendment; test остался запечатанным.
 PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.temporal_verifier.lock_protocol
 PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.temporal_verifier.run_verifier
 PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.temporal_verifier.finalize
+```
+
+## Финальный temporal amendment: crop verifier v1
+
+`railway-person-crop-verifier-v1` — последний локальный эксперимент temporal
+ветки. Detector, OC-SORT, low-confidence predictions и parent tracks были
+заморожены. Для каждого track frozen CrowdHuman-pretrained YOLO backbone
+кодировал три реальные detector-crops: первый устойчивый, максимальный по
+confidence и последний. Interpolated crops не использовались.
+
+Prospective ablation:
+
+```text
+track_only  = пять фиксированных track-признаков
+visual_only = mean visual embedding трёх crops
+combined    = visual + track
+```
+
+Support grouped-OOF показал, что visual embedding не отделяет railway false
+tracks:
+
+| Модель | OOF AUROC | OOF AUPRC | OOF Brier |
+|---|---:|---:|---:|
+| track-only | 0.88367 | 0.90829 | 0.10804 |
+| visual-only | 0.60120 | 0.54273 | 0.24094 |
+| combined | 0.84864 | 0.84744 | 0.14501 |
+
+До confirmation был выбран `combined` с одним глобальным threshold `0.275`.
+Двухфолдовый triage:
+
+```text
+macro Recall:                   0.35432 -> 0.48106
+absolute Recall improvement:   +0.12674
+relative FN/frame reduction:   17.23%
+false alarms/min:              1003.26 -> 3771.08 (+275.88%)
+F1:                            0.38370 -> 0.33926 (-0.04444)
+paired Recall bootstrap 95% CI [0.01866, 0.14652]
+status:                        CLOSED_NO_PRACTICAL_GATE
+test_access_count:             0
+```
+
+Все три модели нарушили даже мягкий triage-лимит `+75%` false alarms и
+ограничение F1. Поэтому full 15-scene development, MLP и test не запускались.
+Confusion audit показывает, что visual verifier продолжает принимать устойчивые
+hard negatives, сигналы/столбы и статичные конструкции. По frozen stop-rule
+temporal-направление закрыто; следующий обоснованный шаг — новые независимые
+railway-сцены.
+
+Воспроизведение:
+
+```bash
+PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.crop_verifier.lock_protocol
+PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.crop_verifier.extract_embeddings
+PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.crop_verifier.run_crop_verifier
+PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.crop_verifier.finalize
 ```
 
 ## Данные и статистическая единица
