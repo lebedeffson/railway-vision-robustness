@@ -1,0 +1,20 @@
+{
+  "compute_status": "FROZEN_AFTER_B6",
+  "conditions": {
+    "association_f1_above_b5": true,
+    "card_increase_vs_b5_maximum": true,
+    "coverage_noninferior_to_b5": true,
+    "cross_person_merge_below_b5": true,
+    "fragments_preserved": true,
+    "improved_scenes_minimum": false,
+    "median_perturbation_ari_minimum": false,
+    "replay_exact": true,
+    "split_recovery_above_b1": true,
+    "worst_scene_coverage_degradation_maximum": true
+  },
+  "decision": "FAIL",
+  "further_experiments_allowed": false,
+  "median_perturbation_ari": 0.5344611922965019,
+  "test_access_count": 0,
+  "test_status": "SEALED"
+}

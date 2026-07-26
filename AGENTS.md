@@ -151,6 +151,9 @@
   Keep its nine detector thresholds and 201 verifier thresholds immutable,
   preserve `BLOCKED_MISSING_ARTIFACT` instead of semantic/runtime imputation,
   and never read the sealed five-scene test.
+- Operator-assistant B6 is the final compute experiment and ended `FAIL`.
+  Preserve its pseudo-pair LOSO result, sealed test and `FROZEN_AFTER_B6`;
+  do not tune association thresholds or start another model experiment.
 
 ## Notes
 
@@ -166,3 +169,5 @@
   trace, GT episode benchmark, event sensitivity and fail-safe amendment.
 - `.codex/notes/operator-assistant-evidence-v3.md` — hierarchical event
   semantics, five-scene streams, exact loss stages and explicit v3 blockers.
+- `.codex/notes/operator-assistant-b6.md` — final self-consistent fragment
+  association result, model provenance, hardware amendment and compute freeze.

@@ -1,0 +1,12 @@
+{
+  "amendment": "B6_HARDWARE_AMENDMENT_OOM",
+  "trigger": "PRE_METRIC_CUDA_OOM",
+  "original_video_depth_input_size": 518,
+  "amended_video_depth_input_size": 280,
+  "multiple_of_patch_size": 14,
+  "scientific_thresholds_changed": false,
+  "pseudo_pairs_changed": false,
+  "success_gate_changed": false,
+  "test_access_count": 0,
+  "test_status": "SEALED"
+}

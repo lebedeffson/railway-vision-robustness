@@ -1,0 +1,59 @@
+{
+  "detector_tracker_verifier_training": "FORBIDDEN",
+  "final_experiment": true,
+  "fragment_rule": {
+    "confidence_drop_ratio": 0.1,
+    "maximum_center_jump_diagonal": 0.15,
+    "maximum_frame_gap": 2,
+    "maximum_interpolation_streak": 2,
+    "maximum_log_area_jump": 1.0
+  },
+  "git_commit_before_computation": "72bedead58b60d325346e5aab88a75813573007b",
+  "gt_person_usage": "EVALUATION_ONLY",
+  "immutable": true,
+  "inputs": {
+    "config": "61b486f1cd6980af8e5acad726066dd56ba98f33fb67ac2305f949afe8e621b4",
+    "dinov2_model": "ae1e99fcefd534ed978cdeb8326f08030c96e28b7a81ffcbc98a857c84d14be1",
+    "v3_gt_person_boxes": "6595f355157c91e164209d1acd2ffd72930079eee547c17797daf963a002ccb3",
+    "v3_gt_person_episodes": "ae5b3e3dc9249121f17db74b400f1506ca0ec845565101f5a5b2ddd973111ab7",
+    "v3_manifest": "51f3214ab7bcc746761c45b6829b68b438d2e57661dd47798cbf19eec35ef00b",
+    "video_depth_anything_small": "13379300b739e659f076a59d52e9801bd8d38c541a7e71f73bbca4dcfb013609",
+    "video_depth_repository_commit": "4f5ae23172ba60fd7bc11ef671cca678842c7072"
+  },
+  "models_compared": [
+    "B1",
+    "B4",
+    "B5",
+    "B6-G",
+    "B6-A",
+    "B6-FULL"
+  ],
+  "parent_protocol": "operator-assistant-evidence-v3",
+  "protocol_id": "operator-assistant-b6-self-consistent-v1",
+  "pseudo_pair_rule": {
+    "coordinate_noise_std": 0.01,
+    "maximum_negative_ratio": 3,
+    "seed": 20260726
+  },
+  "success_gate": {
+    "association_f1_above_b5": true,
+    "card_increase_vs_b5_maximum": 0.2,
+    "coverage_noninferior_to_b5": true,
+    "cross_person_merge_below_b5": true,
+    "fragments_preserved": true,
+    "improved_scenes_minimum": 4,
+    "median_perturbation_ari_minimum": 0.9,
+    "replay_exact": true,
+    "split_recovery_above_b1": true,
+    "worst_scene_coverage_degradation_maximum": 0.02
+  },
+  "test_access_count": 0,
+  "test_status": "SEALED",
+  "training": "ASSOCIATION_LOGISTIC_ON_PSEUDOPAIRS_ONLY",
+  "uncertainty_rule": {
+    "cannot_link_threshold": 0.2,
+    "confidence_multiplier": 1.96,
+    "repetitions": 16,
+    "safe_link_threshold": 0.8
+  }
+}

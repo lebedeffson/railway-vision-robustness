@@ -1,0 +1,47 @@
+protocol_id: operator-assistant-b6-self-consistent-v1
+parent_protocol: operator-assistant-evidence-v3
+final_experiment: true
+constraints:
+  test_status: SEALED
+  test_access_count: 0
+  detector_training: FORBIDDEN
+  tracker_training: FORBIDDEN
+  verifier_training: FORBIDDEN
+  gt_person_for_training: FORBIDDEN
+  hazard_annotation: NOT_USED
+models:
+  dinov2_id: facebook/dinov2-small
+  dinov2_revision: ed25f3a31f01632728cabb09d1542f84ab7b0056
+  video_depth_repository_commit: 4f5ae23172ba60fd7bc11ef671cca678842c7072
+  video_depth_checkpoint: /home/lebedeffson/.cache/operator-b6-models/video_depth_anything_vits.pth
+fragment:
+  maximum_frame_gap: 2
+  maximum_center_jump_diagonal: 0.15
+  maximum_log_area_jump: 1.0
+  maximum_interpolation_streak: 2
+  confidence_drop_ratio: 0.10
+features:
+  appearance_samples: 5
+  dinov2_input_size: 224
+  depth_frame_width: 640
+pseudo_pairs:
+  seed: 20260726
+  maximum_negative_ratio: 3
+  coordinate_noise_std: 0.01
+uncertainty:
+  repetitions: 16
+  safe_link_threshold: 0.80
+  cannot_link_threshold: 0.20
+  confidence_multiplier: 1.96
+models_compared: [B1, B4, B5, B6-G, B6-A, B6-FULL]
+success_gate:
+  coverage_noninferior_to_b5: true
+  cross_person_merge_below_b5: true
+  association_f1_above_b5: true
+  split_recovery_above_b1: true
+  replay_exact: true
+  fragments_preserved: true
+  median_perturbation_ari_minimum: 0.90
+  card_increase_vs_b5_maximum: 0.20
+  improved_scenes_minimum: 4
+  worst_scene_coverage_degradation_maximum: 0.02
