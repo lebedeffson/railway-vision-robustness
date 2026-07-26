@@ -10,7 +10,7 @@
   },
   "source_verification": {
     "railgoerl24": {
-      "status": "OPEN_DOWNLOAD_VERIFIED",
+      "status": "OPEN_SOURCE_METADATA_VERIFIED_DOWNLOAD_INCOMPLETE",
       "frames": 12205,
       "person_boxes": 33556,
       "faces_blurred": false,

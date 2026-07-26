@@ -97,6 +97,22 @@ def test_terms_gated_sources_are_not_downloaded_by_project_wrapper() -> None:
     assert "RAWPED" not in wrapper
 
 
+def test_open_source_wrapper_does_not_claim_unsupported_resume() -> None:
+    wrapper = (ROOT / "download_verified_open_sources.sh").read_text(
+        encoding="utf-8"
+    )
+    assert " -C - " not in wrapper
+    assert "--continue-at" not in wrapper
+    assert 'download="$archive.download"' in wrapper
+    assert "mv \"$download\" \"$archive\"" in wrapper
+    assert wrapper.index("raileye3d_dataset.git") < wrapper.index(
+        'download="$archive.download"'
+    )
+    assert wrapper.index('actual_bytes="$(stat -c %s "$download")"') < (
+        wrapper.index('mv "$download" "$archive"')
+    )
+
+
 def test_ingestion_does_not_authorize_training_or_test() -> None:
     audit = json.loads((ROOT / "INGESTION_AUDIT.json").read_text(encoding="utf-8"))
     assert audit["starter_package"]["accepted_scenes_contributed"] == 0
@@ -109,3 +125,24 @@ def test_ingestion_does_not_authorize_training_or_test() -> None:
     assert audit["source_verification"]["railbench_object"]["status"] == (
         "BLOCKED_PENDING_EXPLICIT_TERMS_ACCEPTANCE"
     )
+
+
+def test_runtime_status_keeps_failed_download_outside_data_gate() -> None:
+    status = json.loads(
+        (ROOT / "ACQUISITION_RUNTIME_STATUS.json").read_text(encoding="utf-8")
+    )
+    assert status["railgoerl24"]["status"] == "DOWNLOAD_INCOMPLETE_REMOTE_RESET"
+    assert status["railgoerl24"]["verified_sha256"] is None
+    assert status["railgoerl24"]["extracted"] is False
+    assert status["raileye3d"]["images_downloaded"] is False
+    assert status["railbench_object"] == {
+        "status": "NOT_DOWNLOADED_NO_TERMS_ACCEPTANCE",
+        "test_accessed": False,
+    }
+    assert status["project_state"] == {
+        "status": "WAITING_FOR_NEW_SCENES",
+        "accepted_scenes": 0,
+        "training_authorized": False,
+        "test_status": "SEALED",
+        "test_access_count": 0,
+    }

@@ -13,7 +13,16 @@ accepted scenes and does not authorize training.
 - clones only the public RailEye3D annotation repository;
 - uses DNS-over-HTTPS only when the local resolver cannot resolve the official
   RailGoerl24 host, while retaining normal TLS hostname verification;
+- preserves failed RailGoerl24 transfers as `.download` evidence and never
+  treats them as archives; the official server does not support HTTP Range, so
+  a failed transfer must restart from byte zero;
 - never downloads RAIL-BENCH, RailEye3D images, RAWPED, or any benchmark test.
 
 The restricted or terms-gated sources require separate owner action. Their
 images must not be committed or added to a public bundle.
+
+The 2026-07-26 local execution downloaded the public RailEye3D annotations but
+could not complete RailGoerl24 because the official host reset two
+non-resumable transfers. See `ACQUISITION_RUNTIME_STATUS.json`. This is an
+external acquisition blocker, not a data-audit pass: accepted scenes remain
+zero, training remains blocked, and railway test remains sealed.

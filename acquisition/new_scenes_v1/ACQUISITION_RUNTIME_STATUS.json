@@ -1,0 +1,52 @@
+{
+  "protocol_id": "railway-person-new-scenes-v1",
+  "observed_at": "2026-07-26",
+  "railgoerl24": {
+    "official_url": "https://download.data.fid-move.de/dzsf/railgoerl24/Annotated_RGB_data.7z",
+    "expected_bytes": 4055218180,
+    "status": "DOWNLOAD_INCOMPLETE_REMOTE_RESET",
+    "http_range_supported": false,
+    "attempts": [
+      {
+        "received_bytes": 4051124215,
+        "missing_bytes": 4093965,
+        "curl_exit": 56,
+        "archive_list_test": "FAIL_INCOMPLETE"
+      },
+      {
+        "received_bytes": 1577746432,
+        "missing_bytes": 2477471748,
+        "curl_exit": 56,
+        "archive_list_test": "FAIL_INCOMPLETE"
+      }
+    ],
+    "verified_sha256": null,
+    "extracted": false,
+    "partial_files_retained": false,
+    "partial_bytes_removed_after_audit": 5628870647,
+    "accepted_scenes": 0
+  },
+  "raileye3d": {
+    "annotations_status": "DOWNLOADED_VERIFIED_COMMIT",
+    "annotations_commit": "ce1b2cf8434712a28c1fc2757724687c52844cd6",
+    "mot_annotation_files": 10,
+    "images_status": "PENDING_OWNER_APPROVAL",
+    "images_downloaded": false,
+    "accepted_scenes": 0
+  },
+  "railbench_object": {
+    "status": "NOT_DOWNLOADED_NO_TERMS_ACCEPTANCE",
+    "test_accessed": false
+  },
+  "rawped": {
+    "status": "NOT_REQUESTED",
+    "images_downloaded": false
+  },
+  "project_state": {
+    "status": "WAITING_FOR_NEW_SCENES",
+    "accepted_scenes": 0,
+    "training_authorized": false,
+    "test_status": "SEALED",
+    "test_access_count": 0
+  }
+}

@@ -139,6 +139,9 @@
   `WAITING_FOR_NEW_SCENES`. Require 8–12 independent scenes and a passing
   immutable CPU audit before authorizing B1; B2/B3 remain staged and test stays
   sealed. Never treat adjacent fragments of one source video as new scenes.
+- RailGoerl24's official host does not support Range; preserve failed transfers
+  as incomplete evidence and restart into a temporary filename. Promote to the
+  archive path only after exact byte-count verification, then require `7z t`.
 
 ## Notes
 
