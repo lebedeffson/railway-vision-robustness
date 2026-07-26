@@ -102,9 +102,19 @@ class FinalDemoApp:
             int(torch.cuda.max_memory_allocated()) if torch.cuda.is_available() else 0
         )
         runtime = metrics.summary(peak_gpu)
-        commit = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], cwd=PROJECT, text=True
-        ).strip()
+        commit_result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=PROJECT,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        commit = (
+            commit_result.stdout.strip()
+            if commit_result.returncode == 0
+            else "UNAVAILABLE_NOT_GIT"
+        )
         provenance = {
             "git_commit": commit,
             "detector_checkpoint_sha256": getattr(
