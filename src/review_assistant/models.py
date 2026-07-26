@@ -15,6 +15,8 @@ class EventDetection:
     interpolated: bool = False
     confirmed: bool = False
     motion: float = 0.0
+    candidate_id: str = ""
+    processing_status: str = "NORMAL"
 
     @classmethod
     def from_candidate(
@@ -34,6 +36,10 @@ class EventDetection:
             interpolated=bool(candidate.get("interpolated", False)),
             confirmed=bool(candidate.get("confirmed", False)),
             motion=float(candidate.get("motion", 0.0)),
+            candidate_id=str(candidate.get("candidate_id") or ""),
+            processing_status=str(
+                candidate.get("processing_status", "NORMAL")
+            ),
         )
 
 
@@ -55,6 +61,8 @@ class ReviewEvent:
     operator_comment: str = ""
     priority: int = 100
     muted: bool = False
+    processing_statuses: set[str] = field(default_factory=set)
+    reopen_count: int = 0
 
     def add(self, detection: EventDetection) -> None:
         self.detections.append(detection)
@@ -63,6 +71,7 @@ class ReviewEvent:
         self.sources.add(detection.source)
         if detection.track_id is not None:
             self.track_ids.add(detection.track_id)
+        self.processing_statuses.add(detection.processing_status)
         if detection.confidence >= self.maximum_confidence:
             self.maximum_confidence = detection.confidence
             self.representative_box = list(detection.box)
@@ -88,6 +97,13 @@ class ReviewEvent:
     def duration(self) -> float:
         return max(self.end_time - self.start_time, 0.0)
 
+    @property
+    def processing_status(self) -> str:
+        for status in ("PROCESSING_FALLBACK", "VERIFIER_UNAVAILABLE"):
+            if status in self.processing_statuses:
+                return status
+        return "NORMAL"
+
     def to_record(self) -> dict[str, Any]:
         return {
             "event_id": self.event_id,
@@ -108,6 +124,8 @@ class ReviewEvent:
             "operator_comment": self.operator_comment,
             "priority": self.priority,
             "muted": self.muted,
+            "processing_status": self.processing_status,
+            "reopen_count": self.reopen_count,
             "state": self.state,
         }
 

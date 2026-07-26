@@ -162,3 +162,5 @@
 - `.codex/notes/project-closure-v1.md` — immutable final statuses, demonstrator scope and release checks.
 - `.codex/notes/review-assistant-v1.md` — product event semantics, operator safety contract and acceptance evidence.
 - `.codex/notes/article-evidence-v1.md` — frozen calculation inputs, generated evidence and explicit blocked fields.
+- `.codex/notes/operator-assistant-evidence-v2.md` — reproducible candidate
+  trace, GT episode benchmark, event sensitivity and fail-safe amendment.

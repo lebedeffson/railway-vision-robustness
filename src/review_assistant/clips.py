@@ -136,6 +136,8 @@ class EventClipWriter:
             "confirmed",
             "interpolated",
             "motion",
+            "candidate_id",
+            "processing_status",
         ]
         with (destination / "detections.csv").open(
             "w", encoding="utf-8", newline=""

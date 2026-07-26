@@ -10,7 +10,7 @@ import streamlit.components.v1 as components
 
 from src.review_assistant.config import DEFAULT_CONFIG, load_config, resolve_path
 from src.review_assistant.database import ReviewDatabase
-from src.review_assistant.processor import ReviewProcessor
+from src.review_assistant.processor_v2 import FailSafeReviewProcessor
 from src.review_assistant.reporting import generate_report
 
 
@@ -176,7 +176,7 @@ def _processing_tab(config: dict, database_path: str) -> None:
                 )
 
             try:
-                processor = ReviewProcessor(
+                processor = FailSafeReviewProcessor(
                     checkpoint=checkpoint or None,
                     verifier=verifier or None,
                     encoder=encoder or None,
@@ -269,6 +269,16 @@ def _event_queue(
             "<div class='temporal-warning'>Temporal-only: повышенный риск "
             "ложного срабатывания. Требуется ручная проверка.</div>",
             unsafe_allow_html=True,
+        )
+    if event.get("processing_status") == "VERIFIER_UNAVAILABLE":
+        st.error(
+            "Проверяющая модель была недоступна. Событие передано в общую "
+            "очередь без фильтрации."
+        )
+    elif event.get("processing_status") == "PROCESSING_FALLBACK":
+        st.error(
+            "Кадр обработан в консервативном техническом режиме после ошибки. "
+            "Событие не скрыто и требует ручной проверки."
         )
     left, right = st.columns([3, 2])
     with left:

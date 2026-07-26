@@ -1,0 +1,51 @@
+protocol_id: operator-assistant-evidence-v2
+parent_protocol: event-engineering-evidence-v1
+
+constraints:
+  test_status: SEALED
+  test_access_count: 0
+  training: FORBIDDEN
+  new_model: FORBIDDEN
+  multistream_benchmark: DEFERRED
+
+benchmark:
+  grouped_scene_id: 8_station_altona_8
+  source_sequence_id: 8_station_altona_8.2
+  stream: rgb_highres_center
+  frames: 100
+  fps: 10
+  width: 1280
+  height: 720
+  development_index: outputs/temporal_safety_v1/data/frame_sequence_index.csv
+  annotation: data/raw/8_station_altona_8.2/8_station_altona_8.2_labels.json
+
+frozen_pipeline:
+  review_config: configs/review_assistant_v1.yaml
+  tracker: ocsort
+  mode: combined_queue
+  gt_match_iou: 0.50
+
+events:
+  baseline:
+    join_time_seconds: 3
+    minimum_iou: 0.20
+    maximum_center_distance_ratio: 0.10
+    reopen_window_seconds: 30
+    close_after_seconds: 3
+    temporal_minimum_observations: 2
+    pre_roll_seconds: 3
+    post_roll_seconds: 3
+  sensitivity:
+    join_time_seconds: [1, 2, 3, 5]
+    minimum_iou: [0.10, 0.20, 0.30]
+    maximum_center_distance_ratio: [0.05, 0.10, 0.15]
+    reopen_window_seconds: [10, 30, 60]
+    expected_configurations: 108
+
+runtime:
+  warmup_frames: 100
+  measured_frames: 1000
+  repeat_benchmark_frames: 1100
+
+outputs:
+  root: outputs/operator_assistant_evidence_v2

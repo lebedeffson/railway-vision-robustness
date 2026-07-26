@@ -10,7 +10,7 @@ if str(PROJECT) not in sys.path:
     sys.path.insert(0, str(PROJECT))
 
 from src.review_assistant.config import load_config
-from src.review_assistant.processor import ReviewProcessor
+from src.review_assistant.processor_v2 import FailSafeReviewProcessor
 
 
 def parse_args() -> argparse.Namespace:
@@ -46,7 +46,7 @@ def main() -> None:
         raise SystemExit("No supported local videos found.")
     results = []
     for video in videos:
-        processor = ReviewProcessor(
+        processor = FailSafeReviewProcessor(
             checkpoint=args.checkpoint,
             verifier=args.verifier,
             encoder=args.encoder,

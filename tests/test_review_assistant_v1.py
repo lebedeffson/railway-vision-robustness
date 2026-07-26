@@ -15,6 +15,7 @@ from src.review_assistant.database import ReviewDatabase
 from src.review_assistant.event_aggregator import EventAggregator
 from src.review_assistant.models import EventDetection, ReviewEvent
 from src.review_assistant.processor import ReviewProcessor
+from src.review_assistant.processor_v2 import FailSafeReviewProcessor
 from src.review_assistant.reporting import generate_report
 
 
@@ -213,7 +214,8 @@ def test_operator_decision_is_reversible(tmp_path: Path) -> None:
         )
         database.undo_last_review(run_id, event_id, "alice")
         assert database.get_event(run_id, event_id)["review_status"] == "PENDING"
-        assert any(row["action"] == "UNDO_REVIEW" for row in database.audit_rows())
+        actions = {row["action"] for row in database.audit_rows()}
+        assert {"REVIEW", "UNDO_REVIEW"} <= actions
 
 
 def test_suppression_requires_manual_confirmation(tmp_path: Path) -> None:
@@ -286,7 +288,7 @@ def test_no_safety_actuation() -> None:
 
 def test_database_migrations(tmp_path: Path) -> None:
     with ReviewDatabase(tmp_path / "db.sqlite") as database:
-        assert database.schema_version == 1
+        assert database.schema_version == 2
         tables = {
             row[0]
             for row in database.connection.execute(
@@ -447,3 +449,80 @@ def test_processor_creates_operator_queue_without_alarm(tmp_path: Path) -> None:
     assert events[0]["source_label"] == "BASELINE"
     assert Path(events[0]["clip_path"]).is_file()
     assert run["raw_detection_count"] == result["raw_detections"]
+
+
+class FailingDetector:
+    checkpoint_sha256 = "failing-test-detector"
+
+    def candidates(self, _frame: np.ndarray) -> list[dict]:
+        raise RuntimeError("synthetic recoverable inference failure")
+
+    def standard(self, rows: list[dict]) -> list[dict]:
+        return rows
+
+
+def test_unknown_processing_error_creates_technical_review_event(
+    tmp_path: Path,
+) -> None:
+    video = tmp_path / "short.mp4"
+    _video(video, frames=3, fps=3)
+    processor = FailSafeReviewProcessor(
+        detector=FailingDetector(),
+        temporal=None,
+        database=tmp_path / "db.sqlite",
+        run_root=tmp_path / "runs",
+        output_root=tmp_path / "outputs",
+    )
+    result = processor.process(video, mode="conservative_review")
+    with ReviewDatabase(tmp_path / "db.sqlite") as database:
+        events = database.list_events(result["run_id"])
+        audit = database.audit_rows()
+    assert events
+    assert events[0]["processing_status"] == "PROCESSING_FALLBACK"
+    assert events[0]["review_status"] == "PENDING"
+    assert any(row["action"] == "PROCESSING_FALLBACK" for row in audit)
+
+
+def test_thumbnail_failure_does_not_delete_saved_event(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    video = tmp_path / "short.mp4"
+    _video(video, frames=3, fps=3)
+    processor = FailSafeReviewProcessor(
+        detector=FakeDetector(),
+        temporal=None,
+        database=tmp_path / "db.sqlite",
+        run_root=tmp_path / "runs",
+        output_root=tmp_path / "outputs",
+    )
+    monkeypatch.setattr(
+        "src.review_assistant.clips.EventClipWriter.write",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            RuntimeError("thumbnail failure")
+        ),
+    )
+    with pytest.raises(RuntimeError, match="thumbnail failure"):
+        processor.process(video, mode="conservative_review")
+    with ReviewDatabase(tmp_path / "db.sqlite") as database:
+        runs = database.list_runs()
+        events = database.list_events(runs[0]["run_id"])
+    assert runs[0]["status"] == "FAILED"
+    assert len(events) == 1
+    assert events[0]["review_status"] == "PENDING"
+
+
+def test_verifier_unavailable_event_remains_in_general_queue() -> None:
+    engine = aggregator()
+    row = candidate(0, source="TEMPORAL_ONLY", confirmed=True)[2]
+    row.update(
+        {
+            "candidate_id": "fallback-1",
+            "processing_status": "VERIFIER_UNAVAILABLE",
+            "source": "verifier_fallback",
+        }
+    )
+    engine.observe(0, 0.0, [row])
+    event = engine.finalize()[0]
+    assert event.processing_status == "VERIFIER_UNAVAILABLE"
+    assert event.review_status == "PENDING"
+    assert event.detections[0].candidate_id == "fallback-1"

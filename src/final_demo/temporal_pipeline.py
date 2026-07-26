@@ -102,10 +102,16 @@ class TemporalResearchPipeline:
         self.standard_threshold = float(standard_threshold)
         self.last_tracker_ms = 0.0
         self.last_verifier_ms = 0.0
+        self.frame_index = -1
+        self.last_trace_rows: list[dict[str, Any]] = []
+        self.last_fallbacks: list[dict[str, Any]] = []
 
     def update(
         self, frame: np.ndarray, candidates: list[dict[str, Any]]
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        self.frame_index += 1
+        self.last_trace_rows = []
+        self.last_fallbacks = []
         height, width = frame.shape[:2]
         tracker_started = time.perf_counter()
         emitted, events = self.tracker.update(candidates, width, height)
@@ -113,18 +119,58 @@ class TemporalResearchPipeline:
         verifier_started = time.perf_counter()
         states = {track.track_id: track for track in self.tracker.tracks}
         output: list[dict[str, Any]] = []
-        for row in emitted:
+        for ordinal, row in enumerate(emitted):
             track_id = int(row["track_id"])
-            self.verifier.observe(track_id, frame, row)
+            if not row.get("candidate_id"):
+                row["candidate_id"] = (
+                    f"T-{self.frame_index:06d}-{track_id:06d}-{ordinal:04d}"
+                )
             state = states.get(track_id)
-            probability = self.verifier.probability(state) if state is not None else 0.0
             baseline = float(row.get("raw_confidence", 0.0)) >= self.standard_threshold
-            accepted = baseline or probability >= self.verifier.threshold
+            try:
+                self.verifier.observe(track_id, frame, row)
+                probability = (
+                    self.verifier.probability(state) if state is not None else 0.0
+                )
+                accepted = baseline or probability >= self.verifier.threshold
+                decision = "ACCEPT" if accepted else "REJECT"
+                processing_status = "NORMAL"
+                error_type = ""
+            except Exception as error:
+                probability = None
+                accepted = True
+                decision = "BYPASS"
+                processing_status = "VERIFIER_UNAVAILABLE"
+                error_type = type(error).__name__
+                self.last_fallbacks.append(
+                    {
+                        "frame_number": self.frame_index,
+                        "track_id": track_id,
+                        "candidate_id": row["candidate_id"],
+                        "error_type": error_type,
+                    }
+                )
+            self.last_trace_rows.append(
+                {
+                    **row,
+                    "verifier_score": probability,
+                    "verifier_decision": decision,
+                    "verifier_error_type": error_type,
+                    "processing_status": processing_status,
+                    "accepted": accepted,
+                }
+            )
             if accepted:
                 item = dict(row)
                 item["confirmed"] = bool(state.confirmed if state is not None else baseline)
                 item["verifier_probability"] = probability
-                if not baseline:
+                item["verifier_decision"] = decision
+                item["processing_status"] = processing_status
+                item["verifier_error_type"] = error_type
+                if processing_status == "VERIFIER_UNAVAILABLE":
+                    item["original_source"] = item["source"]
+                    item["source"] = "verifier_fallback"
+                elif not baseline:
                     item["original_source"] = item["source"]
                     item["source"] = "verifier"
                 output.append(item)

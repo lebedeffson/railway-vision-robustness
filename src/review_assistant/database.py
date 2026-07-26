@@ -12,7 +12,7 @@ from .event_aggregator import box_iou, center_distance_ratio
 from .models import ReviewEvent
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 REVIEW_STATUSES = {
     "PENDING",
     "HUMAN",
@@ -103,6 +103,8 @@ class ReviewDatabase:
                     interpolated_count INTEGER NOT NULL,
                     spatial_region_json TEXT NOT NULL,
                     representative_motion REAL NOT NULL DEFAULT 0,
+                    processing_status TEXT NOT NULL DEFAULT 'NORMAL',
+                    reopen_count INTEGER NOT NULL DEFAULT 0,
                     review_status TEXT NOT NULL DEFAULT 'PENDING',
                     operator_comment TEXT NOT NULL DEFAULT '',
                     priority INTEGER NOT NULL DEFAULT 100,
@@ -126,6 +128,8 @@ class ReviewDatabase:
                     interpolated INTEGER NOT NULL,
                     confirmed INTEGER NOT NULL,
                     motion REAL NOT NULL DEFAULT 0,
+                    candidate_id TEXT NOT NULL DEFAULT '',
+                    processing_status TEXT NOT NULL DEFAULT 'NORMAL',
                     FOREIGN KEY (run_id, event_id)
                       REFERENCES events(run_id, event_id) ON DELETE CASCADE
                 );
@@ -177,6 +181,34 @@ class ReviewDatabase:
                   ON event_detections(run_id, event_id, frame_number);
                 """
             )
+            event_columns = {
+                str(row["name"])
+                for row in db.execute("PRAGMA table_info(events)")
+            }
+            if "processing_status" not in event_columns:
+                db.execute(
+                    "ALTER TABLE events ADD COLUMN processing_status "
+                    "TEXT NOT NULL DEFAULT 'NORMAL'"
+                )
+            if "reopen_count" not in event_columns:
+                db.execute(
+                    "ALTER TABLE events ADD COLUMN reopen_count "
+                    "INTEGER NOT NULL DEFAULT 0"
+                )
+            detection_columns = {
+                str(row["name"])
+                for row in db.execute("PRAGMA table_info(event_detections)")
+            }
+            if "candidate_id" not in detection_columns:
+                db.execute(
+                    "ALTER TABLE event_detections ADD COLUMN candidate_id "
+                    "TEXT NOT NULL DEFAULT ''"
+                )
+            if "processing_status" not in detection_columns:
+                db.execute(
+                    "ALTER TABLE event_detections ADD COLUMN processing_status "
+                    "TEXT NOT NULL DEFAULT 'NORMAL'"
+                )
             db.execute(
                 """
                 INSERT INTO schema_meta(key, value) VALUES('schema_version', ?)
@@ -345,11 +377,12 @@ class ReviewDatabase:
                       end_time, duration, source_label, sources_json,
                       track_ids_json, maximum_confidence, real_detection_count,
                       interpolated_count, spatial_region_json,
-                      representative_motion, review_status, operator_comment,
+                      representative_motion, processing_status, reopen_count,
+                      review_status, operator_comment,
                       priority, muted, clip_path, thumbnail_path, created_at,
                       updated_at
                     ) VALUES(
-                      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                       NULL, NULL, ?, ?
                     )
                     """,
@@ -369,6 +402,8 @@ class ReviewDatabase:
                         record["interpolated_count"],
                         json.dumps(record["spatial_region"]),
                         record["representative_motion"],
+                        record["processing_status"],
+                        record["reopen_count"],
                         record["review_status"],
                         record["operator_comment"],
                         record["priority"],
@@ -383,8 +418,8 @@ class ReviewDatabase:
                         INSERT INTO event_detections(
                           run_id, event_id, frame_number, timestamp, bbox_json,
                           confidence, source, track_id, interpolated, confirmed,
-                          motion
-                        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                          motion, candidate_id, processing_status
+                        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             run_id,
@@ -398,6 +433,8 @@ class ReviewDatabase:
                             int(detection.interpolated),
                             int(detection.confirmed),
                             detection.motion,
+                            detection.candidate_id,
+                            detection.processing_status,
                         ),
                     )
 

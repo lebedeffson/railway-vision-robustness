@@ -152,6 +152,8 @@ class CausalTracker:
             "box": list(detection["box"]),
             "confidence": float(score),
             "raw_confidence": raw,
+            "candidate_id": detection.get("candidate_id"),
+            "detector_candidate_id": detection.get("candidate_id"),
             "class_id": 0,
             "track_id": track.track_id,
             "source": "detector" if raw >= operating else "temporal_confirmation",
@@ -181,6 +183,8 @@ class CausalTracker:
             "box": predicted,
             "confidence": float(confidence),
             "raw_confidence": 0.0,
+            "candidate_id": None,
+            "detector_candidate_id": None,
             "class_id": 0,
             "track_id": track.track_id,
             "source": "temporal_interpolation",
@@ -272,4 +276,3 @@ class CausalTracker:
                 retained.append(track)
         self.tracks = retained
         return emitted, events
-
