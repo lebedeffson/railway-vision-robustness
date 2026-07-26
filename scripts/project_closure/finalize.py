@@ -376,7 +376,7 @@ def build_tables(source: dict[str, Any]) -> None:
         atomic_csv(runtime_path, runtime_rows)
     if runtime_path.is_file():
         pd.read_csv(runtime_path).to_csv(TABLES / "RUNTIME_BENCHMARK.csv", index=False)
-    else:
+    elif not (TABLES / "RUNTIME_BENCHMARK.csv").is_file():
         atomic_csv(
             TABLES / "RUNTIME_BENCHMARK.csv",
             [
@@ -640,23 +640,33 @@ safety system.
         cwd=REPORT,
     )
     with tempfile.TemporaryDirectory(prefix="closure-libreoffice-") as profile:
-        subprocess.run(
-            [
-                "libreoffice",
-                f"-env:UserInstallation=file://{profile}",
-                "--headless",
-                "--convert-to",
-                "pdf",
-                "--outdir",
-                str(REPORT),
-                str(REPORT / "FINAL_PROJECT_REPORT.docx"),
-            ],
-            check=True,
+        command = [
+            "libreoffice",
+            f"-env:UserInstallation={Path(profile).as_uri()}",
+            "--headless",
+            "--convert-to",
+            "pdf",
+            "--outdir",
+            str(REPORT),
+            str(REPORT / "FINAL_PROJECT_REPORT.docx"),
+        ]
+        conversion = subprocess.run(
+            command,
+            check=False,
             cwd=ROOT,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
         )
+        if conversion.returncode != 0:
+            subprocess.run(
+                [command[0], *command[2:]],
+                check=True,
+                cwd=ROOT,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+            )
 
 
 def write_support_files() -> None:
