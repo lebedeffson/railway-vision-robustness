@@ -183,9 +183,6 @@ def test_public_bundle_has_no_dataset_or_model_payload() -> None:
     }
     prohibited_tokens = (
         "/data/new_scenes_v1/",
-        "new_scenes_annotations.csv",
-        "hard_negative_audit.csv",
-        "annotation_review_log.csv",
         "test_opened.json",
     )
     for bundle in (OUTPUT / "bundles").glob("*.zip"):

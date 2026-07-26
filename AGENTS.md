@@ -135,6 +135,10 @@
   Track-only, visual-only and combined L2 heads all failed two-fold triage;
   status is `CLOSED_NO_PRACTICAL_GATE`. Do not add MLPs, trackers or thresholds
   on the same scenes. Keep test sealed and require new independent railway data.
+- `railway-person-new-scenes-v1` is data-only and currently
+  `WAITING_FOR_NEW_SCENES`. Require 8–12 independent scenes and a passing
+  immutable CPU audit before authorizing B1; B2/B3 remain staged and test stays
+  sealed. Never treat adjacent fragments of one source video as new scenes.
 
 ## Notes
 
@@ -142,3 +146,4 @@
 - `.codex/notes/temporal-safety-v1.md` — frozen tracker split, results and release scope.
 - `.codex/notes/temporal-verifier-v1.md` — verifier lock, two-fold result and stop rule.
 - `.codex/notes/crop-verifier-v1.md` — frozen visual ablation and terminal temporal status.
+- `.codex/notes/new-scenes-v1.md` — acquisition lock, audit boundary and staged B0–B3 activation.

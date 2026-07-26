@@ -302,6 +302,38 @@ PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.crop_verifier.run_crop_verifier
 PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.crop_verifier.finalize
 ```
 
+## Новый data-only этап: independent railway scenes
+
+`railway-person-new-scenes-v1` не запускает новую модель. Он фиксирует
+требования к 8–12 действительно независимым railway-сценам и блокирует
+`railway-person-independent-data-v1`, пока данные не пройдут CPU-аудит.
+
+Текущее состояние:
+
+```text
+status:                    WAITING_FOR_NEW_SCENES
+accepted scenes:           0
+training authorized:       false
+independent-data protocol: BLOCKED_BY_NEW_SCENES_GATE
+test:                      SEALED
+test access count:         0
+```
+
+Шаблоны четырёх входных CSV находятся в
+`protocol/new_scenes_v1/templates/`. Изображения, разметка, checkpoints и
+sealed test не входят в публичный пакет.
+
+После локального размещения данных под `data/new_scenes_v1/`:
+
+```bash
+PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.new_scenes.audit_new_scenes
+PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.new_scenes.authorize_independent_data
+```
+
+Второй шаг разрешает только B1 detector fine-tuning и только после
+`NEW_SCENES_AUDIT.json: PASS`. B2 temporal и B3 crop остаются заблокированными
+до прохождения предшествующих gates.
+
 ## Данные и статистическая единица
 
 Эксперименты используют открытый набор
