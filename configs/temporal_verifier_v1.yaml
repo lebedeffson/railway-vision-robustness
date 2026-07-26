@@ -1,0 +1,116 @@
+protocol_id: railway-person-temporal-verifier-v1
+parent_commit: 2239dddaad4067a3f4f97f600aed8ee91cd5fed8
+scope: development_only_practical_verifier
+article_evidence_before_full_development_pass: false
+
+frozen_parent:
+  protocol_id: railway-person-temporal-safety-v1
+  status: DEVELOPMENT_FAIL
+  implementation_commit: 9fb352625d675fcdf2e62fb84e8fecfad9be2656
+  final_commit: 2239dddaad4067a3f4f97f600aed8ee91cd5fed8
+  protocol_lock: outputs/temporal_safety_v1/protocol/protocol_lock.json
+  selected_trackers: outputs/temporal_safety_v1/selection/SELECTED_TRACKER_CONFIGS.json
+  raw_predictions: outputs/temporal_safety_v1/baseline/raw_predictions.parquet
+  bootstrap_samples_reused: true
+
+data:
+  independent_unit: grouped_scene_id
+  temporal_unit: subsequence_id
+  support_scenes: 9
+  screening_fold: 0
+  confirmation_fold: 1
+  support_excludes_folds: [0, 1]
+  nominal_fps: 10.0
+  test_status: SEALED
+  test_access_count: 0
+
+tracker:
+  primary: ocsort
+  sensitivity: bytetrack
+  choose_before_verifier_results: true
+  reuse_identical_tracks_for_all_verifiers: true
+
+labels:
+  positive:
+    minimum_iou: 0.50
+    minimum_matched_detector_frames: 2
+    minimum_matched_fraction: 0.50
+  negative:
+    maximum_iou_exclusive: 0.30
+  ambiguous:
+    training_use: false
+
+rule_verifier:
+  maximum_candidates: 12
+  k_detector_hits: [2, 3]
+  window_frames: [3, 5]
+  high_confidence_threshold: [0.25, 0.40, 0.55]
+  fixed:
+    maximum_interpolation_fraction: 0.50
+    minimum_detection_duty_cycle: 0.40
+    maximum_missing_streak: 1
+    maximum_box_area_cv: 2.0
+  selection_role: screening_fold_0
+  confirmation_role: fold_1_without_retuning
+
+learned_verifier:
+  trigger: RULE_VERIFIER_FAIL
+  primary: logistic_l2
+  sensitivity: histogram_gradient_boosting
+  sensitivity_runs_only_after_logistic_pass: true
+  features:
+    exclude_ground_truth: true
+    normalization: inner_train_only
+  nested_scene_cv:
+    inner_group: grouped_scene_id
+    maximum_inner_folds: 5
+  logistic:
+    C: 1.0
+    class_weight: balanced
+    max_iter: 2000
+    seed: 20260726
+  calibration:
+    method: platt
+    fit: support_scene_OOF_only
+  threshold:
+    grid_points: 201
+    selection_role: screening_fold_0
+    rule: maximum_F1_subject_to_recall_and_FN_constraints
+    absolute_recall_improvement_min: 0.10
+    relative_FN_reduction_min: 0.15
+    global_not_per_scene: true
+
+inference:
+  preserve_all_frame_baseline_predictions: true
+  verifier_filters_only_temporal_additions: true
+  low_confidence_cannot_birth_output_alone: true
+  low_confidence_can_continue_accepted_track: true
+  interpolated_frames_count_as_detector_hits: false
+  nms_iou: 0.60
+
+development_gate:
+  absolute_macro_recall_improvement_min: 0.10
+  relative_macro_FN_reduction_min: 0.15
+  relative_false_alarms_increase_max: 0.20
+  F1_degradation_max: 0.03
+  worst_scene_recall_must_not_decrease: true
+  improved_scene_fraction_min: 0.70
+  bootstrap_iterations: 10000
+  bootstrap_seed: 20260726
+  require_recall_CI_above_zero: true
+  evaluator_consistency: PASS
+  lost_frames: 0
+  NaN_Inf: 0
+
+next_step:
+  rule_pass: stop_before_learned_verifier
+  rule_fail: run_logistic
+  logistic_pass: boosting_sensitivity_only
+  logistic_fail: crop_verifier_requires_new_amendment
+  crop_fail: stop_temporal_direction
+
+test_access:
+  marker: outputs/temporal_verifier_v1/test/TEST_OPENED.json
+  legacy_marker: outputs/person_v3/test/TEST_OPENED.json
+  allowed_only_after_full_development_pass: true
+  maximum_access_count: 1
