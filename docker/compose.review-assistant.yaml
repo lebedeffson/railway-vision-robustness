@@ -1,0 +1,23 @@
+services:
+  review-assistant:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.review-assistant
+    ports:
+      - "8501:8501"
+    environment:
+      REVIEW_ASSISTANT_CHECKPOINT: /models/person_detector.pt
+      REVIEW_ASSISTANT_VERIFIER: /models/combined.pkl
+      REVIEW_ASSISTANT_ENCODER: /models/verifier_encoder.pt
+      REVIEW_ASSISTANT_DATABASE: /data/review_assistant.sqlite
+    volumes:
+      - ${REVIEW_ASSISTANT_MODELS:-../models}:/models:ro
+      - ${REVIEW_ASSISTANT_DATA:-../data}:/data
+      - ${REVIEW_ASSISTANT_OUTPUTS:-../outputs}:/app/outputs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

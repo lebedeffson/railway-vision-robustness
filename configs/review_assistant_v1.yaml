@@ -1,0 +1,98 @@
+product_id: railway-person-review-assistant-v1
+parent_protocol: railway-vision-final-closure-v1
+
+input:
+  camera_id: local-camera
+  recursive: false
+  extensions: [.mp4, .avi, .mov, .mkv]
+
+processing:
+  mode: combined_queue
+  device: auto
+  offline: true
+  progress_commit_interval_frames: 25
+  resume_policy: restart_incomplete_run
+  warmup_frames: 20
+
+detector:
+  checkpoint: outputs/person_v3/scene_cv/fold_0/seed_20260723/stage2/weights/best.pt
+  expected_sha256: 5a8483b1d40938f49b05225cfe4b3c92414e874fe72008746396ea32bcfb0a79
+  candidate_floor: 0.001
+  standard_threshold: 0.07
+  iou_threshold: 0.50
+  image_size: 1280
+
+tracker:
+  type: ocsort
+  parameters:
+    direction_weight: 0.2
+    high_conf_threshold: 0.07
+    low_conf_threshold: 0.001
+    match_iou_threshold: 0.2
+    maximum_lost_frames: 1
+    minimum_confirmed_length: 2
+    new_track_threshold: 0.01
+    track_buffer: 1
+  temporal_logic:
+    confirmation_window: 5
+    accumulated_score_decay: 0.80
+    missing_score_decay: 0.60
+    accumulated_score_threshold: 0.12
+    interpolation_score_decay: 0.85
+    maximum_interpolation_gap: 1
+    interpolation_uncertainty_max: 1.0
+
+verifier:
+  type: frozen_combined
+  model: outputs/crop_verifier_v1/models/combined/model.pkl
+  model_expected_sha256: 8ee0e1ad4960963b87b9eef01c4f039c649b4e33bd2155eeb4d2a7c4a43b999d
+  threshold: 0.275
+  encoder_checkpoint: outputs/person_v5/external_pretraining/run/weights/best.pt
+  encoder_expected_sha256: c16f796a297b0418cf315212a7d12a00b25825d857782da84f24653909723de6
+  backbone_last_layer_index: 10
+  input_size: 224
+  crop_context_multiplier: 1.75
+  padding_value: 114
+
+events:
+  join_time_seconds: 3
+  close_after_seconds: 3
+  reopen_window_seconds: 30
+  minimum_iou: 0.20
+  maximum_center_distance_ratio: 0.10
+  temporal_minimum_observations: 2
+  pre_roll_seconds: 3
+  post_roll_seconds: 3
+
+review:
+  human_confirmation_required: true
+  autonomous_alarm: false
+  safety_actuation: false
+  statuses: [PENDING, HUMAN, FALSE_POSITIVE, UNCERTAIN, SKIPPED]
+  default_operator: local-operator
+
+suppression:
+  minimum_false_events_for_suggestion: 3
+  region_iou: 0.50
+  confidence_change_ratio: 0.50
+  center_change_ratio: 0.08
+  motion_change_ratio: 0.10
+  muted_priority: 10
+  normal_priority: 100
+
+storage:
+  database: data/review_assistant.sqlite
+  run_root: data/runs
+  output_root: outputs/review_assistant
+  retain_annotated_full_video: false
+  retain_event_clips: true
+
+benchmark:
+  minimum_frames: 1000
+  minimum_video_minutes: 10
+  warmup_frames: 20
+
+test_access:
+  status: SEALED
+  access_count: 0
+  prohibit_paths_containing: [sealed_test, /test/]

@@ -1,0 +1,24 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg libgl1 libglib2.0-0 pandoc libreoffice-writer \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY requirements.txt /app/requirements.txt
+RUN python -m pip install --upgrade pip && \
+    python -m pip install -r /app/requirements.txt
+
+COPY configs /app/configs
+COPY protocol/review_assistant_v1 /app/protocol/review_assistant_v1
+COPY src /app/src
+COPY scripts/review_assistant /app/scripts/review_assistant
+
+EXPOSE 8501
+CMD ["python", "-m", "streamlit", "run", \
+     "src/review_assistant/web_app.py", \
+     "--server.address=0.0.0.0", "--server.port=8501", "--server.headless=true"]

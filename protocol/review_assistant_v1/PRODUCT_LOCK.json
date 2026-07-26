@@ -1,0 +1,19 @@
+{
+  "product_id": "railway-person-review-assistant-v1",
+  "parent_tag": "v1.0-final-project-closure",
+  "parent_commit": "a4ed66b693bd8d55a89ec520063bf6f9396b8894",
+  "product_status": "OPERATOR_ASSISTANT_MVP",
+  "autonomous_alarming": "DISABLED",
+  "safety_actuation": "DISABLED",
+  "human_confirmation_required": true,
+  "model_retraining_allowed": false,
+  "threshold_tuning_allowed": false,
+  "railway_test_status": "SEALED",
+  "railway_test_access_count": 0,
+  "frozen_components": {
+    "frame_detector": "5a8483b1d40938f49b05225cfe4b3c92414e874fe72008746396ea32bcfb0a79",
+    "temporal_tracker": "OC-SORT_FROM_V1_0_CLOSURE",
+    "combined_verifier": "8ee0e1ad4960963b87b9eef01c4f039c649b4e33bd2155eeb4d2a7c4a43b999d",
+    "combined_verifier_encoder": "c16f796a297b0418cf315212a7d12a00b25825d857782da84f24653909723de6"
+  }
+}

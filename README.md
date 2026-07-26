@@ -1,5 +1,26 @@
 # Railway Vision Robustness
 
+## Operator Review Assistant MVP
+
+The repository now also contains a local operator-in-the-loop product layer:
+`railway-person-review-assistant-v1`. It converts frozen frame and temporal
+predictions into deduplicated event clips, keeps a reversible SQLite review
+trail, and exports HTML/PDF reports.
+
+```text
+Product status: OPERATOR_ASSISTANT_MVP
+Autonomous alarming: DISABLED
+Safety actuation: DISABLED
+Human confirmation required: true
+```
+
+```bash
+python -m streamlit run src/review_assistant/web_app.py
+```
+
+See [docs/review_assistant/README.md](docs/review_assistant/README.md). The
+scientific closure and sealed railway test below remain unchanged.
+
 ```text
 Project status: COMPLETED_RESEARCH
 Practical status: RESEARCH_DEMONSTRATOR_ONLY

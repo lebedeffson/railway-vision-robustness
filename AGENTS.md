@@ -140,6 +140,13 @@
   acquisition or authorize B1/B2/B3 under the old protocol.
 - RailGoerl24 transfer evidence remains incomplete and unaccepted. The final
   closure prohibits retries, mirror checks and promotion into the data gate.
+- `railway-person-review-assistant-v1` is an operator-in-the-loop product over
+  the frozen closure detector, OC-SORT and combined verifier. It may aggregate,
+  mute and prioritize review events, but autonomous alarms and safety actuation
+  must remain absent and every event decision must stay reversible/auditable.
+- Review-assistant releases must exclude models, videos, crops, SQLite files,
+  restricted data and railway test material. Long benchmarks are throughput
+  evidence only; report event-level workload instead of frame-level alarm rates.
 
 ## Notes
 
@@ -149,3 +156,4 @@
 - `.codex/notes/crop-verifier-v1.md` — frozen visual ablation and terminal temporal status.
 - `.codex/notes/new-scenes-v1.md` — acquisition lock, audit boundary and staged B0–B3 activation.
 - `.codex/notes/project-closure-v1.md` — immutable final statuses, demonstrator scope and release checks.
+- `.codex/notes/review-assistant-v1.md` — product event semantics, operator safety contract and acceptance evidence.
