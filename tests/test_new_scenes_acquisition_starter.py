@@ -117,7 +117,7 @@ def test_ingestion_does_not_authorize_training_or_test() -> None:
     audit = json.loads((ROOT / "INGESTION_AUDIT.json").read_text(encoding="utf-8"))
     assert audit["starter_package"]["accepted_scenes_contributed"] == 0
     assert audit["project_state"] == {
-        "status": "WAITING_FOR_NEW_SCENES",
+        "status": "CLOSED_DATA_UNAVAILABLE",
         "training_authorized": False,
         "test_status": "SEALED",
         "test_access_count": 0,
@@ -131,18 +131,20 @@ def test_runtime_status_keeps_failed_download_outside_data_gate() -> None:
     status = json.loads(
         (ROOT / "ACQUISITION_RUNTIME_STATUS.json").read_text(encoding="utf-8")
     )
-    assert status["railgoerl24"]["status"] == "DOWNLOAD_INCOMPLETE_REMOTE_RESET"
+    assert status["railgoerl24"]["status"] == "BLOCKED_TRANSPORT"
     assert status["railgoerl24"]["verified_sha256"] is None
     assert status["railgoerl24"]["extracted"] is False
     assert status["raileye3d"]["images_downloaded"] is False
     assert status["railbench_object"] == {
-        "status": "NOT_DOWNLOADED_NO_TERMS_ACCEPTANCE",
+        "status": "TERMS_NOT_ACCEPTED",
         "test_accessed": False,
     }
     assert status["project_state"] == {
-        "status": "WAITING_FOR_NEW_SCENES",
+        "status": "CLOSED_DATA_UNAVAILABLE",
         "accepted_scenes": 0,
         "training_authorized": False,
+        "automatic_training_disabled": True,
+        "automatic_download_disabled": True,
         "test_status": "SEALED",
         "test_access_count": 0,
     }

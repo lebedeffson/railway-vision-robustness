@@ -37,7 +37,7 @@
     }
   },
   "project_state": {
-    "status": "WAITING_FOR_NEW_SCENES",
+    "status": "CLOSED_DATA_UNAVAILABLE",
     "training_authorized": false,
     "test_status": "SEALED",
     "test_access_count": 0

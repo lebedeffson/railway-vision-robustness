@@ -7,27 +7,21 @@ the same protocol ID.
 
 Current state:
 
-- `WAITING_FOR_NEW_SCENES`;
+- `CLOSED_DATA_UNAVAILABLE`;
 - zero accepted scenes and no training authorization;
-- `railway-person-independent-data-v1` is
-  `BLOCKED_BY_NEW_SCENES_GATE`;
+- automatic download and training are disabled;
+- `railway-person-independent-data-v1` will not be activated;
 - railway test is `SEALED`, access count zero;
 - release v0.11 and its negative results are immutable.
 
-The audit needs four local CSV inputs under `data/new_scenes_v1/`, using the
-tracked templates. It requires 8–12 scenes, 1,500–3,000 frames, at least three
-camera/capture points, two illumination conditions, and a causal 20-frame
-fragment in every scene. `scene_id`, `sequence_id`, source video, and split role
-must remain isolated. Exact duplicates, cross-role perceptual duplicates,
-non-monotonic timestamps, and reused old/sealed identifiers fail the gate.
+The acquisition phase was closed by
+`railway-vision-final-closure-v1`. Do not resume downloads, retry mirrors,
+request restricted sources, or authorize a new training run under this
+protocol.
 
-After a real audit PASS, `scripts.new_scenes.authorize_independent_data` hashes
-all acquisition inputs and authorizes B1 only. B2 requires the detector gate;
-B3 requires the temporal gate. Test remains sealed until the full-system gate.
-
-The public waiting bundle contains configs, schemas, templates, audit status,
-and reproduction code only. It excludes images, annotations, checkpoints,
-feature tensors, and test material.
+The former acquisition requirements and staged B0-B3 activation remain
+historical protocol evidence only. They no longer authorize downloads,
+ingestion or training.
 
 Acquisition execution on 2026-07-26:
 

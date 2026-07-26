@@ -1,10 +1,16 @@
 {
   "protocol_id": "railway-person-new-scenes-v1",
   "observed_at": "2026-07-26",
+  "status": "CLOSED_DATA_UNAVAILABLE",
+  "accepted_scenes": 0,
+  "training_allowed": false,
+  "test_status": "SEALED",
+  "test_access_count": 0,
+  "closure_reason": "Independent railway image data cannot be acquired within the project constraints.",
   "railgoerl24": {
     "official_url": "https://download.data.fid-move.de/dzsf/railgoerl24/Annotated_RGB_data.7z",
     "expected_bytes": 4055218180,
-    "status": "DOWNLOAD_INCOMPLETE_REMOTE_RESET",
+    "status": "BLOCKED_TRANSPORT",
     "http_range_supported": false,
     "attempts": [
       {
@@ -27,15 +33,15 @@
     "accepted_scenes": 0
   },
   "raileye3d": {
-    "annotations_status": "DOWNLOADED_VERIFIED_COMMIT",
+    "annotations_status": "REFERENCE_ONLY",
     "annotations_commit": "ce1b2cf8434712a28c1fc2757724687c52844cd6",
     "mot_annotation_files": 10,
-    "images_status": "PENDING_OWNER_APPROVAL",
+    "images_status": "NOT_ACQUIRED",
     "images_downloaded": false,
     "accepted_scenes": 0
   },
   "railbench_object": {
-    "status": "NOT_DOWNLOADED_NO_TERMS_ACCEPTANCE",
+    "status": "TERMS_NOT_ACCEPTED",
     "test_accessed": false
   },
   "rawped": {
@@ -43,9 +49,11 @@
     "images_downloaded": false
   },
   "project_state": {
-    "status": "WAITING_FOR_NEW_SCENES",
+    "status": "CLOSED_DATA_UNAVAILABLE",
     "accepted_scenes": 0,
     "training_authorized": false,
+    "automatic_training_disabled": true,
+    "automatic_download_disabled": true,
     "test_status": "SEALED",
     "test_access_count": 0
   }

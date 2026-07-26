@@ -1,0 +1,18 @@
+{
+  "protocol_id": "railway-vision-final-closure-v1",
+  "project_status": "COMPLETED_RESEARCH",
+  "practical_status": "RESEARCH_DEMONSTRATOR_ONLY",
+  "deployment_gate": "FAIL",
+  "test_status": "SEALED",
+  "test_access_count": 0,
+  "new_data_status": "CLOSED_DATA_UNAVAILABLE",
+  "further_tuning_allowed": false,
+  "components": {
+    "v8b": "FINAL_NEGATIVE_RESULT",
+    "temporal_safety_v1": "DEVELOPMENT_FAIL",
+    "temporal_verifier_v1": "DEVELOPMENT_FAIL",
+    "crop_verifier_v1": "CLOSED_NO_PRACTICAL_GATE",
+    "new_scenes_v1": "CLOSED_DATA_UNAVAILABLE",
+    "v9": "ABANDONED_BEFORE_EXECUTION"
+  }
+}

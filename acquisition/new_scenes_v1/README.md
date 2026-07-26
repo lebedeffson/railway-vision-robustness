@@ -24,5 +24,6 @@ images must not be committed or added to a public bundle.
 The 2026-07-26 local execution downloaded the public RailEye3D annotations but
 could not complete RailGoerl24 because the official host reset two
 non-resumable transfers. See `ACQUISITION_RUNTIME_STATUS.json`. This is an
-external acquisition blocker, not a data-audit pass: accepted scenes remain
-zero, training remains blocked, and railway test remains sealed.
+external acquisition blocker, not a data-audit pass. Acquisition was
+subsequently closed as `CLOSED_DATA_UNAVAILABLE`: accepted scenes remain zero,
+automatic download/training are disabled, and railway test remains sealed.

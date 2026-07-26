@@ -1,0 +1,51 @@
+protocol_id: railway-vision-final-closure-v1
+mode: frame_baseline
+device: auto
+detector:
+  checkpoint: outputs/person_v3/scene_cv/fold_0/seed_20260723/stage2/weights/best.pt
+  expected_sha256: 5a8483b1d40938f49b05225cfe4b3c92414e874fe72008746396ea32bcfb0a79
+  candidate_floor: 0.001
+  standard_threshold: 0.07
+  iou_threshold: 0.50
+  image_size: 1280
+tracker:
+  type: ocsort
+  parameters:
+    direction_weight: 0.2
+    high_conf_threshold: 0.07
+    low_conf_threshold: 0.001
+    match_iou_threshold: 0.2
+    maximum_lost_frames: 1
+    minimum_confirmed_length: 2
+    new_track_threshold: 0.01
+    track_buffer: 1
+  temporal_logic:
+    confirmation_window: 5
+    accumulated_score_decay: 0.80
+    missing_score_decay: 0.60
+    accumulated_score_threshold: 0.12
+    interpolation_score_decay: 0.85
+    maximum_interpolation_gap: 1
+    interpolation_uncertainty_max: 1.0
+verifier:
+  type: frozen_combined
+  model: outputs/crop_verifier_v1/models/combined/model.pkl
+  threshold: 0.275
+  encoder_checkpoint: outputs/person_v5/external_pretraining/run/weights/best.pt
+  encoder_expected_sha256: c16f796a297b0418cf315212a7d12a00b25825d857782da84f24653909723de6
+  backbone_last_layer_index: 10
+  input_size: 224
+  crop_context_multiplier: 1.75
+  padding_value: 114
+output:
+  codec: mp4v
+  warning:
+    - RESEARCH MODE
+    - HIGH FALSE-ALARM RATE
+    - NOT FOR SAFETY DEPLOYMENT
+test_access:
+  status: SEALED
+  access_count: 0
+  prohibit_paths_containing:
+    - sealed_test
+    - /test/

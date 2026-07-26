@@ -1,9 +1,74 @@
 # Railway Vision Robustness
 
+```text
+Project status: COMPLETED_RESEARCH
+Practical status: RESEARCH_DEMONSTRATOR_ONLY
+Deployment gate: FAIL
+Railway test: SEALED
+Test access count: 0
+Further tuning on existing data: CLOSED
+Continuation requirement: new independent railway scenes
+```
+
 > Reproducible railway vision experiments from scene-level quality gates to
 > adversarial and T-norm diagnostics.
 
 [GitHub repository](https://github.com/lebedeffson/railway-vision-robustness)
+
+## Quick demo
+
+The local demonstrator requires an explicitly supplied frozen checkpoint and
+never downloads data or weights:
+
+```bash
+python scripts/final_demo/run_video.py \
+  --input input.mp4 \
+  --mode frame_baseline \
+  --output outputs/demo/frame_result.mp4
+
+python scripts/final_demo/run_video.py \
+  --input input.mp4 \
+  --mode temporal_research \
+  --output outputs/demo/temporal_result.mp4
+```
+
+`temporal_research` is recall-oriented and always displays `RESEARCH MODE /
+HIGH FALSE-ALARM RATE / NOT FOR SAFETY DEPLOYMENT`. It is not a safety system.
+
+## Reproducing final metrics
+
+```bash
+python -m scripts.project_closure.finalize
+python -m pytest -q tests
+```
+
+The finalizer reads frozen development summaries only. Railway test remains
+sealed.
+
+## Research findings
+
+- T-norm U3 worsened scene-macro FN/frame MAE from `1.59549` to `1.76798`.
+- Temporal inference recovered approximately `+0.13` Recall and reduced
+  FN/frame by `17–19%`.
+- The same temporal systems increased false alarms by `276–391%`; deployment
+  and positive practical gates failed.
+
+## Practical limitations
+
+The demonstrator documents the Recall/false-alarm trade-off. It has no
+production or safety claim, was not evaluated on the sealed test, and must not
+be tuned on the existing development pool.
+
+## Repository safety
+
+Public closure bundles exclude datasets, videos, checkpoints, crops,
+restricted annotations, test material, feature tensors, local paths, secrets,
+and `.codex` memory.
+
+## Release history
+
+Previous releases remain immutable. `v1.0-final-project-closure` is the final
+research closure and does not replace earlier negative-result evidence.
 
 Исследовательский pipeline для проверки дополнительной диагностической
 ценности канонических T-норм при состязательном повреждении детектора людей в
