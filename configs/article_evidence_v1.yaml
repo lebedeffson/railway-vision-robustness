@@ -1,0 +1,109 @@
+protocol_id: article-evidence-computation-v1
+scope: development_only_saved_artifacts
+article_editing: false
+new_training: false
+new_data: false
+
+test:
+  status: SEALED
+  access_count: 0
+  forbidden_path_tokens:
+    - sealed_test
+    - /test/
+
+threshold_baseline:
+  grid: [0.50, 0.40, 0.30, 0.25, 0.20, 0.15, 0.10, 0.05, 0.01]
+  methods:
+    - frame_detector
+    - bytetrack
+    - ocsort
+    - track_verifier
+    - combined_visual_track_verifier
+  roles: [screening, confirmation]
+  statistical_unit: grouped_scene_id
+  comparisons:
+    reference: frame_detector
+    candidates:
+      - bytetrack
+      - ocsort
+      - track_verifier
+      - combined_visual_track_verifier
+    metrics:
+      - recall
+      - f1
+      - relative_fn_per_frame
+      - relative_false_alarms_per_min
+
+statistics:
+  bootstrap_iterations: 10000
+  bootstrap_seed: 20260726
+  confidence_level: 0.95
+  holm_family: all_threshold_method_metric_comparisons
+
+gate:
+  recall_gain_min: 0.10
+  fn_reduction_min: 0.15
+  false_alarm_increase_max: 0.20
+  f1_degradation_max: 0.03
+  gate_distance:
+    formula: euclidean_positive_normalized_violation
+    scales:
+      recall_gain: 0.10
+      fn_reduction: 0.15
+      false_alarm_increase: 0.20
+      f1_change: 0.03
+
+track_verifier:
+  threshold_grid_points: 201
+  selected_threshold: 0.17
+
+false_tracks:
+  expected_total: 288
+  nominal_fps: 10.0
+  semantic_categories:
+    - signal
+    - catenary_support
+    - pole_or_sign
+    - train_part
+    - persistent_hard_background
+    - short_noise
+    - image_border
+    - tile_border
+    - duplicate_track
+    - jumping_box
+    - bad_interpolation
+    - other
+  source_category_mapping:
+    short_single_noise: short_noise
+    image_or_tile_border: image_border
+    persistent_hard_negative: persistent_hard_background
+    duplicate_track: duplicate_track
+    jumping_box: jumping_box
+    incorrect_interpolation: bad_interpolation
+    static_vertical_object: other
+    other_false_track: other
+  semantic_subcategory_status: BLOCKED_MISSING_ARTIFACT
+  semantic_subcategory_reason: no complete human-verified semantic labels for all 288 tracks
+
+runtime:
+  warmup_frames: 100
+  measured_frames: 1000
+  input: outputs/review_assistant_release_v1/benchmark/development_train_repeated_1100.mp4
+  precision: fp16
+  runs: 1
+
+inputs:
+  raw_predictions: outputs/temporal_safety_v1/baseline/raw_predictions.parquet
+  development_manifest: outputs/temporal_safety_v1/data/frame_sequence_index.csv
+  tracker_outputs: outputs/temporal_verifier_v1/tracks
+  track_verifier_model: outputs/temporal_verifier_v1/learned/logistic_l2/model.pkl
+  track_verifier_sweep: outputs/temporal_verifier_v1/learned/logistic_l2/THRESHOLD_SWEEP.csv
+  false_track_audit: outputs/temporal_verifier_v1/audit/false_track_report.csv
+  crop_verifier_model: outputs/crop_verifier_v1/models/combined/model.pkl
+  crop_verifier_embeddings: outputs/crop_verifier_v1/embeddings
+  v8b_feature_manifest: outputs/person_v8b/features/FEATURE_MANIFEST.csv
+  v8b_oof: outputs/person_v8b/results/OOF_PREDICTIONS.csv
+  event_config: configs/review_assistant_v1.yaml
+  real_event_database: outputs/review_assistant_product_smoke_v2/review.sqlite
+  synthetic_event_database: outputs/review_assistant_release_v1/synthetic_example/synthetic.sqlite
+  long_benchmark: outputs/review_assistant_release_v1/benchmark/LONG_VIDEO_BENCHMARK.json

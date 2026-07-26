@@ -147,6 +147,10 @@
 - Review-assistant releases must exclude models, videos, crops, SQLite files,
   restricted data and railway test material. Long benchmarks are throughput
   evidence only; report event-level workload instead of frame-level alarm rates.
+- Article-evidence v1 is computation-only over frozen development artifacts.
+  Keep its nine detector thresholds and 201 verifier thresholds immutable,
+  preserve `BLOCKED_MISSING_ARTIFACT` instead of semantic/runtime imputation,
+  and never read the sealed five-scene test.
 
 ## Notes
 
@@ -157,3 +161,4 @@
 - `.codex/notes/new-scenes-v1.md` — acquisition lock, audit boundary and staged B0–B3 activation.
 - `.codex/notes/project-closure-v1.md` — immutable final statuses, demonstrator scope and release checks.
 - `.codex/notes/review-assistant-v1.md` — product event semantics, operator safety contract and acceptance evidence.
+- `.codex/notes/article-evidence-v1.md` — frozen calculation inputs, generated evidence and explicit blocked fields.
