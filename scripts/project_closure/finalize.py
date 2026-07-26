@@ -690,16 +690,29 @@ def public_entries() -> list[tuple[Path, str]]:
         entries.append((path, target or path.relative_to(ROOT).as_posix()))
 
     add(ROOT / "README.md")
+    add(ROOT / "requirements.txt")
+    add(ROOT / "pytest.ini")
     add(LOCK)
     add(ROOT / "configs/final_demo.yaml")
     for directory in (
         ROOT / "src/final_demo",
+        ROOT / "src/crop_verifier_v1",
+        ROOT / "src/temporal_safety",
         ROOT / "scripts/final_demo",
         ROOT / "scripts/project_closure",
     ):
         for path in sorted(directory.glob("*.py")):
             add(path)
     add(ROOT / "tests/test_project_closure_v1.py")
+    for path in (
+        ROOT / "acquisition/new_scenes_v1/ACQUISITION_RUNTIME_STATUS.json",
+        ROOT / "acquisition/new_scenes_v1/INGESTION_AUDIT.json",
+        ROOT / "outputs/person_v8b/final/FINAL_METRICS.json",
+        ROOT / "outputs/temporal_safety_v1/FINAL_DEVELOPMENT_SUMMARY.json",
+        ROOT / "outputs/temporal_verifier_v1/FINAL_SUMMARY.json",
+        ROOT / "outputs/crop_verifier_v1/FINAL_SUMMARY.json",
+    ):
+        add(path)
     for directory in (TABLES, FIGURES, REPORT):
         for path in sorted(directory.iterdir()):
             if path.is_file():
