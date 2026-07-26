@@ -127,8 +127,13 @@
 - `railway-person-temporal-safety-v1` is a separate non-T-norm practical study.
   Its two-fold gate failed: Recall/FN improved, but false alarms rose over 340%
   and F1 fell. Keep full development and railway test blocked.
+- `railway-person-temporal-verifier-v1` also ended at `DEVELOPMENT_FAIL`.
+  The rule and nested logistic verifiers retained Recall/FN gains but did not
+  control false alarms or F1. Do not tune it further under the same protocol;
+  a crop verifier requires a new amendment and test stays sealed.
 
 ## Notes
 
 - `.codex/notes/final-practice.md` — protocol decisions, data footprint and run order.
 - `.codex/notes/temporal-safety-v1.md` — frozen tracker split, results and release scope.
+- `.codex/notes/temporal-verifier-v1.md` — verifier lock, two-fold result and stop rule.

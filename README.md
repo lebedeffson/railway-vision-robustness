@@ -40,6 +40,7 @@ V8b завершён как воспроизводимый отрицатель�
 | Person v8b failure risk | FINALIZED_NEGATIVE_RESULT; U3 worsened primary FN/frame MAE | не открывался |
 | Person v9 residual-temporal | ABANDONED_BEFORE_EXECUTION; заменён отдельным practical scope | запечатан |
 | Temporal safety v1 | DEVELOPMENT_FAIL; Recall вырос, false-alarm/F1 gate не пройден | не открывался |
+| Temporal verifier v1 | DEVELOPMENT_FAIL; rule/logistic не подавили false tracks до gate | не открывался |
 
 Зафиксированный person-v3 baseline на folds 0/1:
 
@@ -203,6 +204,46 @@ PYTHONPATH="$PWD/scripts" python -m scripts.temporal_safety.run_tracker_triage
 PYTHONPATH="$PWD/scripts" python -m scripts.temporal_safety.run_development_evaluation
 PYTHONPATH="$PWD/scripts" python -m scripts.temporal_safety.finalize_article
 PYTHONPATH="$PWD/scripts" python -m scripts.temporal_safety.finalize_development_fail
+```
+
+## Практический протокол: temporal verifier v1
+
+`railway-person-temporal-verifier-v1` использует замороженные predictions и
+tracks temporal-safety v1. Primary tracker (OC-SORT) был выбран до результатов
+verifier; ByteTrack использовался только как sensitivity. Исходные
+frame-detector predictions сохраняются неизменными, а verifier фильтрует только
+temporal-confirmed и interpolated выходы.
+
+Сначала были проверены 12 заранее заданных rule-based вариантов. Лучшее правило
+не достигло screening-ограничений. Затем L2-logistic verifier был обучен с
+scene-grouped nested CV и train-only Platt calibration. Зафиксированный
+двухфолдовый результат:
+
+```text
+macro Recall:                   0.35432 -> 0.48360
+absolute Recall improvement:   +0.12928
+relative FN/frame reduction:   17.57%
+false alarms/min:              1003.26 -> 4264.97 (+325.11%)
+F1:                            0.38370 -> 0.32409 (-0.05961)
+improved scenes:               4/6
+paired Recall bootstrap 95% CI [0.02585, 0.14731]
+status:                        DEVELOPMENT_FAIL
+test_access_count:             0
+```
+
+Recall- и FN-gates прошли, но verifier нарушил ограничения по false alarms,
+F1 и доле улучшившихся сцен. Аудит 288 однозначно ложных support-tracks показал,
+что 89.58% не имели ни одной детекции с confidence `>=0.25`, а треть жила
+только 1–2 кадра. Этого оказалось недостаточно для табличного подавления FP без
+потери полезных temporal candidates. Crop verifier разрешён только отдельным
+amendment; test остался запечатанным.
+
+Воспроизведение:
+
+```bash
+PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.temporal_verifier.lock_protocol
+PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.temporal_verifier.run_verifier
+PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.temporal_verifier.finalize
 ```
 
 ## Данные и статистическая единица
