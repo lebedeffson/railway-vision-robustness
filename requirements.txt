@@ -1,4 +1,5 @@
 matplotlib>=3.8
+networkx>=3.2
 numpy>=1.26
 opencv-python>=4.8
 pandas>=2.1

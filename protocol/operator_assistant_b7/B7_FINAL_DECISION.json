@@ -1,0 +1,25 @@
+{
+  "b8_allowed": false,
+  "compute_status": "FROZEN_AFTER_B7",
+  "further_threshold_tuning_allowed": false,
+  "improved_scenes": 0,
+  "operational_conditions": {
+    "interface_validation": false,
+    "larger_independent_scene_validation": false,
+    "median_perturbation_ari_minimum": false,
+    "no_catastrophic_scene_degradation": false
+  },
+  "operational_decision": "FAIL",
+  "scientific_conditions": {
+    "coverage_noninferior": true,
+    "direct_replay_exact": true,
+    "improved_scenes_minimum": false,
+    "median_perturbation_ari_minimum": false,
+    "micro_association_f1_minimum": false,
+    "micro_cross_person_merge_not_worse": true,
+    "micro_split_recovery_not_worse": false
+  },
+  "scientific_decision": "FAIL",
+  "test_access_count": 0,
+  "test_status": "SEALED"
+}

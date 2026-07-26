@@ -151,9 +151,9 @@
   Keep its nine detector thresholds and 201 verifier thresholds immutable,
   preserve `BLOCKED_MISSING_ARTIFACT` instead of semantic/runtime imputation,
   and never read the sealed five-scene test.
-- Operator-assistant B6 is the final compute experiment and ended `FAIL`.
-  Preserve its pseudo-pair LOSO result, sealed test and `FROZEN_AFTER_B6`;
-  do not tune association thresholds or start another model experiment.
+- Operator-assistant B7-SCF is the owner-authorized terminal amendment after
+  B6 and ended scientific/operational `FAIL`. Preserve `FROZEN_AFTER_B7`,
+  sealed test and the prospective gates; do not tune thresholds or start B8.
 
 ## Notes
 
@@ -171,3 +171,5 @@
   semantics, five-scene streams, exact loss stages and explicit v3 blockers.
 - `.codex/notes/operator-assistant-b6.md` — final self-consistent fragment
   association result, model provenance, hardware amendment and compute freeze.
+- `.codex/notes/operator-assistant-b7.md` — restored B6 micro baseline,
+  stability-constrained flow result, separate gates and terminal compute freeze.

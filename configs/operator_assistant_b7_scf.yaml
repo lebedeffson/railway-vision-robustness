@@ -1,0 +1,109 @@
+protocol_id: operator-assistant-b7-stability-constrained-flow-v1
+parent_protocol: operator-assistant-b6-self-consistent-v1
+final_experiment: true
+
+constraints:
+  test_status: SEALED
+  test_access_count: 0
+  detector_training: FORBIDDEN
+  tracker_training: FORBIDDEN
+  verifier_training: FORBIDDEN
+  visual_encoder_training: FORBIDDEN
+  gt_person_for_training: FORBIDDEN
+  hazard_annotation: NOT_USED
+  new_threshold_search: FORBIDDEN
+
+inputs:
+  development_scenes: 5
+  frames: 479
+  observations: 4943
+  gt_person_episodes_evaluation_only: 48
+  frozen_track_fragments: 646
+
+candidate_graph:
+  maximum_gap_frames: 30
+  maximum_motion_error: 0.25
+  maximum_size_discontinuity: 1.50
+  maximum_depth_difference: 1.50
+  same_camera_required: true
+  temporal_order_required: true
+  overlap_forbidden: true
+
+scene_normalization:
+  method: median_mad
+  mad_multiplier: 1.4826
+  epsilon: 1.0e-6
+  clipping: [-8.0, 8.0]
+  gt_used: false
+
+hard_pseudo_pairs:
+  seed: 20260727
+  negative_to_positive_ratio: 3
+  negative_mix:
+    hard_within_scene: 0.50
+    simultaneous_distinct_track: 0.25
+    temporally_adjacent_incompatible: 0.15
+    easy_different_scene: 0.10
+  positive_variants:
+    - half_with_gap
+    - odd_even
+    - first_last_third
+    - interpolation_boundary
+    - coordinate_and_scale_perturbation
+  unavailable_from_frozen_features:
+    - image_blur
+    - image_resolution_reencoding
+
+association_model:
+  type: l2_logistic_regression
+  regularization_c: 1.0
+  maximum_iterations: 2000
+  random_state: 20260727
+  training: loso_pseudopairs_only
+
+flow:
+  solver: bipartite_maximum_weight_matching_equivalent_to_optional_dag_min_cost_flow
+  one_predecessor_maximum: 1
+  one_successor_maximum: 1
+  lambda_uncertainty: 2.0
+  lambda_motion_depth: 0.50
+  lambda_path: 0.50
+  optional_unmatched_fragments: true
+
+consensus:
+  repetitions: 32
+  stable_link_frequency: 0.80
+  stable_prohibition_frequency: 0.20
+  ambiguous_action: KEEP_SEPARATE
+  perturbations:
+    - observation_dropout_10_30_percent
+    - alternative_appearance_sample
+    - coordinate_noise
+    - endpoint_trim
+    - weakest_observation_exclusion
+
+methods_compared:
+  - B6-FULL
+  - B7-FLOW
+  - B7-HARD
+  - B7-CONSENSUS
+
+scientific_gate:
+  micro_association_f1_delta_minimum: 0.03
+  micro_cross_person_merge_not_worse: true
+  micro_split_recovery_not_worse: true
+  median_perturbation_ari_delta_minimum: 0.15
+  improved_scenes_minimum: 4
+  coverage_noninferior: true
+  direct_replay_exact: true
+
+operational_gate:
+  median_perturbation_ari_minimum: 0.90
+  catastrophic_scene_degradation_allowed: false
+  larger_independent_scene_validation_required: true
+  interface_validation_required: true
+
+stop_rule:
+  compute_status_after_run: FROZEN_AFTER_B7
+  b8_allowed: false
+  further_threshold_tuning_allowed: false
