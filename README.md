@@ -253,9 +253,12 @@ test_access_count: 0
 ```
 
 The frozen B7 bundle records the original finalization suite (`481 passed`).
-After adding repository-publication checks, the complete source-tree suite at
-this publication commit is `483 passed`; the scientific result files were not
-changed.
+After adding repository-publication checks, the complete suite on the internal
+experiment checkout is `484 passed`; the scientific result files were not
+changed. A clean public checkout reports `144 passed, 340 skipped`: the skipped
+integration tests require private frozen outputs or checkpoints that are
+intentionally not distributed. Canonical B7 replay is included in the 144
+passing public tests and is not skipped.
 
 ### Full reproduction (permitted inputs required)
 
