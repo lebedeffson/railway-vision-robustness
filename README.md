@@ -1,7 +1,39 @@
 # Railway Vision Robustness
 
-Reproducible research on person detection, temporal tracking, false-alarm
-trade-offs, and track-fragment association in railway video scenes.
+**Person detection · temporal tracking · false-alarm trade-offs ·
+track-fragment association**
+
+A reproducible study of a practical railway-vision question:
+
+> **Can temporal processing recover people missed by a frame-level detector
+> without producing an unacceptable number of false alarms and incorrect
+> cross-person associations?**
+
+**Dataset:** OSDaR23 · **Research:** completed · **Final stage:** B7-SCF<br>
+**Scientific decision:** `FAIL — predefined hypothesis not confirmed`<br>
+**Computation:** `FROZEN_AFTER_B7` · **Sealed test access:** `0`
+
+## Why this matters
+
+One frame can miss a person. Temporal tracking can recover some of these
+misses, but may also create additional false tracks and incorrect associations.
+This project tests whether recovery can be improved without paying an
+unacceptable safety-related cost.
+
+```mermaid
+flowchart LR
+    A[Railway video] --> B[Person detector]
+    B --> C[Detected person]
+    B --> D[Missed person]
+    B --> E[False alarm]
+    D --> F[Temporal tracking]
+    F --> G[Recover missed observations]
+    G --> H{Trade-off}
+    H --> I[More recovered persons]
+    H --> J[More false tracks or wrong associations]
+    J --> K[Verification and fragment association]
+    K --> L[Can recovery improve safely?]
+```
 
 ## Research status
 
@@ -44,45 +76,25 @@ associated manuscript. It contains source code, frozen protocol definitions,
 aggregated results, threshold analyses, trace audits, and a non-autonomous
 review demonstrator. It is not a production or safety-certified system.
 
-## Publication
+## Complete research trajectory
 
-**ИССЛЕДОВАНИЕ КОМПРОМИССА МЕЖДУ ПРОПУСКАМИ И ЛОЖНЫМИ ТРЕВОГАМИ ПРИ
-ОБНАРУЖЕНИИ ЛЮДЕЙ В ЖЕЛЕЗНОДОРОЖНЫХ ВИДЕОСЦЕНАХ**
-
-**A STUDY OF THE TRADE-OFF BETWEEN MISSED DETECTIONS AND FALSE ALARMS IN
-RAILWAY PERSON DETECTION**
-
-Yuri V. Trofimov · Alexey N. Averkin · Alexey V. Shevchenko · Tatiana V. Kim ·
-Alexander D. Lebedev
-
-- Publication status: manuscript
-- DOI: pending
-- Public article URL: pending
-- Research repository:
-  [github.com/lebedeffson/railway-vision-robustness](https://github.com/lebedeffson/railway-vision-robustness)
-- Public evidence:
-  [`artifacts/operator_assistant_b7_public.zip`](artifacts/operator_assistant_b7_public.zip)
-
-No DOI or publisher URL is assigned in the available final manuscript, and no
-placeholder DOI has been created.
-
-## Funding and government assignment
-
-> Исследование выполнено в рамках государственного задания Министерства науки
-> и высшего образования Российской Федерации, тема № 124112200072-2.
-
-This research was carried out within the framework of the State Assignment of
-the Ministry of Science and Higher Education of the Russian Federation, topic
-No. 124112200072-2.
-
-Several authors are affiliated with Dubna State University. This statement does
-not claim that the repository is legally owned by the university.
-
-## Research question
-
-Can temporal continuity and fragment association recover people missed by a
-frame detector while keeping false alarms and erroneous associations between
-different people within prospectively fixed limits?
+```mermaid
+flowchart LR
+    A[OSDaR23 railway scenes] --> B[Person detection]
+    B --> C[Cross-scene generalization]
+    C --> D[Robustness and T-norm diagnostics]
+    D --> E[Threshold trade-off]
+    E --> F[Temporal tracking]
+    F --> G[Track verification]
+    G --> H[TrackFragment construction]
+    H --> I[B6 pairwise association]
+    I --> J[B7 global flow]
+    J --> K[B7 hard constraints]
+    K --> L[B7 consensus and SCF]
+    L --> M[Predefined gates]
+    M --> N[SCIENTIFIC_FAIL]
+    N --> O[FROZEN_AFTER_B7]
+```
 
 ## Research trajectory
 
@@ -102,6 +114,16 @@ different people within prospectively fixed limits?
 
 Historical protocols and results remain in the repository for provenance. They
 are completed stages, not open tasks.
+
+## Key findings
+
+1. Temporal processing recovered approximately `0.13` Recall and reduced
+   FN/frame by roughly `17–19%`, but increased false alarms by `276–391%`.
+2. T-norm features did not improve the frozen V8b primary endpoint.
+3. B7-FLOW recovered more correct fragment links, but cross-person merges rose
+   to `0.40000`.
+4. B7-CONSENSUS reduced merges, but suppressed most useful links and improved
+   `0/5` scenes. No tested method passed every predefined gate.
 
 ## Experimental setting
 
@@ -198,6 +220,22 @@ ARI was `0.46926`, coverage was `0.90462`, and the prospectively required
 median ARI was at least `0.68446`. Consensus was too conservative and
 suppressed most useful links.
 
+```mermaid
+flowchart TD
+    A[B6-FULL<br/>F1 0.10304<br/>Merge 0.26667] --> B[B7-FLOW]
+    B --> C[Recovery improves<br/>F1 0.19600]
+    B --> D[Cross-person merge rises<br/>0.40000]
+    C --> E[B7-HARD and CONSENSUS]
+    D --> E
+    E --> F[Merge decreases]
+    E --> G[Correct links collapse<br/>F1 0.03206]
+    F --> H{All predefined gates passed?}
+    G --> H
+    H -->|No| I[SCIENTIFIC_FAIL]
+    I --> J[FROZEN_AFTER_B7]
+    J --> K[B8 prohibited on same evidence]
+```
+
 ## Scientific conclusion
 
 The prospectively registered B7 hypothesis was not confirmed. Global flow
@@ -216,6 +254,40 @@ B8 allowed:           false
 The final scientific result is therefore the documented boundary of this
 trade-off, not a claim that track association or railway hazard detection has
 been solved.
+
+## Publication
+
+**ИССЛЕДОВАНИЕ КОМПРОМИССА МЕЖДУ ПРОПУСКАМИ И ЛОЖНЫМИ ТРЕВОГАМИ ПРИ
+ОБНАРУЖЕНИИ ЛЮДЕЙ В ЖЕЛЕЗНОДОРОЖНЫХ ВИДЕОСЦЕНАХ**
+
+**A STUDY OF THE TRADE-OFF BETWEEN MISSED DETECTIONS AND FALSE ALARMS IN
+RAILWAY PERSON DETECTION**
+
+Yuri V. Trofimov · Alexey N. Averkin · Alexey V. Shevchenko · Tatiana V. Kim ·
+Alexander D. Lebedev
+
+- Publication status: manuscript
+- DOI: pending
+- Public article URL: pending
+- Research repository:
+  [github.com/lebedeffson/railway-vision-robustness](https://github.com/lebedeffson/railway-vision-robustness)
+- Public evidence:
+  [`artifacts/operator_assistant_b7_public.zip`](artifacts/operator_assistant_b7_public.zip)
+
+No DOI or publisher URL is assigned in the available final manuscript, and no
+placeholder DOI has been created.
+
+## Funding and government assignment
+
+> Исследование выполнено в рамках государственного задания Министерства науки
+> и высшего образования Российской Федерации, тема № 124112200072-2.
+
+This research was carried out within the framework of the State Assignment of
+the Ministry of Science and Higher Education of the Russian Federation, topic
+No. 124112200072-2.
+
+Several authors are affiliated with Dubna State University. This statement does
+not claim that the repository is legally owned by the university.
 
 ## Reproducibility
 
