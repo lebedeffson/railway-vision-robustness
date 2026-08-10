@@ -1,0 +1,42 @@
+name: Public evidence
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  public-evidence:
+    name: public-evidence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify archive, manifest, decisions, and sealed-test state
+        run: |
+          python scripts/operator_assistant_b7/verify_public_evidence.py \
+            artifacts/operator_assistant_b7_public.zip --json
+          cd artifacts
+          sha256sum -c operator_assistant_b7_public.zip.sha256
+      - name: Verify public landing-page invariants
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          text = Path("README.md").read_text()
+          required = (
+              "SCIENTIFIC_FAIL",
+              "OPERATIONAL_FAIL",
+              "FROZEN_AFTER_B7",
+              "124112200072-2",
+              "Test access count: `0`",
+          )
+          missing = [value for value in required if value not in text]
+          if missing:
+              raise SystemExit(f"README invariants missing: {missing}")
+          if text.count("```mermaid") != 3:
+              raise SystemExit("README must contain exactly three Mermaid diagrams")
+          PY
