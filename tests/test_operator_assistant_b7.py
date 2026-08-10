@@ -6,10 +6,26 @@ import zipfile
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "outputs/operator_assistant_b7"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def use_tracked_public_evidence_when_runtime_outputs_are_absent(
+    tmp_path_factory: pytest.TempPathFactory,
+):
+    global OUTPUT
+    original = OUTPUT
+    if not OUTPUT.is_dir():
+        OUTPUT = tmp_path_factory.mktemp("operator_assistant_b7_public")
+        archive = ROOT / "artifacts/operator_assistant_b7_public.zip"
+        with zipfile.ZipFile(archive) as handle:
+            handle.extractall(OUTPUT)
+    yield
+    OUTPUT = original
 
 
 def test_b7_lock_is_final_sealed_and_gt_evaluation_only() -> None:
