@@ -1,793 +1,361 @@
 # Railway Vision Robustness
 
-## Operator Review Assistant MVP
+Reproducible research on person detection, temporal tracking, false-alarm
+trade-offs, and track-fragment association in railway video scenes.
 
-The repository now also contains a local operator-in-the-loop product layer:
-`railway-person-review-assistant-v1`. It converts frozen frame and temporal
-predictions into deduplicated event clips, keeps a reversible SQLite review
-trail, and exports HTML/PDF reports.
+## Research status
 
 ```text
-Product status: OPERATOR_ASSISTANT_MVP
-Autonomous alarming: DISABLED
-Safety actuation: DISABLED
-Human confirmation required: true
+Research:                 COMPLETED
+Final computational stage: B7-SCF
+Scientific gate:          SCIENTIFIC_FAIL
+Operational gate:         OPERATIONAL_FAIL
+Computation state:        FROZEN_AFTER_B7
+B8:                       PROHIBITED BY FROZEN PROTOCOL
+Test:                     SEALED
+Test access count:        0
 ```
 
-```bash
-python -m streamlit run src/review_assistant/web_app.py
-```
+`SCIENTIFIC_FAIL` means that the prospectively defined hypothesis did not pass
+all scientific gates. It does not mean that the software failed or that the
+experiment is invalid. `OPERATIONAL_FAIL` is a separate finding: the complete
+set of predefined operational requirements was not met. Both are final,
+reproducible negative results.
 
-See [docs/review_assistant/README.md](docs/review_assistant/README.md). The
-scientific closure and sealed railway test below remain unchanged.
+After B7, the computation was frozen. The same evidence base must not be used
+for B8, new threshold selection, weight changes, consensus tuning, or opening
+the sealed test. A future study would require an independent experimental
+basis.
 
-```text
-Project status: COMPLETED_RESEARCH
-Practical status: RESEARCH_DEMONSTRATOR_ONLY
-Deployment gate: FAIL
-Railway test: SEALED
-Test access count: 0
-Further tuning on existing data: CLOSED
-Continuation requirement: new independent railway scenes
-```
+## Overview
 
-> Reproducible railway vision experiments from scene-level quality gates to
-> adversarial and T-norm diagnostics.
+The project studies whether missed person detections in independent railway
+video scenes can be reduced through temporal processing, tracking, and
+track-fragment association without causing an unacceptable increase in false
+alarms or cross-person merges.
 
-[GitHub repository](https://github.com/lebedeffson/railway-vision-robustness)
+This is one research project. `TNormFilter` is the historical name of an early
+diagnostic code module. `Operator Assistant` is the internal name of a later
+human-review experiment. B6 and B7 are sequential track-fragment association
+stages; they are not separate products or research projects.
 
-## Quick demo
+The repository is the public software and reproducibility record for the
+associated manuscript. It contains source code, frozen protocol definitions,
+aggregated results, threshold analyses, trace audits, and a non-autonomous
+review demonstrator. It is not a production or safety-certified system.
 
-The local demonstrator requires an explicitly supplied frozen checkpoint and
-never downloads data or weights:
+## Publication
 
-```bash
-python scripts/final_demo/run_video.py \
-  --input input.mp4 \
-  --mode frame_baseline \
-  --output outputs/demo/frame_result.mp4
+**ИССЛЕДОВАНИЕ КОМПРОМИССА МЕЖДУ ПРОПУСКАМИ И ЛОЖНЫМИ ТРЕВОГАМИ ПРИ
+ОБНАРУЖЕНИИ ЛЮДЕЙ В ЖЕЛЕЗНОДОРОЖНЫХ ВИДЕОСЦЕНАХ**
 
-python scripts/final_demo/run_video.py \
-  --input input.mp4 \
-  --mode temporal_research \
-  --output outputs/demo/temporal_result.mp4
-```
+**A STUDY OF THE TRADE-OFF BETWEEN MISSED DETECTIONS AND FALSE ALARMS IN
+RAILWAY PERSON DETECTION**
 
-`temporal_research` is recall-oriented and always displays `RESEARCH MODE /
-HIGH FALSE-ALARM RATE / NOT FOR SAFETY DEPLOYMENT`. It is not a safety system.
+Yuri V. Trofimov · Alexey N. Averkin · Alexey V. Shevchenko · Tatiana V. Kim ·
+Alexander D. Lebedev
 
-## Reproducing final metrics
+- Publication status: manuscript
+- DOI: pending
+- Public article URL: pending
+- Research repository:
+  [github.com/lebedeffson/railway-vision-robustness](https://github.com/lebedeffson/railway-vision-robustness)
+- Public evidence:
+  [`artifacts/operator_assistant_b7_public.zip`](artifacts/operator_assistant_b7_public.zip)
 
-```bash
-python -m scripts.project_closure.finalize
-python -m pytest -q tests
-```
+No DOI or publisher URL is assigned in the available final manuscript, and no
+placeholder DOI has been created.
 
-The finalizer reads frozen development summaries only. Railway test remains
-sealed.
+## Funding and government assignment
 
-## Research findings
+> Исследование выполнено в рамках государственного задания Министерства науки
+> и высшего образования Российской Федерации, тема № 124112200072-2.
 
-- T-norm U3 worsened scene-macro FN/frame MAE from `1.59549` to `1.76798`.
-- Temporal inference recovered approximately `+0.13` Recall and reduced
-  FN/frame by `17–19%`.
-- The same temporal systems increased false alarms by `276–391%`; deployment
-  and positive practical gates failed.
+This research was carried out within the framework of the State Assignment of
+the Ministry of Science and Higher Education of the Russian Federation, topic
+No. 124112200072-2.
 
-## Practical limitations
+Several authors are affiliated with Dubna State University. This statement does
+not claim that the repository is legally owned by the university.
 
-The demonstrator documents the Recall/false-alarm trade-off. It has no
-production or safety claim, was not evaluated on the sealed test, and must not
-be tuned on the existing development pool.
+## Research question
 
-## Repository safety
+Can temporal continuity and fragment association recover people missed by a
+frame detector while keeping false alarms and erroneous associations between
+different people within prospectively fixed limits?
 
-Public closure bundles exclude datasets, videos, checkpoints, crops,
-restricted annotations, test material, feature tensors, local paths, secrets,
-and `.codex` memory.
+## Research trajectory
 
-## Release history
-
-Previous releases remain immutable. `v1.0-final-project-closure` is the final
-research closure and does not replace earlier negative-result evidence.
-
-Исследовательский pipeline для проверки дополнительной диагностической
-ценности канонических T-норм при состязательном повреждении детектора людей в
-железнодорожной среде OSDaR23.
-
-`TNormFilter` сохраняется как внутреннее название диагностического модуля;
-репозиторий охватывает более широкую задачу межсценовой переносимости,
-small-object detection и adversarial robustness.
-
-Проект не предполагает обязательного положительного результата. Основной
-критерий — leakage-free сравнение T-нормовых признаков со стандартными
-feature-distance baseline на независимых `grouped_scene_id`.
-
-## Текущий научный статус
-
-V8b завершён как воспроизводимый отрицательный научный результат. Отдельный
-практический temporal-safety эксперимент также завершил development-gate без
-открытия test.
-
-| Ветка | Статус | Test |
+| Stage | Research question | Frozen result |
 |---|---|---|
-| Legacy six-class | исторический baseline; не является canonical evidence | закрыт для новых настроек |
-| Canonical v2 | validation quality gate FAIL | не открывался |
-| Multiclass v3 | blocked: недостаточная class-by-scene support | не открывался |
-| Person v3 | two-fold hard FAIL | не открывался |
-| Person v4 DG/NWD | A1/A3 expedited selection FAIL | не открывался |
-| Person v4 train-only proxy | FAIL; подтвердил отказ от сложного DG-стека | не открывался |
-| Person v5 data-first | CrowdHuman pretraining завершён; railway D1 gate FAIL | не открывался |
-| Person v5 range-aware | V5-A и V5-B: two-fold FAIL; официальный V5-C остановлен до первой эпохи из-за label-integrity defect | запечатан |
-| Person v5 expedited screening | C0/C1/C2 successive halving, только compute screening | запечатан |
-| Person v6 temporal T-norm | T0 fold-0 FAIL; fold 1 skipped, T1 blocked | запечатан |
-| Person v7 tracklet verifier | V0 и frozen-crop V1/V2: fold-0 FAIL; fold 1 skipped | запечатан |
-| Person v8 active data | BLOCKED_NO_NEW_DATA; GPU_NOT_STARTED | запечатан |
-| Person v8b failure risk | FINALIZED_NEGATIVE_RESULT; U3 worsened primary FN/frame MAE | не открывался |
-| Person v9 residual-temporal | ABANDONED_BEFORE_EXECUTION; заменён отдельным practical scope | запечатан |
-| Temporal safety v1 | DEVELOPMENT_FAIL; Recall вырос, false-alarm/F1 gate не пройден | не открывался |
-| Temporal verifier v1 | DEVELOPMENT_FAIL; rule/logistic не подавили false tracks до gate | не открывался |
-| Crop verifier v1 | CLOSED_NO_PRACTICAL_GATE; visual embeddings не решили FP/F1 | не открывался |
+| Detection | Can people be detected reliably across independent railway scenes? | A baseline was obtained; a substantial cross-scene gap remained. |
+| Pretraining / robustness | Do CrowdHuman pretraining and robustness methods close that gap? | The tested configurations did not fully close it. |
+| T-norm diagnostics | Do T-norm features add stable information beyond detector and representation features? | No additional value was confirmed on the primary endpoint. |
+| Threshold analysis | Can misses be recovered by lowering the frame-level operating threshold? | Recall increased together with false alarms. |
+| Tracking | Does temporal continuity reduce misses? | FN decreased, but false alarms increased sharply. |
+| Verification | Can false tracks be removed while keeping recovered observations? | The trade-off remained. |
+| B6-FULL | Can a pairwise classifier associate track fragments reliably? | Many true fragment links were missed. |
+| B7-FLOW | Does global path optimization improve recovery? | Recovery improved, but cross-person merges increased. |
+| B7-HARD | Do hard constraints control aggressive flow linking? | Aggressiveness decreased, but the scientific gates were not met. |
+| B7-CONSENSUS | Does perturbation consensus provide a stable acceptable solution? | Merges decreased, but useful links were nearly suppressed. |
+| Final | Were all predefined gates met? | No: `SCIENTIFIC_FAIL`, `OPERATIONAL_FAIL`, `FROZEN_AFTER_B7`. |
 
-Зафиксированный person-v3 baseline на folds 0/1:
+Historical protocols and results remain in the repository for provenance. They
+are completed stages, not open tasks.
 
-- macro mAP50: `0.35883`;
-- macro Recall: `0.35432`;
-- macro small Recall: `0.21130`;
-- worst-fold Recall: `0.20129`.
+## Experimental setting
 
-Эти числа — development evidence, а не итоговый test-результат.
+The railway experiments use RGB material from
+[OSDaR23](https://data.fid-move.de/dataset/osdar23). OSDaR23 is obtained
+separately under its own distribution conditions; raw images and annotations
+are not distributed in this repository. The project treats a grouped scene,
+not an adjacent frame or tile, as the independent unit for splits and scene
+statistics.
 
-## Текущий протокол: person v8 active data
+[CrowdHuman](https://www.crowdhuman.org/) was used only in designated
+pretraining experiments under its non-commercial research/education terms.
+CrowdHuman images, archives, derived datasets, crops, and checkpoints are not
+included in the repository or public evidence.
 
-`canonical-v8-person-active-data-v1` не добавлял новую архитектурную или
-математическую надстройку. Он разрешает продолжение только после добавления
-минимум трёх действительно новых railway-сцен, 300 вручную проверенных кадров
-и 500 person boxes, из которых не менее 40% относятся к small/distant people.
-
-Протокол замораживается в два этапа:
-
-1. acquisition-lock фиксирует критерии отбора, схемы manifest/correction log,
-   CPU-аудит и правила split до сбора данных;
-2. execution-lock создаётся только после `CPU_GATE: PASS` и хеширует реальные
-   данные, аудит и новые scene-disjoint folds.
-
-Новые независимые сцены не были доступны. Протокол закрыт как
-`BLOCKED_NO_NEW_DATA`: это не quality-gate FAIL, обучение не запускалось,
-execution-lock не создавался, test не открывался. Acquisition-lock сохранён
-без изменений.
-
-```bash
-PYTHONPATH="$PWD:$PWD/scripts" python \
-  scripts/person_v8/audit_active_data.py
-```
-
-Шаблоны:
-
-- [`acquisition_manifest.csv`](protocol/v8/templates/acquisition_manifest.csv);
-- [`correction_log.csv`](protocol/v8/templates/correction_log.csv).
-
-После поступления новых сцен порядок фиксирован:
+The final B6/B7 association benchmark has the following frozen scale:
 
 ```text
-manual annotation -> CPU audit -> frozen splits -> execution lock
--> B0 5/10/20 screening -> untouched confirmation -> five-fold OOF
+Development scenes:         5
+Frames:                   479
+Person observations:     4943
+TrackFragments:           646
+Reference PersonEpisodes:  48 (evaluation only)
 ```
 
-Test, attacks и H1-H4 остаются закрытыми до полного OOF PASS. Для v7
-операционные TP/FP/Recall/F1 при повторной проверке совпали, однако frozen
-AP-parity формально остался `FAIL` из-за различия порядка ties после
-сериализации (`<1e-5`); этот статус не переписан задним числом.
+The railway test contains five held-out grouped scenes. It remained sealed
+through the final B7 decision. Test access count: `0`.
 
-## Текущий протокол: person v8b failure risk
+## Detection, T-norm, and temporal findings
 
-`canonical-v8b-person-failure-risk-v1` не улучшает и не переобучает детектор.
-Он проверяет, позволяют ли Product/Łukasiewicz consistency-признаки P3/P4/P5
-предсказывать `FN/frame` замороженного B0 лучше стандартных representation
-distances.
+The V8b primary comparison tested whether Product and Łukasiewicz consistency
+features improved prediction of `FN/frame` over detector and standard
+representation features:
 
 ```text
-U0: confidence
-U1: U0 + detector outputs
-U2: U1 + standard representation distances
-U3: U2 + Product/Lukasiewicz consistency
+U2 scene-macro MAE: 1.59549
+U3 scene-macro MAE: 1.76798
+Relative change:   -10.81%
+Scene wins:         5/15
 ```
 
-Первичный endpoint зафиксирован заранее: scene-macro MAE прогноза `FN/frame`
-для `U3 − U2`. Вторичные AUROC/AUPRC/R²/Spearman не могут заменить провал
-первичного endpoint. Normalization, prototypes, hyperparameters и isotonic
-calibration пересчитываются только на train-сценах каждого внешнего и
-внутреннего LOSO.
+The added T-norm features worsened the primary MAE in this setting.
 
-Deployable object-region features строятся по B0 proposals. GT-person regions
-разрешены только как oracle supplement и не входят в U0–U3. Замороженный B0
-был обучен на 12 из 15 development-сцен; это явно раскрыто, поэтому LOSO
-проверяет переносимость risk estimator, а не единообразный detector-OOF
-результат.
+Temporal processing consistently recovered some missed observations. Across
+the studied variants, Recall increased by approximately `0.13` and FN/frame
+fell by approximately `17–19%`. The same variants increased false alarms by
+approximately `276–391%`, so the practical deployment gate failed. These
+results document an operating-point trade-off, not a deployable safety system.
 
-Порядок:
+## Track-fragment association
+
+The B6 audit restored full link-level observability:
 
 ```text
-F0 audit -> F1 frozen-B0 features -> F2 nested 15-scene LOSO
--> paired scene bootstrap/Holm -> development gate
--> только при PASS один risk-only test
+TP links:                  44
+FP links:                  16
+FN links:                 750
+True positive pairs:      794
+Predicted positive pairs:  60
+Model coefficients:        95
+Scaler parameters:         95
+B6 pseudo-pair rows:     36864
 ```
 
-FGSM/PGD и заявления об adversarial robustness исключены из v8b.
+The final comparison uses frozen micro metrics and perturbation stability:
 
-Итог development-проверки:
+| Method | Micro F1 | Cross-person merge | Split recovery | Median ARI |
+|---|---:|---:|---:|---:|
+| B6-FULL | 0.10304 | 0.26667 | 0.05542 | 0.53446 |
+| B7-FLOW | 0.19600 | 0.40000 | 0.11713 | 0.35724 |
+| B7-HARD | 0.10514 | 0.27419 | 0.05668 | 0.61004 |
+| B7-CONSENSUS | 0.03206 | 0.23529 | 0.01637 | 0.61780 |
+
+### B7-FLOW
+
+Global flow increased Micro F1 from `0.10304` to `0.19600` and split recovery
+from `0.05542` to `0.11713`. This confirms that global path optimization can
+recover additional correct links. It was not accepted because cross-person
+merge increased from `0.26667` to `0.40000`, while median perturbation ARI fell
+from `0.53446` to `0.35724`.
+
+### B7-HARD
+
+Hard constraints reduced the aggressiveness of flow, yielding Micro F1
+`0.10514`, cross-person merge `0.27419`, split recovery `0.05668`, and median
+ARI `0.61004`. The combined improvement was insufficient for the frozen gate.
+
+### B7-CONSENSUS
+
+The primary consensus variant reduced cross-person merge to `0.23529` and
+raised median perturbation ARI to `0.61780`, but its Micro F1 fell to `0.03206`
+and split recovery to `0.01637`. It improved `0/5` scenes. Its 10th-percentile
+ARI was `0.46926`, coverage was `0.90462`, and the prospectively required
+median ARI was at least `0.68446`. Consensus was too conservative and
+suppressed most useful links.
+
+## Scientific conclusion
+
+The prospectively registered B7 hypothesis was not confirmed. Global flow
+improved recovery but worsened cross-person association. Stability consensus
+reduced merges but nearly eliminated correct links. None of the variants
+simultaneously improved recovery, controlled cross-person merges, improved
+cluster stability, and passed all predefined gates.
 
 ```text
-U2 scene-macro MAE FN/frame: 1.59549
-U3 scene-macro MAE FN/frame: 1.76798
-relative MAE reduction:      -10.81%
-paired bootstrap 95% CI:     [-0.00850, 0.40791]
-scene wins:                  5/15
-status:                      DEVELOPMENT_FAIL
-test_access_count:           0
+Scientific decision: FAIL
+Operational decision: FAIL
+Compute status:       FROZEN_AFTER_B7
+B8 allowed:           false
 ```
 
-U3 немного улучшил Brier и ECE, но вторичные показатели не могут заменить
-провал заранее зафиксированного первичного endpoint. Положительный вклад
-T-нормовых признаков на текущем development pool не подтверждён.
+The final scientific result is therefore the documented boundary of this
+trade-off, not a claim that track association or railway hazard detection has
+been solved.
 
-Финальный V8b-пакет воспроизводится только из сохранённой development OOF
-таблицы:
+## Reproducibility
+
+The final B7 provenance commit is
+[`f25a751c52104b0353995d2206afbe92a4182ff2`](https://github.com/lebedeffson/railway-vision-robustness/commit/f25a751c52104b0353995d2206afbe92a4182ff2).
+The computation lock records its immediate predecessor
+`484d5eebf1bdc6a02cfeb7f751e81443d881c2f3`. Both remain reachable from
+`main`; their history must not be squashed or rebased.
+
+### Evidence replay (no dataset required)
+
+The tracked public bundle contains the frozen aggregated evidence, protocol
+locks, hierarchy, manifest, replay audit, and final decision. Verify it with
+Python's standard library:
 
 ```bash
-PYTHONPATH="$PWD/scripts" python scripts/v8b/finalize_v8b.py
-PYTHONPATH="$PWD/scripts" python scripts/v8b/build_article_v8b.py
-PYTHONPATH="$PWD/scripts" python scripts/v8b/build_release_v8b.py
+git clone https://github.com/lebedeffson/railway-vision-robustness.git
+cd railway-vision-robustness
+python scripts/operator_assistant_b7/verify_public_evidence.py \
+  artifacts/operator_assistant_b7_public.zip --json
 ```
 
-Выходы находятся в `outputs/person_v8b/final/`: шесть таблиц статьи, пять
-рисунков, MD/DOCX/PDF, независимый audit и публичный ZIP. Датасет,
-изображения, checkpoint, сырые признаки, test и локальные пути в архив не
-включаются.
-
-## Закрытый протокол: person v9
-
-`canonical-v9-person-residual-temporal-v1` проверяет уникальный остаточный
-T-нормовый сигнал после train-only residualization и причинные временные
-признаки. Primary endpoint остаётся `FN/frame`.
-
-V9 не запускался и закрыт как `ABANDONED_BEFORE_EXECUTION`. Его prospective
-design сохранён для аудита, но не является активным планом. Для будущего
-независимого исследования всё равно потребовалось бы одно из условий:
-
-- не менее пяти новых независимых railway development-сцен; либо
-- detector-OOF predictions/features для всех 15 сцен, где held-out сцена
-  исключена из обучения соответствующего детектора.
-
-Фактический closure записан в `protocol/v9/V9_CLOSURE.json`;
-`test_access_count=0`.
-
-## Практический протокол: temporal safety v1
-
-`railway-person-temporal-safety-v1` отделён от V8b и не использует T-нормы.
-Замороженные low-confidence predictions одного detector-рецепта подавались в
-ByteTrack- и OC-SORT-style causal adapters. Параметры выбирались только на
-девяти support-сценах, исключающих screening fold 0 и confirmation fold 1.
-
-Зафиксированный двухфолдовый результат:
-
-| Tracker | ΔRecall | FN/frame reduction | False alarms/min increase | ΔF1 | Gate |
-|---|---:|---:|---:|---:|---|
-| ByteTrack | +0.13772 | 18.78% | 390.87% | -0.07406 | FAIL |
-| OC-SORT | +0.13277 | 18.20% | 341.32% | -0.06229 | FAIL |
-
-Paired scene bootstrap на шести held-out сценах подтвердил положительный
-Recall-сигнал: CI `ByteTrack [0.02585, 0.16135]`,
-`OC-SORT [0.02618, 0.14862]`. Но оба кандидата нарушили заранее
-зафиксированные ограничения по ложным тревогам и F1. Поэтому full development,
-положительная статья и test заблокированы; `test_access_count=0`.
-
-Воспроизведение development-части:
-
-```bash
-PYTHONPATH="$PWD/scripts" python -m scripts.temporal_safety.build_sequence_index
-PYTHONPATH="$PWD/scripts" python -m scripts.temporal_safety.generate_detector_predictions
-PYTHONPATH="$PWD/scripts" python -m scripts.temporal_safety.run_tracker_triage
-PYTHONPATH="$PWD/scripts" python -m scripts.temporal_safety.run_development_evaluation
-PYTHONPATH="$PWD/scripts" python -m scripts.temporal_safety.finalize_article
-PYTHONPATH="$PWD/scripts" python -m scripts.temporal_safety.finalize_development_fail
-```
-
-## Практический протокол: temporal verifier v1
-
-`railway-person-temporal-verifier-v1` использует замороженные predictions и
-tracks temporal-safety v1. Primary tracker (OC-SORT) был выбран до результатов
-verifier; ByteTrack использовался только как sensitivity. Исходные
-frame-detector predictions сохраняются неизменными, а verifier фильтрует только
-temporal-confirmed и interpolated выходы.
-
-Сначала были проверены 12 заранее заданных rule-based вариантов. Лучшее правило
-не достигло screening-ограничений. Затем L2-logistic verifier был обучен с
-scene-grouped nested CV и train-only Platt calibration. Зафиксированный
-двухфолдовый результат:
+Expected status:
 
 ```text
-macro Recall:                   0.35432 -> 0.48360
-absolute Recall improvement:   +0.12928
-relative FN/frame reduction:   17.57%
-false alarms/min:              1003.26 -> 4264.97 (+325.11%)
-F1:                            0.38370 -> 0.32409 (-0.05961)
-improved scenes:               4/6
-paired Recall bootstrap 95% CI [0.02585, 0.14731]
-status:                        DEVELOPMENT_FAIL
-test_access_count:             0
+manifest: PASS
+b6_audit: PASS
+b7_metrics: PASS
+replay: PASS
+cross_process_determinism: PASS
+scientific_gate: FAIL
+operational_gate: FAIL
+test_status: SEALED
+test_access_count: 0
 ```
 
-Recall- и FN-gates прошли, но verifier нарушил ограничения по false alarms,
-F1 и доле улучшившихся сцен. Аудит 288 однозначно ложных support-tracks показал,
-что 89.58% не имели ни одной детекции с confidence `>=0.25`, а треть жила
-только 1–2 кадра. Этого оказалось недостаточно для табличного подавления FP без
-потери полезных temporal candidates. Crop verifier разрешён только отдельным
-amendment; test остался запечатанным.
+The frozen B7 bundle records the original finalization suite (`481 passed`).
+After adding repository-publication checks, the complete source-tree suite at
+this publication commit is `483 passed`; the scientific result files were not
+changed.
 
-Воспроизведение:
+### Full reproduction (permitted inputs required)
+
+Full recomputation requires separately obtained OSDaR23 inputs and the frozen
+derived B6 evidence identified by the hashes in
+[`B7_PROTOCOL_LOCK.json`](protocol/operator_assistant_b7/B7_PROTOCOL_LOCK.json).
+The repository never downloads data or model weights implicitly.
 
 ```bash
-PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.temporal_verifier.lock_protocol
-PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.temporal_verifier.run_verifier
-PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.temporal_verifier.finalize
-```
-
-## Финальный temporal amendment: crop verifier v1
-
-`railway-person-crop-verifier-v1` — последний локальный эксперимент temporal
-ветки. Detector, OC-SORT, low-confidence predictions и parent tracks были
-заморожены. Для каждого track frozen CrowdHuman-pretrained YOLO backbone
-кодировал три реальные detector-crops: первый устойчивый, максимальный по
-confidence и последний. Interpolated crops не использовались.
-
-Prospective ablation:
-
-```text
-track_only  = пять фиксированных track-признаков
-visual_only = mean visual embedding трёх crops
-combined    = visual + track
-```
-
-Support grouped-OOF показал, что visual embedding не отделяет railway false
-tracks:
-
-| Модель | OOF AUROC | OOF AUPRC | OOF Brier |
-|---|---:|---:|---:|
-| track-only | 0.88367 | 0.90829 | 0.10804 |
-| visual-only | 0.60120 | 0.54273 | 0.24094 |
-| combined | 0.84864 | 0.84744 | 0.14501 |
-
-До confirmation был выбран `combined` с одним глобальным threshold `0.275`.
-Двухфолдовый triage:
-
-```text
-macro Recall:                   0.35432 -> 0.48106
-absolute Recall improvement:   +0.12674
-relative FN/frame reduction:   17.23%
-false alarms/min:              1003.26 -> 3771.08 (+275.88%)
-F1:                            0.38370 -> 0.33926 (-0.04444)
-paired Recall bootstrap 95% CI [0.01866, 0.14652]
-status:                        CLOSED_NO_PRACTICAL_GATE
-test_access_count:             0
-```
-
-Все три модели нарушили даже мягкий triage-лимит `+75%` false alarms и
-ограничение F1. Поэтому full 15-scene development, MLP и test не запускались.
-Confusion audit показывает, что visual verifier продолжает принимать устойчивые
-hard negatives, сигналы/столбы и статичные конструкции. По frozen stop-rule
-temporal-направление закрыто; следующий обоснованный шаг — новые независимые
-railway-сцены.
-
-Воспроизведение:
-
-```bash
-PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.crop_verifier.lock_protocol
-PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.crop_verifier.extract_embeddings
-PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.crop_verifier.run_crop_verifier
-PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.crop_verifier.finalize
-```
-
-## Новый data-only этап: independent railway scenes
-
-`railway-person-new-scenes-v1` не запускает новую модель. Он фиксирует
-требования к 8–12 действительно независимым railway-сценам и блокирует
-`railway-person-independent-data-v1`, пока данные не пройдут CPU-аудит.
-
-Текущее состояние:
-
-```text
-status:                    WAITING_FOR_NEW_SCENES
-accepted scenes:           0
-training authorized:       false
-independent-data protocol: BLOCKED_BY_NEW_SCENES_GATE
-test:                      SEALED
-test access count:         0
-```
-
-Шаблоны четырёх входных CSV находятся в
-`protocol/new_scenes_v1/templates/`. Изображения, разметка, checkpoints и
-sealed test не входят в публичный пакет.
-
-После локального размещения данных под `data/new_scenes_v1/`:
-
-```bash
-PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.new_scenes.audit_new_scenes
-PYTHONPATH="$PWD/scripts:$PWD" python -m scripts.new_scenes.authorize_independent_data
-```
-
-Второй шаг разрешает только B1 detector fine-tuning и только после
-`NEW_SCENES_AUDIT.json: PASS`. B2 temporal и B3 crop остаются заблокированными
-до прохождения предшествующих gates.
-
-## Данные и статистическая единица
-
-Эксперименты используют открытый набор
-[OSDaR23 — Open Sensor Data for Rail 2023](https://data.fid-move.de/dataset/osdar23).
-Описание состава данных и процедуры сбора приведено в
-[статье OSDaR23](https://arxiv.org/abs/2305.03001) и на странице
-[Data Factory — Digitale Schiene Deutschland](https://digitale-schiene-deutschland.de/en/projects/DataFactory).
-
-- Development pool: прежние train + validation, 15 независимых grouped scenes.
-- Sealed test: 5 grouped scenes.
-- Целевой класс canonical v3/v4: `person`.
-- Группа для CV, bootstrap и анализа: `grouped_scene_id`.
-- Tiles и соседние кадры не считаются независимыми наблюдениями.
-
-Исходные аннотации не перезаписываются. Person-only dataset является
-производным представлением: люди — целевые объекты, кадры без людей —
-отрицательный фон. Сам датасет не включён в Git-репозиторий; перед загрузкой
-необходимо ознакомиться с условиями распространения на официальной странице.
-
-## Датасет OSDaR23
-
-В экспериментах используется **Open Sensor Data for Rail 2023 (OSDaR23)** —
-открытый мультимодальный железнодорожный набор с синхронизированными RGB/IR
-камерами, LiDAR, radar, IMU/GNSS и аннотациями ASAM OpenLABEL.
-
-- Официальный каталог и загрузка:
-  [data.fid-move.de/dataset/osdar23](https://data.fid-move.de/dataset/osdar23)
-- Страница проекта Digitale Schiene Deutschland:
-  [Data Factory / OSDaR23](https://digitale-schiene-deutschland.de/en/projects/DataFactory)
-- Описание набора:
-  [OSDaR23: Open Sensor Data for Rail 2023](https://arxiv.org/abs/2305.03001)
-
-Датасет, преобразованные изображения и локальные manifests **не включаются в
-Git-репозиторий**. Для воспроизведения необходимо отдельно получить OSDaR23,
-принять условия его распространения и построить локальное представление
-скриптами проекта. Каталог `data/` исключён через `.gitignore`.
-
-## Текущий протокол: person v5 range-aware
-
-`person-canonical-v5-range-aware-v1` проверяет узкую абляцию поверх YOLO11m:
-
-```text
-B0: исходный person baseline
-V5-A: B0 + P2
-V5-B: B0 + P2 + Coordinate Attention
-V5-C: B0 + perspective-aware masked person pasting
-V5-D: B0 + P2 + person pasting
-```
-
-Предварительная диагностика B0/B1/D1-best/D1-last выполнена одним evaluator
-при одинаковых tiling, fusion, threshold, IoU и folds. Она прошла проверку
-воспроизводимости, но CrowdHuman zero-shot уступил D1-best по macro Recall
-(`0.24242` против `0.33264`) и worst-fold Recall (`0.09098` против
-`0.18196`). Поэтому gradual transfer V5-E исключён заранее зафиксированным
-правилом.
-
-Для train-only instance bank RGB bbox и LiDAR cuboid связываются только по
-одному OpenLABEL object UUID. Если такой связи нет, объект получает явную
-метку `bbox_area_scale_fallback`; размер рамки не называется дальностью.
-Railway inference остаётся RGB-only.
-
-Официальная матрица остановлена после полного V5-B. V5-A и V5-B получили
-two-fold `FAIL`. До первой завершённой эпохи V5-C строгий аудит выявил
-multiclass label-файлы в person-only dataset; частичный запуск изолирован и не
-считается результатом.
-
-Оставшийся вычислительный отбор вынесен в prospective amendment
-`canonical-v5-expedited-screening-v1`:
-
-```text
-C0: B0 control
-C1: B0 + audited 25% person pasting
-C2: C1 + train-only hard-negative sampler
-
-3 candidates × 5 epochs
-→ at most 2 × 10 epochs
-→ at most 1 × 20 epochs on fold 0
-→ one confirmation fold
-```
-
-Screening не является материалом статьи и не заменяет полный OOF. Его сервис:
-
-```bash
-systemctl --user status tnorm-person-v5-screening.service --no-pager
-journalctl --user -u tnorm-person-v5-screening.service -f
-```
-
-Amendment защищён отдельным hash-lock. Все кандидаты используют один
-checkpoint, seed, fold, размер входа, tiling и evaluator. Решения записываются
-в append-only `decision_trace.json`. До отдельного полного OOF PASS test и
-атаки физически заблокированы.
-
-## Текущий протокол: person v6 temporal T-norm
-
-После отрицательного frame-only цикла `canonical-v6-person-temporal-tnorm-v1`
-проверяет дополнительную информацию уже существующих видеопоследовательностей,
-не меняя B0:
-
-```text
-T0-A: raw B0
-T0-B: ByteTrack-style causal association
-T0-C: Bayesian temporal existence fusion
-T0-D: Bayesian fusion + Product T-norm reliability gate
-```
-
-Окно содержит текущий и не более четырёх прошлых кадров и никогда не пересекает
-`subsequence_id`. Камера компенсируется ORB/RANSAC homography; не прошедшее
-quality gate преобразование получает нулевой temporal weight. Fold 0 является
-development-решением. Fold 1 физически не читается runner-ом при fold-0 FAIL.
-Test и атаки остаются закрытыми.
-
-Фактический T0 завершён с `FAIL`. ByteTrack-style вариант поднял Recall, но
-увеличил FP/frame примерно в пять раз. Bayesian + Product дал только
-`ΔRecall=+0.0032` и `Δsmall Recall=+0.0036`, что существенно ниже frozen gate.
-Полный отчёт: [`reports/v6/V6_T0_FINAL_REPORT.md`](reports/v6/V6_T0_FINAL_REPORT.md).
-
-Запуск после создания frozen lock:
-
-```bash
-systemctl --user status tnorm-person-v6-t0.service --no-pager
-journalctl --user -u tnorm-person-v6-t0.service -f
-```
-
-## Текущий протокол: person v7 tracklet verifier
-
-`canonical-v7-person-tracklet-verifier-v1` проверяет, можно ли отделить
-дополнительные TP высокорекольного ByteTrack-потока от FP без переобучения B0.
-Два монотонных scorer-а обучались только по train-сценам fold 0; модель,
-калибровка и standard/safety thresholds выбирались по grouped train-scene OOF
-до чтения held-out fold 0.
-
-V0 завершён с `FAIL`. Выбранный monotonic gradient boosting получил на
-held-out standard point `mAP50=0.22048`, `Recall=0.08776`,
-`small Recall=0.02681`, то есть уступил B0 (`0.25114/0.20129/0.14656`).
-Отдельно зафиксированный crop-amendment также завершён с `FAIL`: train-OOF
-выбрал V2 fusion, но held-out standard дал `0.22571/0.09098/0.02949`.
-Fold 1 не читался. Дополнительный подбор verifier-а на тех же сценах запрещён.
-
-Отчёты:
-[`V0`](reports/v7/V7_V0_FINAL_REPORT.md) и
-[`V1/V2 crop`](reports/v7/V7_CROP_FINAL_REPORT.md).
-
-Официальное состояние исполнения:
-
-```text
-runtime/v5/RUN_STATE.json
-runtime/v5/heartbeat.json
-runtime/v5/completed/
-```
-
-Итог двух folds автоматически формирует scene-level результаты, 10 000
-парных cluster-bootstrap выборок, Holm correction и решение gate в
-`results/v5/`. Все pre-result amendments сохранены в `protocol/v5/` и
-`protocols/person_canonical_v5_range_aware_v1/`.
-
-## Предыдущий протокол: person v5 data-first
-
-`canonical-v5-person-data-first-v1` возвращается к простому ERM и меняет
-источник предобучения, а не формулу loss:
-
-```text
-COCO YOLO11m
-→ CrowdHuman person-only pretraining
-→ railway fold fine-tuning с train-only hard mining
-→ folds 0/1
-→ только при gate — folds 2–4
-```
-
-CrowdHuman использован только в рамках его условий для некоммерческих
-исследований и образования. Выбраны `vbox` (видимая область человека);
-`mask` и записи с `extra.ignore=1` исключаются. Изображения CrowdHuman,
-архивы и производное YOLO-представление не входят в Git или release bundle.
-
-- Официальная страница:
-  [CrowdHuman](https://www.crowdhuman.org/)
-- Формат, загрузка и условия:
-  [CrowdHuman download](https://www.crowdhuman.org/download.html)
-- Статья:
-  [CrowdHuman: A Benchmark for Detecting Human in a Crowd](https://arxiv.org/abs/1805.00123)
-
-На момент заморозки официальные Google Drive URL возвращали HTTP 404.
-Протокол допускает только транспортный mirror с теми же именами файлов и
-обязательной фиксацией SHA-256 после получения. Test CrowdHuman не нужен и не
-загружается.
-
-Загрузка требует явного подтверждения условий и сохраняет resume-файлы:
-
-```bash
-PYTHONPATH="$PWD:$PWD/scripts" .venv/bin/python \
-  scripts/person_v5/download_crowdhuman.py \
-  --accept-noncommercial-research-terms
-```
-
-Без этого флага скрипт завершится до первого сетевого запроса. После загрузки
-конвертация `vbox` выполняется отдельно и создаёт audit:
-
-```bash
-PYTHONPATH="$PWD:$PWD/scripts" .venv/bin/python \
-  scripts/person_v5/prepare_crowdhuman.py \
-  --source data/crowdhuman_downloads \
-  --accept-noncommercial-research-terms
-```
-
-На experiment host обе стадии запускаются одним resumable user-service:
-
-```bash
-systemctl --user link "$PWD/systemd/tnorm-person-v5-data.service"
-systemctl --user daemon-reload
-systemctl --user enable --now tnorm-person-v5-data.service
-```
-
-Сервис выполняет только download и conversion/audit. Он не запускает GPU
-training и сохраняет runtime provenance под игнорируемым
-`outputs/person_v5/`.
-
-После `crowdhuman_data_audit=PASS` data-service сам запускает runtime lock и
-передаёт управление training-service. Те же действия можно выполнить вручную:
-
-```bash
-PYTHONPATH="$PWD:$PWD/scripts" .venv/bin/python \
-  scripts/person_v5/lock_runtime.py
-systemctl --user link "$PWD/systemd/tnorm-person-v5-training.service"
-systemctl --user daemon-reload
-systemctl --user enable --now tnorm-person-v5-training.service
-```
-
-Training-service выполнил CrowdHuman pretraining, затем ровно D1 folds 0/1 с
-train-only hard mining и независимым global evaluator. Двухфолдовый D1 gate
-завершился FAIL; test и атаки остались заблокированными. Эти результаты не
-перезаписываются новой range-aware веткой.
-
-Первичный v5-кандидат только один: YOLO11m с CrowdHuman pretraining.
-RT-DETR отложен до отдельного prospective amendment; NWD/QFL, GroupDRO,
-MixStyle и SWAD не используются.
-
-Gate folds 0/1:
-
-- macro mAP50 ≥ `0.45`;
-- macro Recall ≥ `0.45`;
-- macro small Recall ≥ `0.30`;
-- worst-fold Recall ≥ `0.30`;
-- улучшены оба fold относительно D0;
-- evaluator consistency PASS, lost GT/NaN/Inf = 0.
-
-До прохождения полного OOF gate test и атаки физически закрыты.
-
-## Предыдущие замороженные протоколы
-
-- Полный DG/NWD: `configs/canonical_v4_person_dg_nwd.yaml`
-- Expedited amendment:
-  `configs/canonical_v4_person_dg_nwd_expedited.yaml`
-- Protocol locks:
-  `outputs/person_v4*/protocol/protocol_lock.json`
-
-Person v4 использует:
-
-- A1: NWD assignment, гибридный CIoU/NWD box loss и QFL;
-- A2: A1 + scene-wise GroupDRO;
-- A3: A2 + different-scene MixStyle, ограниченные scale-aware augmentation и
-  SWAD.
-
-Expedited amendment не меняет initialization, seed, folds, эпохи, tiling,
-evaluator или коэффициенты loss. Он сокращает только число запускаемых
-кандидатов.
-
-### Expedited decision tree
-
-1. Завершить `A1/fold0` и выполнить независимый evaluator.
-2. Запустить `A1/fold1` только при одновременном улучшении fold 0:
-   `mAP50`, Recall и small Recall минимум на `0.05`.
-3. Если A1 исключён, пропустить A2 и проверить полный A3 на fold 0.
-4. Fold 1 разрешён только кандидату, прошедшему fold-0 gate.
-5. Победитель должен иметь на folds 0/1:
-   macro mAP50 ≥ `0.45`, macro Recall ≥ `0.45`,
-   прирост small Recall ≥ `0.05`, worst-fold Recall ≥ `0.25`.
-6. Только первый прошедший кандидат выполняет folds 2–4.
-7. Test остаётся закрытым до полного пятифолдового OOF PASS.
-
-Все решения сохраняются в
-`outputs/person_v4_expedited/decision_trace.json`.
-
-## Быстрая проверка состояния
-
-```bash
-cat outputs/person_v4_proxy/results/proxy_gate.json
-cat protocols/canonical_v5_person_data_first_v1/protocol_lock.json
-test ! -e outputs/person_v3/test/TEST_OPENED.json
-```
-
-Во время перехода с полного протокола также используется transient handoff
-unit. Наличие `activating` у `Type=oneshot` означает выполняющийся pipeline, а
-не зависание.
-
-## Установка и проверки
-
-```bash
+git clone https://github.com/lebedeffson/railway-vision-robustness.git
+cd railway-vision-robustness
 python -m venv .venv
-.venv/bin/pip install -r requirements.txt
+.venv/bin/pip install -r requirements-dev.txt
+
+PYTHONPATH="$PWD:$PWD/scripts" .venv/bin/python \
+  scripts/operator_assistant_b7/run_b7.py prepare
+PYTHONPATH="$PWD:$PWD/scripts" .venv/bin/python \
+  scripts/operator_assistant_b7/run_b7.py run
+PYTHONPATH="$PWD:$PWD/scripts" .venv/bin/python \
+  scripts/operator_assistant_b7/finalize_b7.py
+.venv/bin/python -m pytest -q
 ```
 
-Для тестов нужен `pytest`. Проверки frozen protocol и decision gates не требуют
-локального датасета или весов:
+`prepare` validates and locks the already-frozen inputs. It does not authorize
+new model training, threshold tuning, B8, or access to the sealed test.
 
-```bash
-.venv/bin/pip install pytest
-PYTHONPATH="$PWD:$PWD/scripts" \
-  .venv/bin/python -m pytest -q --import-mode=importlib \
-  tests/test_person_v4_protocol.py \
-  tests/test_person_v4_expedited.py \
-  tests/test_person_v5_protocol.py
-```
+## Public evidence
 
-Полный acceptance suite дополнительно требует локальные OSDaR23-derived
-manifests, frozen checkpoints и evidence outputs, которые намеренно не
-публикуются в Git:
+- Bundle: [`operator_assistant_b7_public.zip`](artifacts/operator_assistant_b7_public.zip)
+- SHA-256: `7f4892b170fbb4da9721077f201dbfeeafa5906bfd16bac8745b31b76c3dc09d`
+- Sidecar: [`operator_assistant_b7_public.zip.sha256`](artifacts/operator_assistant_b7_public.zip.sha256)
+- Manifest: `MANIFEST.sha256` inside the archive
 
-```bash
-PYTHONPATH="$PWD:$PWD/scripts" \
-  .venv/bin/python -m pytest -q --import-mode=importlib tests
-```
+The bundle includes `B7_HIERARCHY.jsonl`, the file referenced by the
+cross-process determinism report. It also includes B6 audit files, B7 candidate
+and selected edges, model coefficients, scene normalization, pseudo-pair
+indices, per-scene/overall results, protocol locks, final decisions, and
+figures.
 
-## Структура
+The bundle excludes raw images, video, restricted annotations, model
+checkpoints, crops, feature tensors, the sealed test, local absolute paths,
+credentials, and internal project memory.
+
+## Repository layout
 
 ```text
-configs/                 frozen scientific protocols
-scripts/person_v4/       training, evaluator and expedited decision pipeline
-scripts/person_v5/       data-first protocol lock and CrowdHuman conversion
-scripts/person_canonical_v5/
-                         P2, range linkage, person pasting and candidate gates
-scripts/person_v6/       causal temporal T0 runner and protocol lock
-src/temporal/            camera compensation and temporal evidence aggregation
-systemd/                 resumable user services
-tests/                   protocol, math and leakage checks
-data/                    local datasets and manifests; not a release artifact
-outputs/person_v3/       immutable failed person baseline
-outputs/person_v4/       full-protocol checkpoints and fold evidence
-outputs/person_v4_expedited/
-                         expedited decisions, OOF gate and bundle
-outputs/person_v5/       local v5 evidence; excluded from Git
-outputs/person_canonical_v5/screening/
-                         local successive-halving evidence; excluded from Git
-article/                  read-only template tooling and article validation
+configs/       frozen experiment configurations
+protocol/      immutable protocol locks and final decisions
+scripts/       reproducibility, evaluation, audit, and packaging commands
+src/           detector, tracking, verification, and review modules
+tests/         regression, integrity, leakage, and release checks
+artifacts/     compact public evidence release
+reports/       technical reports from completed stages
+article/       manuscript-support tooling, not the publication itself
 ```
 
-## Claim boundaries
+`README.md` is the public scientific source of truth. `AGENTS.md` contains
+development constraints, while `.codex/` stores internal workflow notes.
 
-- Micro-overfit доказывает только техническую обучаемость.
-- Двухфолдовый triage используется только для экономии вычислений.
-- H1–H4 нельзя считать проверенными до полного OOF gate, однократного test и
-  canonical attack matrix.
-- Test не выбирает checkpoint, threshold, attack budget, признаки или модель.
-- T-нормы рассматриваются как диагностические признаки. Product preprocessing,
-  median и bilateral — отдельные входные преобразования.
-- Отрицательные и skipped результаты сохраняются в decision trace.
+## Limitations
 
-Историческое описание старого эксперимента находится в `HANDOFF.md`.
-Актуальные ограничения и порядок практики поддерживаются в `AGENTS.md` и
-`.codex/notes/final-practice.md`.
+- The association evaluation contains five development scenes, 48 reference
+  person episodes, and 646 fragments; statistical power and visual diversity
+  are limited.
+- The results concern the studied railway RGB scenes and do not automatically
+  transfer to other cameras, stations, routes, weather, or operating regimes.
+- The detector used in parts of the development history was not fully
+  detector-OOF for every scene.
+- No operator or human-factors study was performed. Fewer cards or detections
+  do not establish reduced cognitive workload.
+- There is no safety certification, production-readiness claim, autonomous
+  alarm output, or safety actuation.
+- Temporal modes retain a high false-alarm rate.
+- The sealed test was not opened; no test-performance claim is made.
+- B8 and further tuning on this evidence base are prohibited by the frozen
+  protocol.
 
-## Что нельзя очищать во время вычислений
+## Citation
 
-Не удалять:
+Until a DOI is assigned, cite the manuscript without invented publication
+metadata:
 
-- `outputs/person_v4*`;
-- checkpoints, prediction CSV, protocol locks и completion markers;
-- `outputs/rejected_runs`;
-- `data/`;
-- активное `.venv/`;
-- логи systemd до формирования итогового bundle.
+```text
+Trofimov, Yuri V.; Averkin, Alexey N.; Shevchenko, Alexey V.;
+Kim, Tatiana V.; Lebedev, Alexander D.
 
-Безопасно пересоздаются только Python/pytest caches и пустые локальные `runs/`.
+“Исследование компромисса между пропусками и ложными тревогами при
+обнаружении людей в железнодорожных видеосценах”. Manuscript.
+
+Software and evidence: Railway Vision Robustness,
+https://github.com/lebedeffson/railway-vision-robustness
+```
+
+Machine-readable software citation metadata is available in
+[`CITATION.cff`](CITATION.cff). Add the DOI and publisher URL only after they
+exist in an official public record.
+
+## License
+
+**License decision required from repository owner.** No software or data
+license has been selected automatically. Third-party datasets and pretrained
+weights retain their own terms; repository visibility alone does not grant
+permission to reuse them.

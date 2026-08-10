@@ -10,3 +10,11 @@
 /acquisition/new_scenes_v1/*.md text eol=lf
 /acquisition/new_scenes_v1/*.sha256 text eol=lf
 /acquisition/new_scenes_v1/*.sh text eol=lf
+README.md text eol=lf
+CITATION.cff text eol=lf
+requirements-dev.txt text eol=lf
+/artifacts/*.zip binary
+/artifacts/*.sha256 text eol=lf
+/scripts/operator_assistant_b7/*.py text eol=lf
+/tests/test_operator_assistant_b7.py text eol=lf
+/tests/test_repository_publication.py text eol=lf

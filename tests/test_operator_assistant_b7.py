@@ -132,6 +132,7 @@ def test_public_bundle_is_safe_and_manifest_valid() -> None:
     archive_path = OUTPUT / "operator_assistant_b7_public.zip"
     with zipfile.ZipFile(archive_path) as archive:
         names = archive.namelist()
+        assert "B7_HIERARCHY.jsonl" in names
         manifest = archive.read("MANIFEST.sha256").decode().splitlines()
         for line in manifest:
             digest, name = line.split("  ", 1)

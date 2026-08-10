@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software or its frozen evidence, please cite the associated
+  manuscript and this repository.
+title: Railway Vision Robustness
+type: software
+authors:
+  - family-names: Trofimov
+    given-names: Yuri V.
+  - family-names: Averkin
+    given-names: Alexey N.
+  - family-names: Shevchenko
+    given-names: Alexey V.
+  - family-names: Kim
+    given-names: Tatiana V.
+  - family-names: Lebedev
+    given-names: Alexander D.
+repository-code: https://github.com/lebedeffson/railway-vision-robustness
+url: https://github.com/lebedeffson/railway-vision-robustness
+abstract: >-
+  Reproducible research on person detection, temporal tracking, false-alarm
+  trade-offs, and track-fragment association in railway video scenes. The
+  prospectively frozen B7-SCF hypothesis did not pass its scientific or
+  operational gates; the sealed test was not opened.
+keywords:
+  - railway computer vision
+  - person detection
+  - temporal tracking
+  - track-fragment association
+  - negative result

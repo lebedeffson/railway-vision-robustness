@@ -15,6 +15,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "outputs/operator_assistant_b7"
 PROTOCOL = ROOT / "protocol/operator_assistant_b7"
+PUBLIC_ARTIFACTS = ROOT / "artifacts"
 
 
 def sha256(path: Path) -> str:
@@ -111,6 +112,7 @@ def public_bundle() -> None:
         "B7_MODEL_COEFFICIENTS.csv",
         "B7_REPLAY_AUDIT.json",
         "B7_CROSS_PROCESS_DETERMINISM.json",
+        "B7_HIERARCHY.jsonl",
         "B7_INPUT_PROVENANCE.json",
         "COMPUTE_FREEZE.json",
         "FINAL_TECHNICAL_SUMMARY.md",
@@ -159,6 +161,9 @@ def public_bundle() -> None:
         f"{sha256(OUTPUT / 'operator_assistant_b7_public.zip')}  "
         "operator_assistant_b7_public.zip\n"
     )
+    PUBLIC_ARTIFACTS.mkdir(exist_ok=True)
+    shutil.copy2(archive, PUBLIC_ARTIFACTS / archive.name)
+    shutil.copy2(sidecar, PUBLIC_ARTIFACTS / sidecar.name)
 
 
 def finalize() -> None:

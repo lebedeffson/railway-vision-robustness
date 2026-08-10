@@ -154,6 +154,10 @@
 - Operator-assistant B7-SCF is the owner-authorized terminal amendment after
   B6 and ended scientific/operational `FAIL`. Preserve `FROZEN_AFTER_B7`,
   sealed test and the prospective gates; do not tune thresholds or start B8.
+- Treat root `README.md` as the public scientific source of truth and
+  `artifacts/operator_assistant_b7_public.zip` as the canonical public B7
+  evidence. Keep its manifest and sidecar current, include `B7_HIERARCHY.jsonl`,
+  and do not assign a license or DOI without an owner/official decision.
 
 ## Notes
 
