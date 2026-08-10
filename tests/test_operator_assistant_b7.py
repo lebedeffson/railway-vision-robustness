@@ -146,6 +146,8 @@ def test_scientific_and_operational_gates_are_separate() -> None:
 
 def test_public_bundle_is_safe_and_manifest_valid() -> None:
     archive_path = OUTPUT / "operator_assistant_b7_public.zip"
+    if not archive_path.is_file():
+        archive_path = ROOT / "artifacts/operator_assistant_b7_public.zip"
     with zipfile.ZipFile(archive_path) as archive:
         names = archive.namelist()
         assert "B7_HIERARCHY.jsonl" in names
