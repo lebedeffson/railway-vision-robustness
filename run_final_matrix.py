@@ -18,7 +18,7 @@ from ultralytics.cfg import get_cfg
 from ultralytics.utils.metrics import box_iou
 
 from audit_final_practice import canonical_path, load_manifest
-from checkpoint_selection import selected_checkpoint
+from checkpoint_selection import configured_checkpoint
 from evaluate_image_level_detection import (
     DEFAULT_CONFIDENCE,
     detection_metrics,
@@ -56,7 +56,7 @@ from revision_q1.normalization import normalized_quality_recovery
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
-MODEL = selected_checkpoint()
+MODEL = configured_checkpoint()
 DATA = PROJECT_DIR / "data/yolo_osdar23/data.yaml"
 MANIFEST = PROJECT_DIR / "data/yolo_osdar23/manifest.csv"
 STATS = PROJECT_DIR / "outputs/diagnostics/feature_consistency/feature_normalization_val.pt"

@@ -16,7 +16,7 @@ from ultralytics.cfg import get_cfg
 from ultralytics.utils.metrics import ap_per_class, box_iou
 
 from audit_final_practice import canonical_path
-from checkpoint_selection import selected_checkpoint
+from checkpoint_selection import configured_checkpoint
 from evaluate_image_level_detection import (
     get_ground_truth,
     detection_metrics,
@@ -27,7 +27,7 @@ from extract_feature_consistency import defend, loader, to_device
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
-MODEL = selected_checkpoint()
+MODEL = configured_checkpoint()
 DATA = PROJECT_DIR / "data/yolo_osdar23/data.yaml"
 MANIFEST = PROJECT_DIR / "data/yolo_osdar23/manifest.csv"
 OUTPUT = PROJECT_DIR / "outputs/final_practice/03_clean_utility"

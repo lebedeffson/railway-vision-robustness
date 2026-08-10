@@ -7,7 +7,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from checkpoint_selection import export_selection, selected_checkpoint
+from checkpoint_selection import configured_checkpoint, export_selection
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
@@ -17,7 +17,7 @@ DEFAULT_OUTPUT = PROJECT_DIR / "outputs/final_practice/preflight.json"
 REQUIRED_INPUTS = {
     "dataset_yaml": "data/yolo_osdar23/data.yaml",
     "dataset_manifest": "data/yolo_osdar23/manifest.csv",
-    "trained_model": str(selected_checkpoint().relative_to(PROJECT_DIR)),
+    "trained_model": str(configured_checkpoint().relative_to(PROJECT_DIR)),
 }
 
 LEGACY_RESULTS = {

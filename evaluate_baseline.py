@@ -10,7 +10,7 @@ import torch
 import yaml
 from ultralytics import YOLO
 
-from checkpoint_selection import selected_checkpoint
+from checkpoint_selection import configured_checkpoint
 from extract_feature_consistency import split_images
 
 
@@ -23,7 +23,7 @@ DATA_YAML = (
     / "data.yaml"
 )
 
-MODEL_PATH = selected_checkpoint()
+MODEL_PATH = configured_checkpoint()
 
 OUTPUT_DIR = (
     PROJECT_DIR

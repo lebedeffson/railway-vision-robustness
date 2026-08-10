@@ -12,13 +12,13 @@ import numpy as np
 import torch
 from ultralytics import YOLO
 
-from checkpoint_selection import selected_checkpoint
+from checkpoint_selection import configured_checkpoint
 from extract_feature_consistency import FeatureHook, defend, loader, metrics, to_device
 from revision_q1.feature_metrics import pair_metrics as canonical_pair_metrics
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
-MODEL = selected_checkpoint()
+MODEL = configured_checkpoint()
 DATA = PROJECT_DIR / "data/yolo_osdar23/data.yaml"
 STATS = PROJECT_DIR / "outputs/diagnostics/feature_consistency/feature_normalization_val.pt"
 OUTPUT = PROJECT_DIR / "outputs/final_practice/08_latency"
