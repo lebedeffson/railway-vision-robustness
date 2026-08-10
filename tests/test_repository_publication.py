@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
+import pytest
+
+from checkpoint_selection import configured_checkpoint, selected_checkpoint
 from scripts.operator_assistant_b7.verify_public_evidence import verify
 
 
@@ -24,3 +28,13 @@ def test_tracked_public_evidence_verifies() -> None:
     assert result["manifest"] == "PASS"
     assert result["test_status"] == "SEALED"
     assert result["test_access_count"] == 0
+
+
+def test_frozen_checkpoint_path_is_importable_without_private_weights(
+    tmp_path: Path,
+) -> None:
+    config = tmp_path / "selection.json"
+    config.write_text(json.dumps({"selected_checkpoint": "missing.pt"}))
+    assert configured_checkpoint(config) == ROOT / "missing.pt"
+    with pytest.raises(FileNotFoundError):
+        selected_checkpoint(config)

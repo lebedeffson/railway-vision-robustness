@@ -9,13 +9,15 @@ PROJECT_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = PROJECT_DIR / "config/checkpoint_selection.json"
 
 
-def load_selection(path: Path = CONFIG_PATH) -> dict[str, object]:
+def load_selection(
+    path: Path = CONFIG_PATH, *, require_checkpoint: bool = True
+) -> dict[str, object]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     selected = payload.get("selected_checkpoint")
     if not isinstance(selected, str) or not selected.strip():
         raise RuntimeError(f"Invalid selected_checkpoint in {path}")
     checkpoint = (PROJECT_DIR / selected).resolve()
-    if not checkpoint.is_file():
+    if require_checkpoint and not checkpoint.is_file():
         raise FileNotFoundError(checkpoint)
     payload["resolved_checkpoint"] = str(checkpoint)
     return payload
@@ -23,6 +25,13 @@ def load_selection(path: Path = CONFIG_PATH) -> dict[str, object]:
 
 def selected_checkpoint(path: Path = CONFIG_PATH) -> Path:
     return Path(str(load_selection(path)["resolved_checkpoint"]))
+
+
+def configured_checkpoint(path: Path = CONFIG_PATH) -> Path:
+    """Return the frozen path without requiring private weights at import time."""
+    return Path(
+        str(load_selection(path, require_checkpoint=False)["resolved_checkpoint"])
+    )
 
 
 def export_selection(output: Path) -> None:
